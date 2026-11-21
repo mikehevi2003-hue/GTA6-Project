@@ -24,9 +24,9 @@
           <p data-i18n="subtitle">Leonida Tactical Hub & Lore Intel</p>
         </div>
 
-        <!-- Live Tier Simulator (Test Free vs $1.99 vs $4.99) -->
+        <!-- Live Tier Simulator -->
         <div class="tier-sim-box">
-          <span class="tier-sim-label">ACTIVE ACCESS TIER:</span>
+          <span class="tier-sim-label" data-i18n="tierLabel">ACTIVE ACCESS TIER:</span>
           <div class="tier-sim-pills">
             <button type="button" class="tier-pill active" data-settier="free">FREE</button>
             <button type="button" class="tier-pill" data-settier="street">$1.99</button>
@@ -39,13 +39,13 @@
             <span class="nav-icon">🎮</span> <span data-i18n="navCheats">Cheats & Unlocks</span>
           </button>
           <button type="button" class="nav-btn" data-view="map">
-            <span class="nav-icon">🗺️</span> <span data-i18n="navMap">Leonida Map & Money</span> <small class="badge-live">24 PINS</small>
+            <span class="nav-icon">🗺️</span> <span data-i18n="navMap">Leonida Tactical Map</span> <small class="badge-live">32</small>
           </button>
           <button type="button" class="nav-btn" data-view="glitches">
             <span class="nav-icon">⚡</span> <span data-i18n="navGlitches">Glitches & Exploits</span> <small class="badge-new">v1.002</small>
           </button>
           <button type="button" class="nav-btn" data-view="forum">
-            <span class="nav-icon">👁️</span> <span data-i18n="navForum">Easter Eggs & Theories</span>
+            <span class="nav-icon">👁️</span> <span data-i18n="navForum">Easter Eggs & Theories</span> <small class="badge-live">10</small>
           </button>
           <button type="button" class="nav-btn" data-view="database">
             <span class="nav-icon">🏎️</span> <span data-i18n="navDb">Vehicles & Economy</span>
@@ -91,11 +91,11 @@
         <div class="controller-guide-banner" id="controllerGuideBanner"></div>
 
         <div id="adBannerSlot" class="ad-banner">
-          <span>SPONSORED AD SLOT (Hidden automatically for Street Pass $1.99 & Kingpin VIP $4.99)</span>
+          <span data-i18n="adSlot">SPONSORED AD SLOT (Hidden automatically for Street Pass $1.99 & Kingpin VIP $4.99)</span>
         </div>
 
         <div class="controls-bar">
-          <input type="text" id="cheatSearch" data-i18n-placeholder="searchCheats" placeholder="Search cheats or challenges (e.g., $250,000, Shooting Range, Workouts, Flamingo)..." />
+          <input type="text" id="cheatSearch" data-i18n-placeholder="searchCheats" placeholder="Search cheats or challenges..." />
           <select id="categoryFilter">
             <option value="ALL" data-i18n="allCats">All Categories (61 Total)</option>
             <option value="Player" data-i18n="catPlayer">Player & Stats</option>
@@ -114,21 +114,32 @@
         <div id="cheatsGrid" class="cards-grid"></div>
       </section>
 
-      <!-- VIEW 2: INTERACTIVE LEONIDA MAP, FAST MONEY SPOTS & FENCES -->
+      <!-- VIEW 2: UNIFIED LEONIDA MAP (MONEY, ATMS, RARE CARS, FENCES & COLLECTIBLES) -->
       <section id="view-map" class="view">
         <header class="view-header">
           <div>
-            <h2 data-i18n="mapTitle">Interactive Leonida Map, Money Spots & Fences</h2>
-            <p data-i18n="mapSub">Track collectibles, high-payout side hustles, and black-market fences.</p>
+            <h2 data-i18n="mapTitle">Interactive Leonida Tactical Map (32 Locations)</h2>
+            <p data-i18n="mapSub">Fast money spots, hackable/towable ATMs, rare free vehicles, fences & 100% collectibles.</p>
           </div>
           <div class="progress-pill">
             <div class="progress-top">
               <span data-i18n="completionLabel">100% Completion</span>
-              <strong id="mapProgressText">0 / 24 (0%)</strong>
+              <strong id="mapProgressText">0 / 32 (0%)</strong>
             </div>
             <div class="progress-track"><div id="mapProgressBar" class="progress-fill"></div></div>
           </div>
         </header>
+
+        <!-- Quick Layer Filter Pills -->
+        <div class="map-layer-chips" id="mapLayerChips">
+          <button type="button" class="layer-chip active" data-layer="ALL" data-i18n="chipAll">🗺️ All (32)</button>
+          <button type="button" class="layer-chip" data-layer="Money" data-i18n="chipMoney">💰 Easy Money (8)</button>
+          <button type="button" class="layer-chip" data-layer="ATM" data-i18n="chipAtm">🏧 Hackable ATMs (4)</button>
+          <button type="button" class="layer-chip" data-layer="RareCar" data-i18n="chipCar">🏎️ Rare Free Cars (4)</button>
+          <button type="button" class="layer-chip" data-layer="Fence" data-i18n="chipFence">🤝 Fences (5)</button>
+          <button type="button" class="layer-chip" data-layer="EasterEgg" data-i18n="chipEgg">🥚 Easter Eggs (6)</button>
+          <button type="button" class="layer-chip" data-layer="Collectible" data-i18n="chipColl">🦩 Collectibles & Stunts (5)</button>
+        </div>
 
         <div class="controls-bar">
           <select id="regionFilter">
@@ -139,16 +150,6 @@
             <option value="Port Gellhorn">Port Gellhorn</option>
             <option value="Ambrosia">Ambrosia</option>
             <option value="Mount Kalaga">Mount Kalaga National Park</option>
-          </select>
-          <select id="pinTypeFilter">
-            <option value="ALL" data-i18n="allPins">All Pin Types (24)</option>
-            <option value="Money">💰 Fast Money & Side Hustles ($1.99+)</option>
-            <option value="Fence">🤝 Black-Market Fences ($1.99+)</option>
-            <option value="Flamingo">🦩 Cocaine Flamingos</option>
-            <option value="Card">🃏 Collectible Cards & Watches</option>
-            <option value="Stunt">🔥 Stunt Jumps</option>
-            <option value="Safehouse">🏠 Safehouses & Garages</option>
-            <option value="EasterEgg">🥚 Easter Eggs & Cameos</option>
           </select>
           <button type="button" id="hideFoundBtn" class="btn-secondary" data-i18n="hideFound">Hide Found Pins</button>
           <button type="button" id="openShareCardBtn" class="btn-pro" style="width:auto;" data-i18n="shareCardBtn">📱 TikTok & IG Card</button>
@@ -180,21 +181,17 @@
                 </defs>
                 <rect width="900" height="680" fill="url(#oceanGrad)" />
                 <rect width="900" height="680" fill="url(#grid)" />
-                <path d="M165,30 L615,30 L685,210 L725,425 L675,525 L555,585 L370,635 L220,665 L205,645 L350,605 L465,550 L395,485 L295,455 L235,345 L145,255 L125,130 Z"
-                      fill="rgba(0, 229, 255, 0.05)" />
-                <path d="M185,40 L595,40 L645,165 L675,310 L692,415 L665,485 L620,518 L555,535 L490,515 L440,468 L360,445 L290,415 L258,340 L215,318 L185,250 L160,150 Z"
-                      fill="url(#landGrad)" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.6" />
+                <path d="M165,30 L615,30 L685,210 L725,425 L675,525 L555,585 L370,635 L220,665 L205,645 L350,605 L465,550 L395,485 L295,455 L235,345 L145,255 L125,130 Z" fill="rgba(0, 229, 255, 0.05)" />
+                <path d="M185,40 L595,40 L645,165 L675,310 L692,415 L665,485 L620,518 L555,535 L490,515 L440,468 L360,445 L290,415 L258,340 L215,318 L185,250 L160,150 Z" fill="url(#landGrad)" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.6" />
                 <path d="M706,335 L722,338 L715,438 L698,435 Z" fill="#1b2947" stroke="#ff2a85" stroke-width="1.5" />
                 <ellipse cx="696" cy="382" rx="9" ry="14" fill="#1b2947" stroke="#00e5ff" stroke-width="1" />
                 <line x1="684" y1="362" x2="707" y2="362" stroke="#ff2a85" stroke-width="2" />
                 <line x1="686" y1="405" x2="705" y2="405" stroke="#ff2a85" stroke-width="2" />
                 <path d="M265,95 Q365,55 470,98 Q445,148 355,142 Q275,138 265,95 Z" fill="none" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.35" stroke-dasharray="4 3"/>
                 <path d="M305,102 Q365,76 425,104 Q405,128 355,125 Q315,122 305,102 Z" fill="none" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.5"/>
-                <path d="M455,255 Q515,245 535,288 Q525,335 475,332 Q435,320 455,255 Z"
-                      fill="#070d19" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.5" />
+                <path d="M455,255 Q515,245 535,288 Q525,335 475,332 Q435,320 455,255 Z" fill="#070d19" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.5" />
                 <path d="M535,295 L678,325" stroke="#070d19" stroke-width="6" />
-                <path d="M415,430 Q475,455 545,442 M445,465 Q515,485 595,472 M385,405 Q435,415 480,395"
-                      fill="none" stroke="#070d19" stroke-width="4" stroke-linecap="round" />
+                <path d="M415,430 Q475,455 545,442 M445,465 Q515,485 595,472 M385,405 Q435,415 480,395" fill="none" stroke="#070d19" stroke-width="4" stroke-linecap="round" />
                 <path d="M215,318 Q250,305 268,332 Q245,355 215,318 Z" fill="#070d19" />
                 <path d="M565,535 Q485,585 375,615 Q290,635 225,650" fill="none" stroke="#ff2a85" stroke-width="1.5" stroke-dasharray="5 4" stroke-opacity="0.75" />
                 <ellipse cx="535" cy="552" rx="18" ry="6" transform="rotate(-24 535 552)" fill="#18243d" stroke="#00e5ff" stroke-width="1.2"/>
@@ -216,71 +213,13 @@
 
           <aside class="map-sidebar-list">
             <h3 data-i18n="locationsTitle">Leonida Locations</h3>
-            <p class="muted-sub" data-i18n="locationsSub">Check off collectibles & money spots.</p>
+            <p class="muted-sub" data-i18n="locationsSub">Check off money spots, ATMs, rare cars & collectibles.</p>
             <div id="pinChecklist" class="pin-list"></div>
           </aside>
         </div>
 
         <!-- All 7 Black-Market Fences Payout Cheat-Sheet -->
-        <div class="fence-sheet">
-          <h3>🤝 Leonida Black-Market Fence Payout Guide (Where to Sell Loot)</h3>
-          <div class="fence-table-wrap">
-            <table class="fence-table">
-              <thead>
-                <tr>
-                  <th>Fence & Location</th>
-                  <th>Unlock Mission</th>
-                  <th>Best Loot Specialty</th>
-                  <th>Payout & Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Brian</strong> (South Key Lento)</td>
-                  <td>Ch. 1: <em>Lab Fees</em></td>
-                  <td>Early Narcotics & Cash</td>
-                  <td>Low rate • Lockup Keypad: <code>7700</code> (Closes after Ch. 1)</td>
-                </tr>
-                <tr>
-                  <td><strong>Donnie</strong> (South Key Lento)</td>
-                  <td>Ch. 1: <em>Clean Up After Donnie</em></td>
-                  <td>Early Drop-Box Goods</td>
-                  <td>Low rate • Closes after Ch. 1 quest <em>Swamped</em></td>
-                </tr>
-                <tr>
-                  <td><strong>Moses "Mo" Watkins</strong> (Port Gellhorn)</td>
-                  <td>Ch. 2: <em>Moses</em></td>
-                  <td><strong>Stolen Cars (No Trackers)</strong></td>
-                  <td>Registers cars as personal or buys clean cars ($1,000+ each)</td>
-                </tr>
-                <tr>
-                  <td><strong>Dunk</strong> (South Port Gellhorn)</td>
-                  <td>Ch. 2: <em>Slam Dunk</em></td>
-                  <td>Ch. 2 Narcotics & Stash Bags</td>
-                  <td>Medium-Low rate • Drop box in his car trunk</td>
-                </tr>
-                <tr>
-                  <td><strong>Tyrone</strong> (La Perle, Vice City)</td>
-                  <td>Ch. 3 Story Progression</td>
-                  <td><strong>HIGHEST for Narcotics</strong></td>
-                  <td>Top payout for Red Barn / Gang Op cocaine bags</td>
-                </tr>
-                <tr>
-                  <td><strong>Yasmani</strong> (Little Cuba, Vice City)</td>
-                  <td>Ch. 3: <em>Boobie Time</em></td>
-                  <td><strong>HIGHEST for Jewelry & Marked Bills</strong></td>
-                  <td>Also sells Security-Van & Bank Vault robbery tips</td>
-                </tr>
-                <tr>
-                  <td><strong>Randy</strong> (Balsero, Vice City)</td>
-                  <td>Ch. 3+ Story Progression</td>
-                  <td><strong>High-End Exotic Cars</strong></td>
-                  <td>Pays premium bonuses for Wish-List supercars</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div class="fence-sheet" id="fenceTableContainer"></div>
       </section>
 
       <!-- VIEW 3: ACTIVE GLITCHES & EXPLOITS HUB -->
@@ -291,43 +230,57 @@
             <p data-i18n="glitchSub">Verified money loops, First-Person camera exploit & physics tricks tested on latest patch.</p>
           </div>
           <select id="glitchCatFilter" class="btn-secondary">
-            <option value="ALL">All Glitches</option>
-            <option value="Money">💰 Money Loops</option>
-            <option value="Camera">🎥 Camera & Visual</option>
-            <option value="Stealth">🚓 Wanted & Stealth</option>
-            <option value="Physics">🚀 Physics & Traversal</option>
+            <option value="ALL" data-i18n="allGlitches">All Glitches</option>
+            <option value="Money" data-i18n="glMoney">💰 Money Loops</option>
+            <option value="Camera" data-i18n="glCamera">🎥 Camera & Visual</option>
+            <option value="Stealth" data-i18n="glStealth">🚓 Wanted & Stealth</option>
+            <option value="Physics" data-i18n="glPhysics">🚀 Physics & Traversal</option>
           </select>
         </header>
 
         <div id="glitchesContainer"></div>
       </section>
 
-      <!-- VIEW 4: EASTER EGGS, MYSTERIES & CONSPIRACY FORUM -->
+      <!-- VIEW 4: EASTER EGGS, MYSTERIES & TIKTOK-STYLE COMMUNITY BOARD -->
       <section id="view-forum" class="view">
         <header class="view-header">
           <div>
             <h2 data-i18n="forumTitle">Leonida Easter Eggs & Conspiracy Board</h2>
-            <p data-i18n="forumSub">Verified launch Easter eggs (Little Sam, Flamingos, WAiNK) & community theories.</p>
+            <p data-i18n="forumSub">10 verified secrets + TikTok-style @username comments, ❤️ likes & animated GIF reactions.</p>
           </div>
           <button type="button" id="toggleNewPostBtn" class="btn-pro" style="width:auto;" data-i18n="postTheoryBtn">+ Post New Theory</button>
         </header>
 
+        <!-- TikTok-Style Active Handle Bar -->
+        <div class="handle-bar">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="tt-avatar" id="activeHandleAvatar">V</div>
+            <div>
+              <span style="font-size:11px;color:#94a3b8;display:block;" data-i18n="commentingAs">Commenting & posting as:</span>
+              <strong id="activeHandleDisplay" style="color:#00e5ff;">@VicePlayer</strong>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="globalHandleInput" placeholder="@YourUsername" style="background:#080c16;border:1px solid #232f4d;color:#fff;padding:7px 11px;border-radius:8px;font-size:13px;" />
+            <button type="button" id="saveGlobalHandleBtn" class="btn-secondary" data-i18n="saveHandleBtn">Set @Username</button>
+          </div>
+        </div>
+
         <form id="newTheoryForm" class="theory-composer hidden">
           <div class="composer-row">
-            <input type="text" id="theoryTitle" placeholder="Theory Headline / Título de la teoría..." required />
+            <input type="text" id="theoryTitle" data-i18n-placeholder="theoryTitlePh" placeholder="Theory Headline..." required />
             <select id="theoryTag">
               <option value="Verified Easter Egg">🥚 Verified Easter Egg</option>
-              <option value="Mount Kalaga / UFO">🛸 Mount Kalaga / UFO</option>
-              <option value="Chiliad Connection">🔺 Chiliad Connection</option>
-              <option value="NPC Secrets">🕵️ NPC Secrets</option>
-              <option value="Grassrivers Cryptids">🐊 Grassrivers Cryptids</option>
+              <option value="Mount Kalaga / UFO">🛸 UFO & Alien Lore</option>
+              <option value="Chiliad Connection">🔺 Chiliad & Statue Mystery</option>
+              <option value="NPC Secrets">🕵️ Movie & TV Cameos</option>
+              <option value="Grassrivers Cryptids">🐊 Skunk Ape & Cryptids</option>
             </select>
           </div>
           <div class="composer-row">
-            <input type="text" id="theoryAuthor" placeholder="Your Handle / Tu usuario..." required />
-            <input type="text" id="theoryCoords" placeholder="Location / Mission (e.g., Chapter 3 • Boobie Time)" />
+            <input type="text" id="theoryCoords" data-i18n-placeholder="theoryCoordsPh" placeholder="Location / Time (e.g., Kelly County • 2:00 AM)" />
           </div>
-          <textarea id="theoryBody" rows="3" placeholder="Share your evidence or coordinates / Comparte tus pruebas o coordenadas..." required></textarea>
+          <textarea id="theoryBody" rows="3" data-i18n-placeholder="theoryBodyPh" placeholder="Share your evidence or coordinates..." required></textarea>
           <div class="composer-actions">
             <button type="button" id="cancelPostBtn" class="btn-secondary" data-i18n="cancelBtn">Cancel</button>
             <button type="submit" class="btn-pro" style="width:auto;" data-i18n="publishBtn">Publish to Board</button>
@@ -335,14 +288,14 @@
         </form>
 
         <div class="controls-bar">
-          <input type="text" id="forumSearch" data-i18n-placeholder="searchForum" placeholder="Search Easter eggs, Little Sam, Chiliad, or NPC names..." />
+          <input type="text" id="forumSearch" data-i18n-placeholder="searchForum" placeholder="Search Dexter, Paul Walker, Radio Tower, Bigfoot, UFO..." />
           <select id="forumTagFilter">
             <option value="ALL" data-i18n="allTags">All Mystery Tags</option>
             <option value="Verified Easter Egg">🥚 Verified Easter Eggs</option>
-            <option value="Mount Kalaga / UFO">🛸 Mount Kalaga / UFO</option>
-            <option value="Chiliad Connection">🔺 Chiliad Connection</option>
-            <option value="NPC Secrets">🕵️ NPC Secrets</option>
-            <option value="Grassrivers Cryptids">🐊 Grassrivers Cryptids</option>
+            <option value="Mount Kalaga / UFO">🛸 UFO & Alien Lore</option>
+            <option value="Chiliad Connection">🔺 Chiliad & Statue Mystery</option>
+            <option value="NPC Secrets">🕵️ Movie & TV Cameos</option>
+            <option value="Grassrivers Cryptids">🐊 Skunk Ape & Cryptids</option>
           </select>
           <select id="forumSort">
             <option value="top" data-i18n="sortTop">Sort: Top Upvoted</option>
@@ -384,7 +337,7 @@
 
         <div id="db-vehicles" class="db-subview active">
           <div class="controls-bar">
-            <input type="text" id="vehSearch" data-i18n-placeholder="searchVeh" placeholder="Search vehicles (e.g., Cheetah, Banshee, Ganado, Airboat, Enduro)..." />
+            <input type="text" id="vehSearch" data-i18n-placeholder="searchVeh" placeholder="Search vehicles..." />
             <select id="vehClassFilter">
               <option value="ALL" data-i18n="allClasses">All Vehicle Classes</option>
               <option value="Super">Super & Classics</option>
@@ -440,7 +393,7 @@
 
         <div class="ai-status-strip">
           <span id="aiQuotaBadge">Daily AI Lookups: 3 / 3 Free Remaining (Unlimited with Kingpin VIP $4.99)</span>
-          <button type="button" id="toggleApiKeyBtn" class="copy-combo-btn">⚙️ Connect Live Gemini API Key (Optional)</button>
+          <button type="button" id="toggleApiKeyBtn" class="copy-combo-btn" data-i18n="geminiBtn">⚙️ Connect Live Gemini API Key (Optional)</button>
         </div>
 
         <div id="apiKeyDrawer" class="theory-composer hidden" style="margin-bottom:16px;">
@@ -451,12 +404,7 @@
           </div>
         </div>
 
-        <div class="quick-prompts">
-          <button type="button" class="prompt-chip" data-prompt="What is the fastest way to make money right now without getting my cash wiped?">💰 Fastest Safe Money Route</button>
-          <button type="button" class="prompt-chip" data-prompt="Which fence pays the most for stolen jewelry, cocaine bags, and cars?">🤝 Best Fence Payouts</button>
-          <button type="button" class="prompt-chip" data-prompt="How do I unlock the $250,000 cheat and infinite ammo?">🎮 Unlock Money & Ammo Cheats</button>
-          <button type="button" class="prompt-chip" data-prompt="Where are the Mount Kalaga Chiliad eye glyph and Little Sam cameo?">🥚 Hidden Easter Eggs</button>
-        </div>
+        <div class="quick-prompts" id="quickPromptsBar"></div>
 
         <div class="ai-chat-box">
           <div id="aiMessages" class="ai-messages"></div>
@@ -469,13 +417,15 @@
     </main>
   </div>
 
-  <!-- 3-Tier One-Time Pricing Modal (Panama-Calibrated) -->
-  <div id="proModal" class="modal hidden">
+  <!-- 3-Tier One-Time Pricing Modal -->
+  <div id="proModal" class="modal hidden" onclick="if(event.target===this) closeAllModals()">
     <div class="modal-content modal-wide">
-      <button type="button" id="closeProModal" class="close-btn">&times;</button>
-      <span class="brand-badge">LIFETIME ONE-TIME PASSES • NO SUBSCRIPTIONS</span>
+      <div class="modal-top-bar">
+        <span class="brand-badge">LIFETIME ONE-TIME PASSES • NO SUBSCRIPTIONS</span>
+        <button type="button" id="closeProModal" class="modal-close-pill" onclick="closeAllModals()">✕ Close</button>
+      </div>
       <h3 data-i18n="modalTitle">Choose Your ViceLink Access Tier</h3>
-      <p class="modal-sub">Pay once, keep forever. Supports Yappy, Punto Pago & International Cards.</p>
+      <p class="modal-sub" data-i18n="modalSub">Pay once, keep forever. Supports Yappy, Punto Pago & International Cards.</p>
 
       <div class="pricing-grid">
         <div class="price-tier-card">
@@ -483,8 +433,8 @@
           <div class="tier-price">$0 <span>forever</span></div>
           <ul>
             <li>✓ All 61 Cheat Codes & Unlock Guide</li>
-            <li>✓ Easter Eggs & Conspiracy Board</li>
-            <li>✓ Starter Leonida Map (8 Pins)</li>
+            <li>✓ Easter Eggs & TikTok Comment Board</li>
+            <li>✓ Starter Leonida Map (10 Pins)</li>
             <li>✓ 3 AI Advisor Questions / Day</li>
           </ul>
           <button type="button" class="btn-secondary full-width" onclick="selectAccessTier('free')">Activate Free</button>
@@ -495,7 +445,7 @@
           <div class="tier-price">$1.99 <span>one-time</span></div>
           <ul>
             <li>✓ <strong>100% Ad-Free</strong> Experience</li>
-            <li>✓ <strong>Full 24-Pin Map</strong> (All Money Spots & Fences)</li>
+            <li>✓ <strong>Full 32-Pin Map</strong> (Money, ATMs, Rare Cars & Fences)</li>
             <li>✓ <strong>Active Glitches & Exploits Hub</strong></li>
             <li>✓ Full 24-Vehicle & Property Planner</li>
           </ul>
@@ -517,34 +467,36 @@
     </div>
   </div>
 
-  <!-- TikTok & Instagram Social Growth Studio Modal -->
-  <div id="shareCardModal" class="modal hidden">
-    <div class="modal-content modal-wide" style="max-width:740px;">
-      <button type="button" id="closeShareCardModal" class="close-btn">&times;</button>
-      <span class="brand-badge">TIKTOK & INSTAGRAM REELS / STORY STUDIO</span>
-      <h3 style="margin:10px 0 4px;">Social Flex Card & Viral Bio Generator</h3>
-      <p style="font-size:12.5px;color:#94a3b8;margin-bottom:14px;">Switch between TikTok & Instagram templates, download your 9:16 PNG, and copy viral bio/caption hooks.</p>
+  <!-- TikTok & Instagram Social Studio Modal -->
+  <div id="shareCardModal" class="modal hidden" onclick="if(event.target===this) closeAllModals()">
+    <div class="modal-content modal-wide" style="max-width:760px;">
+      <div class="modal-top-bar">
+        <span class="brand-badge">TIKTOK & INSTAGRAM 9:16 STUDIO</span>
+        <button type="button" id="closeShareCardModal" class="modal-close-pill" onclick="closeAllModals()">✕ Close</button>
+      </div>
+      <h3>Social Flex Card & Viral Bio Generator</h3>
+      <p class="modal-sub">Preview your 9:16 progress card, download the PNG, or copy ready-to-post hooks (Press ESC or click outside to close).</p>
 
       <div class="social-studio-grid">
-        <div style="text-align:center;">
+        <div class="social-preview-col">
           <div class="platform-toggle" style="justify-content:center;margin-bottom:10px;">
             <button type="button" class="social-style-btn active" data-socialstyle="tiktok">🎵 TikTok 9:16</button>
-            <button type="button" class="social-style-btn" data-socialstyle="instagram">📸 Instagram Story / Reels</button>
+            <button type="button" class="social-style-btn" data-socialstyle="instagram">📸 Instagram Story</button>
           </div>
-          <canvas id="tiktokCanvas" width="540" height="960" style="width:225px;height:400px;border-radius:14px;border:1px solid #00e5ff;margin:0 auto 12px;display:block;"></canvas>
-          <button type="button" id="downloadFlexCardBtn" class="btn-pro">⬇️ Download 9:16 PNG</button>
+          <canvas id="tiktokCanvas" width="540" height="960" class="social-canvas-preview"></canvas>
+          <button type="button" id="downloadFlexCardBtn" class="btn-pro" style="margin-top:10px;">⬇️ Download 9:16 PNG</button>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div class="unlock-card-step">
             <strong>🔗 Ready-to-Paste TikTok & Instagram Bio:</strong>
-            <p id="bioCopyText" style="margin:6px 0;color:#38bdf8;font-size:12px;">🎮 GTA VI Interactive Map, All Fences & Active Glitches (EN/ES) 👇<br>🔗 vicelink.vercel.app</p>
+            <p id="bioCopyText" style="margin:6px 0;color:#38bdf8;font-size:12.5px;">🎮 GTA VI Interactive Map, Hackable ATMs, Rare Cars & Fences (EN/ES) 👇<br>🔗 vicelink.vercel.app</p>
             <button type="button" class="copy-combo-btn" onclick="navigator.clipboard.writeText(document.getElementById('bioCopyText').innerText); this.textContent='✓ Bio Copied!'">📋 Copy Bio for TikTok / IG</button>
           </div>
 
           <div class="unlock-card-step">
             <strong>🔥 Viral TikTok / IG Reels Hook Caption:</strong>
-            <p id="captionCopyText" style="margin:6px 0;color:#cbd5e1;font-size:12px;">Stop taking stolen jewelry to the wrong fence in GTA 6! Use the interactive Leonida Map & Fence Payout guide at vicelink.vercel.app #GTA6 #GTAVI #ViceCity #Leonida #GamingTips</p>
+            <p id="captionCopyText" style="margin:6px 0;color:#cbd5e1;font-size:12.5px;">All hackable ATMs, free Paul Walker Eclipse & secret fences in GTA 6 on ONE map! Use vicelink.vercel.app #GTA6 #GTAVI #ViceCity #Leonida #GamingTips</p>
             <button type="button" class="copy-combo-btn" onclick="navigator.clipboard.writeText(document.getElementById('captionCopyText').innerText); this.textContent='✓ Caption Copied!'">📋 Copy Reels / TikTok Caption</button>
           </div>
 

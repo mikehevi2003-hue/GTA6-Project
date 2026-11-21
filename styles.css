@@ -924,3 +924,142 @@ body {
   border-color: var(--accent-cyan);
   color: var(--accent-cyan);
 }
+/* Stage 3.5: Visual PS5 & Xbox Controller Buttons + Map Inspector */
+.controller-guide-banner {
+  background: linear-gradient(90deg, rgba(13, 18, 32, 0.95), rgba(24, 34, 59, 0.95));
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.guide-steps {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guide-warning {
+  font-size: 11.5px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  padding: 5px 10px;
+  border-radius: 7px;
+}
+
+/* Visual Controller Keycaps */
+.ctrl-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  background: #182138;
+  border: 1px solid #33446e;
+  color: #f8fafc;
+  box-shadow: 0 2px 0 #070a12;
+}
+
+.ctrl-key.ps-bumper {
+  background: #1e293b;
+  border-color: #60a5fa;
+  color: #93c5fd;
+  border-radius: 9px 9px 4px 4px;
+}
+
+.ctrl-key.xb-bumper {
+  background: #142b1d;
+  border-color: #4ade80;
+  color: #86efac;
+  border-radius: 9px 9px 4px 4px;
+}
+
+.ctrl-key.dpad {
+  background: #0d1324;
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-size: 14px;
+}
+
+.combo-visual-wrap {
+  background: #080c16;
+  border: 1px solid #1e2945;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.combo-keys-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.combo-sep {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin: 0 2px;
+}
+
+.unlock-pill {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid var(--accent-pink);
+  padding: 6px 10px;
+  border-radius: 0 6px 6px 0;
+}
+
+.copy-combo-btn {
+  align-self: flex-start;
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  color: var(--accent-cyan);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.copy-combo-btn:hover {
+  background: rgba(0, 229, 255, 0.22);
+}
+
+.map-inspector {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 12;
+  background: rgba(13, 18, 32, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--accent-cyan);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-inspector.hidden {
+  display: none;
+}

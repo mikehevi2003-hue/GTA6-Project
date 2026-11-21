@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ViceLink // Leonida Companion Hub</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Clean Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-badge">UNOFFICIAL HUB</span>
+        <h1>VICE<span>LINK</span></h1>
+        <p>Leonida Tactical Companion</p>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-view="cheats">
+          <span>🎮</span> Cheat Codes & Phone
+        </button>
+        <button class="nav-btn" data-view="map">
+          <span>🗺️</span> Leonida Map <small>Stage 2</small>
+        </button>
+        <button class="nav-btn" data-view="database">
+          <span>🏎️</span> Vehicles & Economy <small>Stage 3</small>
+        </button>
+        <button class="nav-btn" data-view="ai">
+          <span>🤖</span> AI Mission Guide <small>Stage 4</small>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="pro-card">
+          <h4>ViceLink PRO</h4>
+          <p>Cloud save progress, ad-free mode & unlimited AI lookups.</p>
+          <button id="openProModal" class="btn-pro">Unlock Pro ($3.99)</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- View 1: Cheat Codes & Phone Hub -->
+      <section id="view-cheats" class="view active">
+        <header class="view-header">
+          <div>
+            <h2>Cheat Codes & In-Game Phone Numbers</h2>
+            <p>Instant PS5 button combos, Xbox inputs, and Leonida dial codes.</p>
+          </div>
+          <div class="platform-toggle">
+            <button class="plat-btn active" data-platform="PS5">PS5</button>
+            <button class="plat-btn" data-platform="XBOX">Xbox Series X|S</button>
+            <button class="plat-btn" data-platform="PHONE">Phone Dial</button>
+          </div>
+        </header>
+
+        <div class="controls-bar">
+          <input type="text" id="cheatSearch" placeholder="Search cheats (e.g., Wanted Level, Super Car, Invincibility)..." />
+          <select id="categoryFilter">
+            <option value="ALL">All Categories</option>
+            <option value="Player">Player & Health</option>
+            <option value="Wanted">Wanted Level</option>
+            <option value="Vehicles">Vehicles</option>
+            <option value="World">World & Weather</option>
+          </select>
+          <button id="favFilterBtn" class="btn-secondary">★ Favorites Only</button>
+        </div>
+
+        <!-- Ad Monetization Slot Placeholder -->
+        <div class="ad-banner">
+          <span>SPONSORED SLOT (Google AdSense / Affiliate Banner — Hidden for Pro Users)</span>
+        </div>
+
+        <div id="cheatsGrid" class="cards-grid"></div>
+      </section>
+
+      <!-- Preview Placeholders for Stages 2-4 -->
+      <section id="view-map" class="view">
+        <div class="coming-soon">
+          <h2>🗺️ Interactive Leonida Map & Collectible Tracker</h2>
+          <p>Coming in <strong>Stage 2</strong>: Zoomable Vice City & Leonida map with Supabase cloud progress checklists.</p>
+        </div>
+      </section>
+
+      <section id="view-database" class="view">
+        <div class="coming-soon">
+          <h2>🏎️ Vehicles, Properties & Economy Database</h2>
+          <p>Coming in <strong>Stage 3</strong>: Filterable car stats, safehouse ROI, and Garage Planner.</p>
+        </div>
+      </section>
+
+      <section id="view-ai" class="view">
+        <div class="coming-soon">
+          <h2>🤖 AI Leonida Mission & Strategy Assistant</h2>
+          <p>Coming in <strong>Stage 4</strong>: Powered by Gemini API with spoiler-free mission hints.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Pro Upgrade Modal -->
+  <div id="proModal" class="modal hidden">
+    <div class="modal-content">
+      <button id="closeProModal" class="close-btn">&times;</button>
+      <span class="brand-badge">PRO MEMBERSHIP</span>
+      <h3>Upgrade to ViceLink Pro</h3>
+      <ul>
+        <li>✓ Zero ads across all cheat & database pages</li>
+        <li>✓ Sync collectible map pins across phone & desktop</li>
+        <li>✓ Unlimited AI Mission Assistant questions</li>
+      </ul>
+      <button class="btn-pro full-width" onclick="alert('Stripe / LemonSqueezy checkout will connect here!')">Continue — $3.99 One-Time</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -11,27 +11,34 @@
     <!-- Modern Neon Sidebar -->
     <aside class="sidebar">
       <div>
+        <div class="sidebar-top-row">
+          <span class="brand-badge" data-i18n="badge">UNOFFICIAL FAN HUB</span>
+          <div class="lang-switch" title="Select Language / Seleccionar Idioma">
+            <button class="lang-btn active" data-lang="en">EN</button>
+            <button class="lang-btn" data-lang="es">ES</button>
+          </div>
+        </div>
+
         <div class="brand">
-          <span class="brand-badge">LEONIDA NETWORK • LIVE</span>
           <h1>VICE<span>LINK</span></h1>
-          <p>GTA VI Tactical Hub & Lore Intel</p>
+          <p data-i18n="subtitle">Leonida Tactical Hub & Lore Intel</p>
         </div>
 
         <nav class="nav-menu">
           <button class="nav-btn active" data-view="cheats">
-            <span class="nav-icon">🎮</span> Cheat Codes & Phone
+            <span class="nav-icon">🎮</span> <span data-i18n="navCheats">Cheat Codes & Phone</span>
           </button>
           <button class="nav-btn" data-view="map">
-            <span class="nav-icon">🗺️</span> Leonida Map <small class="badge-live">12 PINS</small>
+            <span class="nav-icon">🗺️</span> <span data-i18n="navMap">Leonida Map</span> <small class="badge-live">12 PINS</small>
           </button>
           <button class="nav-btn" data-view="forum">
-            <span class="nav-icon">👁️</span> Mysteries & Theories <small class="badge-new">NEW</small>
+            <span class="nav-icon">👁️</span> <span data-i18n="navForum">Mysteries & Theories</span>
           </button>
           <button class="nav-btn" data-view="database">
-            <span class="nav-icon">🏎️</span> Vehicles & Economy <small>Stage 3</small>
+            <span class="nav-icon">🏎️</span> <span data-i18n="navDb">Vehicles & Economy</span> <small class="badge-new">NEW</small>
           </button>
           <button class="nav-btn" data-view="ai">
-            <span class="nav-icon">🤖</span> AI Mission Guide <small>Stage 4</small>
+            <span class="nav-icon">🤖</span> <span data-i18n="navAi">AI Mission Guide</span> <small>Stage 4</small>
           </button>
         </nav>
       </div>
@@ -42,9 +49,10 @@
             <h4>ViceLink PRO</h4>
             <span>$3.99</span>
           </div>
-          <p>Ad-free mode, cloud map sync & verified Lore Investigator badge.</p>
-          <button id="openProModal" class="btn-pro">Unlock Pro Access</button>
+          <p data-i18n="proDesc">Ad-free mode, cloud map sync & verified Lore Investigator badge.</p>
+          <button id="openProModal" class="btn-pro" data-i18n="proBtn">Unlock Pro Access</button>
         </div>
+        <p class="legal-note" data-i18n="legalNote">Unofficial fan tool. Not affiliated with Rockstar Games or Take-Two Interactive.</p>
       </div>
     </aside>
 
@@ -54,30 +62,30 @@
       <section id="view-cheats" class="view active">
         <header class="view-header">
           <div>
-            <h2>Cheat Codes & In-Game Phone Dialer</h2>
-            <p>Instant PS5 button combos, Xbox inputs, and Leonida cell codes.</p>
+            <h2 data-i18n="cheatsTitle">Cheat Codes & In-Game Phone Dialer</h2>
+            <p data-i18n="cheatsSub">Instant PS5 button combos, Xbox inputs, and Leonida cell codes.</p>
           </div>
           <div class="platform-toggle">
             <button class="plat-btn active" data-platform="PS5">PS5</button>
             <button class="plat-btn" data-platform="XBOX">Xbox Series X|S</button>
-            <button class="plat-btn" data-platform="PHONE">Phone Dial</button>
+            <button class="plat-btn" data-platform="PHONE" data-i18n="phoneTab">Phone Dial</button>
           </div>
         </header>
 
         <div class="controls-bar">
-          <input type="text" id="cheatSearch" placeholder="Search cheats (e.g., Invincibility, Wanted Level, Supercar)..." />
+          <input type="text" id="cheatSearch" data-i18n-placeholder="searchCheats" placeholder="Search cheats (e.g., Invincibility, Wanted Level, Supercar)..." />
           <select id="categoryFilter">
-            <option value="ALL">All Categories</option>
-            <option value="Player">Player & Health</option>
-            <option value="Wanted">Wanted Level</option>
-            <option value="Vehicles">Vehicles</option>
-            <option value="World">World & Weather</option>
+            <option value="ALL" data-i18n="allCats">All Categories</option>
+            <option value="Player" data-i18n="catPlayer">Player & Health</option>
+            <option value="Wanted" data-i18n="catWanted">Wanted Level</option>
+            <option value="Vehicles" data-i18n="catVehicles">Vehicles</option>
+            <option value="World" data-i18n="catWorld">World & Weather</option>
           </select>
-          <button id="favFilterBtn" class="btn-secondary">★ Favorites Only</button>
+          <button id="favFilterBtn" class="btn-secondary" data-i18n="favOnly">★ Favorites Only</button>
         </div>
 
         <div class="ad-banner">
-          <span>SPONSORED AD SLOT (Google AdSense / Gaming Affiliate Banner — Removed for Pro Users)</span>
+          <span data-i18n="adSlot">SPONSORED AD SLOT (Google AdSense / Gaming Affiliate Banner — Removed for Pro Users)</span>
         </div>
 
         <div id="cheatsGrid" class="cards-grid"></div>
@@ -87,12 +95,12 @@
       <section id="view-map" class="view">
         <header class="view-header">
           <div>
-            <h2>Interactive Leonida Map & 100% Tracker</h2>
-            <p>Click glowing pins or check off locations to track your story completion.</p>
+            <h2 data-i18n="mapTitle">Interactive Leonida Map & 100% Tracker</h2>
+            <p data-i18n="mapSub">Click glowing pins or check off locations to track your story completion.</p>
           </div>
           <div class="progress-pill">
             <div class="progress-top">
-              <span>100% Completion</span>
+              <span data-i18n="completionLabel">100% Completion</span>
               <strong id="mapProgressText">0 / 12 (0%)</strong>
             </div>
             <div class="progress-track"><div id="mapProgressBar" class="progress-fill"></div></div>
@@ -101,7 +109,7 @@
 
         <div class="controls-bar">
           <select id="regionFilter">
-            <option value="ALL">All 6 Leonida Regions</option>
+            <option value="ALL" data-i18n="allRegions">All 6 Leonida Regions</option>
             <option value="Vice City">Vice City</option>
             <option value="Leonida Keys">Leonida Keys</option>
             <option value="Grassrivers">Grassrivers</option>
@@ -110,15 +118,15 @@
             <option value="Mount Kalaga">Mount Kalaga National Park</option>
           </select>
           <select id="pinTypeFilter">
-            <option value="ALL">All Pin Types</option>
+            <option value="ALL" data-i18n="allPins">All Pin Types</option>
             <option value="Card">🃏 Collectible Cards</option>
             <option value="Stunt">🔥 Stunt Jumps</option>
             <option value="Safehouse">🏠 Safehouses & Garages</option>
             <option value="Weapon">🔫 Hidden Weapons</option>
             <option value="Robbery">💰 High-Value Robberies</option>
           </select>
-          <button id="hideFoundBtn" class="btn-secondary">Hide Found Pins</button>
-          <button id="syncCloudBtn" class="btn-pro" style="width:auto;">☁️ Cloud Sync (Pro)</button>
+          <button id="hideFoundBtn" class="btn-secondary" data-i18n="hideFound">Hide Found Pins</button>
+          <button id="syncCloudBtn" class="btn-pro" style="width:auto;" data-i18n="cloudSync">☁️ Cloud Sync (Pro)</button>
         </div>
 
         <div class="map-workspace">
@@ -156,8 +164,8 @@
           </div>
 
           <aside class="map-sidebar-list">
-            <h3>Leonida Locations</h3>
-            <p class="muted-sub">Check off collectibles as you discover them.</p>
+            <h3 data-i18n="locationsTitle">Leonida Locations</h3>
+            <p class="muted-sub" data-i18n="locationsSub">Check off collectibles as you discover them.</p>
             <div id="pinChecklist" class="pin-list"></div>
           </aside>
         </div>
@@ -167,16 +175,15 @@
       <section id="view-forum" class="view">
         <header class="view-header">
           <div>
-            <h2>Leonida Mysteries & Conspiracy Board</h2>
-            <p>Investigate Mount Kalaga sightings, Chiliad connections, NPC secrets & Easter eggs.</p>
+            <h2 data-i18n="forumTitle">Leonida Mysteries & Conspiracy Board</h2>
+            <p data-i18n="forumSub">Investigate Mount Kalaga sightings, Chiliad connections, NPC secrets & Easter eggs.</p>
           </div>
-          <button id="toggleNewPostBtn" class="btn-pro" style="width:auto;">+ Post New Theory</button>
+          <button id="toggleNewPostBtn" class="btn-pro" style="width:auto;" data-i18n="postTheoryBtn">+ Post New Theory</button>
         </header>
 
-        <!-- New Theory Composer -->
         <form id="newTheoryForm" class="theory-composer hidden">
           <div class="composer-row">
-            <input type="text" id="theoryTitle" placeholder="Theory Headline (e.g., Strange Radio Signals at Mount Kalaga Peak at 3:00 AM)" required />
+            <input type="text" id="theoryTitle" placeholder="Theory Headline / Título de la teoría..." required />
             <select id="theoryTag">
               <option value="Mount Kalaga / UFO">🛸 Mount Kalaga / UFO</option>
               <option value="Chiliad Connection">🔺 Chiliad Connection</option>
@@ -186,20 +193,20 @@
             </select>
           </div>
           <div class="composer-row">
-            <input type="text" id="theoryAuthor" placeholder="Your Handle (e.g., ViceInvestigator)" required />
-            <input type="text" id="theoryCoords" placeholder="Location / Time (e.g., Mount Kalaga • 3:00 AM Storm)" />
+            <input type="text" id="theoryAuthor" placeholder="Your Handle / Tu usuario..." required />
+            <input type="text" id="theoryCoords" placeholder="Location / Time (e.g., Mount Kalaga • 3:00 AM)" />
           </div>
-          <textarea id="theoryBody" rows="3" placeholder="Share your evidence, coordinates, or connection to past GTA mysteries..." required></textarea>
+          <textarea id="theoryBody" rows="3" placeholder="Share your evidence or coordinates / Comparte tus pruebas o coordenadas..." required></textarea>
           <div class="composer-actions">
-            <button type="button" id="cancelPostBtn" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-pro" style="width:auto;">Publish to Board</button>
+            <button type="button" id="cancelPostBtn" class="btn-secondary" data-i18n="cancelBtn">Cancel</button>
+            <button type="submit" class="btn-pro" style="width:auto;" data-i18n="publishBtn">Publish to Board</button>
           </div>
         </form>
 
         <div class="controls-bar">
-          <input type="text" id="forumSearch" placeholder="Search theories, keywords, or NPC names..." />
+          <input type="text" id="forumSearch" data-i18n-placeholder="searchForum" placeholder="Search theories, keywords, or NPC names..." />
           <select id="forumTagFilter">
-            <option value="ALL">All Conspiracy Tags</option>
+            <option value="ALL" data-i18n="allTags">All Conspiracy Tags</option>
             <option value="Mount Kalaga / UFO">🛸 Mount Kalaga / UFO</option>
             <option value="Chiliad Connection">🔺 Chiliad Connection</option>
             <option value="NPC Secrets">🕵️ NPC Secrets</option>
@@ -207,26 +214,76 @@
             <option value="Easter Eggs">🥚 Easter Eggs</option>
           </select>
           <select id="forumSort">
-            <option value="top">Sort: Top Upvoted</option>
-            <option value="newest">Sort: Newest First</option>
+            <option value="top" data-i18n="sortTop">Sort: Top Upvoted</option>
+            <option value="newest" data-i18n="sortNew">Sort: Newest First</option>
           </select>
         </div>
 
         <div id="forumFeed" class="forum-feed"></div>
       </section>
 
-      <!-- Preview Placeholders for Stages 3-4 -->
+      <!-- VIEW 4: VEHICLES, PROPERTIES & LEONIDA ECONOMY -->
       <section id="view-database" class="view">
-        <div class="coming-soon">
-          <h2>🏎️ Vehicles, Properties & Economy Database</h2>
-          <p>Coming in <strong>Stage 3</strong>: Filterable car stats, safehouse ROI, and Garage Planner.</p>
+        <header class="view-header">
+          <div>
+            <h2 data-i18n="dbTitle">Leonida Vehicles, Properties & Economy</h2>
+            <p data-i18n="dbSub">Compare vehicle performance, business ROI, and plan your garage empire.</p>
+          </div>
+          <div class="platform-toggle">
+            <button class="db-tab-btn active" data-dbtab="vehicles" data-i18n="tabVehicles">🏎️ Vehicles</button>
+            <button class="db-tab-btn" data-dbtab="properties" data-i18n="tabProperties">🏢 Properties & ROI</button>
+          </div>
+        </header>
+
+        <!-- Garage & Empire Summary Strip -->
+        <div class="planner-bar">
+          <div class="planner-stat">
+            <span data-i18n="plannerWorth">Planned Asset Value</span>
+            <strong id="plannerTotalCost">$0</strong>
+          </div>
+          <div class="planner-stat">
+            <span data-i18n="plannerIncome">Daily Passive Income</span>
+            <strong id="plannerDailyIncome" class="text-cyan">$0 / day</strong>
+          </div>
+          <div class="planner-stat">
+            <span data-i18n="plannerGarage">Garage Slots Used</span>
+            <strong id="plannerGarageSlots">0 / 0 Slots</strong>
+          </div>
+          <button id="clearPlannerBtn" class="btn-secondary" data-i18n="clearPlan">Reset Plan</button>
+        </div>
+
+        <!-- Sub-tab A: Vehicles -->
+        <div id="db-vehicles" class="db-subview active">
+          <div class="controls-bar">
+            <input type="text" id="vehSearch" data-i18n-placeholder="searchVeh" placeholder="Search vehicles (e.g., Cheetah, Banshee, Airboat, Buccaneer)..." />
+            <select id="vehClassFilter">
+              <option value="ALL" data-i18n="allClasses">All Vehicle Classes</option>
+              <option value="Super">Super</option>
+              <option value="Muscle">Muscle</option>
+              <option value="Sports">Sports</option>
+              <option value="Marine">Marine & Swamp</option>
+              <option value="Aircraft">Aircraft</option>
+            </select>
+            <select id="vehSort">
+              <option value="speed" data-i18n="sortSpeed">Sort: Top Speed</option>
+              <option value="price-asc" data-i18n="sortPriceLow">Price: Low to High</option>
+              <option value="price-desc" data-i18n="sortPriceHigh">Price: High to Low</option>
+            </select>
+          </div>
+          <div id="vehiclesGrid" class="cards-grid"></div>
+        </div>
+
+        <!-- Sub-tab B: Properties & Businesses -->
+        <div id="db-properties" class="db-subview">
+          <div id="propertiesGrid" class="cards-grid"></div>
         </div>
       </section>
 
+      <!-- Preview Placeholder for Stage 4 -->
       <section id="view-ai" class="view">
         <div class="coming-soon">
           <h2>🤖 AI Leonida Mission & Strategy Assistant</h2>
-          <p>Coming in <strong>Stage 4</strong>: Powered by Gemini API with spoiler-free mission hints.</p>
+          <p>Coming in <strong>Stage 4</strong>: Powered by Gemini API with spoiler-free mission hints in English & Español.</p>
         </div>
       </section>
     </main>
@@ -237,14 +294,14 @@
     <div class="modal-content">
       <button id="closeProModal" class="close-btn">&times;</button>
       <span class="brand-badge">PRO MEMBERSHIP</span>
-      <h3>Upgrade to ViceLink Pro</h3>
+      <h3 data-i18n="modalTitle">Upgrade to ViceLink Pro</h3>
       <ul>
-        <li>✓ Zero ads across all cheat, map & forum pages</li>
-        <li>✓ Sync collectible map pins across iPhone & Mac</li>
-        <li>✓ Verified "Lore Investigator" badge on Conspiracy Board</li>
-        <li>✓ Unlimited AI Mission Assistant questions</li>
+        <li data-i18n="proPerk1">✓ Zero ads across all cheat, map & economy pages</li>
+        <li data-i18n="proPerk2">✓ Sync collectible map pins & Garage Plan across devices</li>
+        <li data-i18n="proPerk3">✓ Verified "Lore Investigator" badge on Conspiracy Board</li>
+        <li data-i18n="proPerk4">✓ Unlimited AI Mission Assistant questions</li>
       </ul>
-      <button class="btn-pro" onclick="alert('Supabase Auth + Stripe checkout connects here!')">Continue — $3.99 One-Time</button>
+      <button class="btn-pro" onclick="alert('Supabase Auth + Stripe checkout connects here!')" data-i18n="proContinue">Continue — $3.99 One-Time</button>
     </div>
   </div>
 

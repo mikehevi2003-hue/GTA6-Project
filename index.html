@@ -8,46 +8,54 @@
 </head>
 <body>
   <div class="app-layout">
-    <!-- Clean Sidebar Navigation -->
+    <!-- Modern Neon Sidebar -->
     <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-badge">UNOFFICIAL HUB</span>
-        <h1>VICE<span>LINK</span></h1>
-        <p>Leonida Tactical Companion</p>
-      </div>
+      <div>
+        <div class="brand">
+          <span class="brand-badge">LEONIDA NETWORK • LIVE</span>
+          <h1>VICE<span>LINK</span></h1>
+          <p>GTA VI Tactical Hub & Lore Intel</p>
+        </div>
 
-      <nav class="nav-menu">
-        <button class="nav-btn active" data-view="cheats">
-          <span>🎮</span> Cheat Codes & Phone
-        </button>
-        <button class="nav-btn" data-view="map">
-          <span>🗺️</span> Leonida Map <small>Stage 2</small>
-        </button>
-        <button class="nav-btn" data-view="database">
-          <span>🏎️</span> Vehicles & Economy <small>Stage 3</small>
-        </button>
-        <button class="nav-btn" data-view="ai">
-          <span>🤖</span> AI Mission Guide <small>Stage 4</small>
-        </button>
-      </nav>
+        <nav class="nav-menu">
+          <button class="nav-btn active" data-view="cheats">
+            <span class="nav-icon">🎮</span> Cheat Codes & Phone
+          </button>
+          <button class="nav-btn" data-view="map">
+            <span class="nav-icon">🗺️</span> Leonida Map <small class="badge-live">12 PINS</small>
+          </button>
+          <button class="nav-btn" data-view="forum">
+            <span class="nav-icon">👁️</span> Mysteries & Theories <small class="badge-new">NEW</small>
+          </button>
+          <button class="nav-btn" data-view="database">
+            <span class="nav-icon">🏎️</span> Vehicles & Economy <small>Stage 3</small>
+          </button>
+          <button class="nav-btn" data-view="ai">
+            <span class="nav-icon">🤖</span> AI Mission Guide <small>Stage 4</small>
+          </button>
+        </nav>
+      </div>
 
       <div class="sidebar-footer">
         <div class="pro-card">
-          <h4>ViceLink PRO</h4>
-          <p>Cloud save progress, ad-free mode & unlimited AI lookups.</p>
-          <button id="openProModal" class="btn-pro">Unlock Pro ($3.99)</button>
+          <div class="pro-header">
+            <h4>ViceLink PRO</h4>
+            <span>$3.99</span>
+          </div>
+          <p>Ad-free mode, cloud map sync & verified Lore Investigator badge.</p>
+          <button id="openProModal" class="btn-pro">Unlock Pro Access</button>
         </div>
       </div>
     </aside>
 
-    <!-- Main Content Area -->
+    <!-- Main Workspace -->
     <main class="main-content">
-      <!-- View 1: Cheat Codes & Phone Hub -->
+      <!-- VIEW 1: CHEAT CODES & PHONE HUB -->
       <section id="view-cheats" class="view active">
         <header class="view-header">
           <div>
-            <h2>Cheat Codes & In-Game Phone Numbers</h2>
-            <p>Instant PS5 button combos, Xbox inputs, and Leonida dial codes.</p>
+            <h2>Cheat Codes & In-Game Phone Dialer</h2>
+            <p>Instant PS5 button combos, Xbox inputs, and Leonida cell codes.</p>
           </div>
           <div class="platform-toggle">
             <button class="plat-btn active" data-platform="PS5">PS5</button>
@@ -57,7 +65,7 @@
         </header>
 
         <div class="controls-bar">
-          <input type="text" id="cheatSearch" placeholder="Search cheats (e.g., Wanted Level, Super Car, Invincibility)..." />
+          <input type="text" id="cheatSearch" placeholder="Search cheats (e.g., Invincibility, Wanted Level, Supercar)..." />
           <select id="categoryFilter">
             <option value="ALL">All Categories</option>
             <option value="Player">Player & Health</option>
@@ -68,22 +76,146 @@
           <button id="favFilterBtn" class="btn-secondary">★ Favorites Only</button>
         </div>
 
-        <!-- Ad Monetization Slot Placeholder -->
         <div class="ad-banner">
-          <span>SPONSORED SLOT (Google AdSense / Affiliate Banner — Hidden for Pro Users)</span>
+          <span>SPONSORED AD SLOT (Google AdSense / Gaming Affiliate Banner — Removed for Pro Users)</span>
         </div>
 
         <div id="cheatsGrid" class="cards-grid"></div>
       </section>
 
-      <!-- Preview Placeholders for Stages 2-4 -->
+      <!-- VIEW 2: INTERACTIVE LEONIDA MAP & TRACKER -->
       <section id="view-map" class="view">
-        <div class="coming-soon">
-          <h2>🗺️ Interactive Leonida Map & Collectible Tracker</h2>
-          <p>Coming in <strong>Stage 2</strong>: Zoomable Vice City & Leonida map with Supabase cloud progress checklists.</p>
+        <header class="view-header">
+          <div>
+            <h2>Interactive Leonida Map & 100% Tracker</h2>
+            <p>Click glowing pins or check off locations to track your story completion.</p>
+          </div>
+          <div class="progress-pill">
+            <div class="progress-top">
+              <span>100% Completion</span>
+              <strong id="mapProgressText">0 / 12 (0%)</strong>
+            </div>
+            <div class="progress-track"><div id="mapProgressBar" class="progress-fill"></div></div>
+          </div>
+        </header>
+
+        <div class="controls-bar">
+          <select id="regionFilter">
+            <option value="ALL">All 6 Leonida Regions</option>
+            <option value="Vice City">Vice City</option>
+            <option value="Leonida Keys">Leonida Keys</option>
+            <option value="Grassrivers">Grassrivers</option>
+            <option value="Port Gellhorn">Port Gellhorn</option>
+            <option value="Ambrosia">Ambrosia</option>
+            <option value="Mount Kalaga">Mount Kalaga National Park</option>
+          </select>
+          <select id="pinTypeFilter">
+            <option value="ALL">All Pin Types</option>
+            <option value="Card">🃏 Collectible Cards</option>
+            <option value="Stunt">🔥 Stunt Jumps</option>
+            <option value="Safehouse">🏠 Safehouses & Garages</option>
+            <option value="Weapon">🔫 Hidden Weapons</option>
+            <option value="Robbery">💰 High-Value Robberies</option>
+          </select>
+          <button id="hideFoundBtn" class="btn-secondary">Hide Found Pins</button>
+          <button id="syncCloudBtn" class="btn-pro" style="width:auto;">☁️ Cloud Sync (Pro)</button>
+        </div>
+
+        <div class="map-workspace">
+          <div class="map-viewport" id="mapViewport">
+            <div class="map-zoom-controls">
+              <button id="zoomInBtn" title="Zoom In">+</button>
+              <button id="zoomOutBtn" title="Zoom Out">−</button>
+              <button id="resetZoomBtn" title="Reset View">⟲</button>
+            </div>
+            <div class="map-canvas" id="mapCanvas">
+              <svg viewBox="0 0 800 600" class="leonida-svg">
+                <defs>
+                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1d2742" stroke-width="1"/>
+                  </pattern>
+                  <radialGradient id="viceGlow" cx="70%" cy="60%" r="45%">
+                    <stop offset="0%" stop-color="#ff2a85" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <rect width="800" height="600" fill="url(#grid)" />
+                <rect width="800" height="600" fill="url(#viceGlow)" />
+                <path d="M180,40 L540,40 L600,190 L630,360 L585,460 L490,515 L360,555 L260,575 L245,560 L345,530 L430,480 L380,420 L310,390 L260,310 L170,230 L145,130 Z"
+                      fill="#131c33" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.55" />
+                <ellipse cx="430" cy="285" rx="48" ry="38" fill="#080b12" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.45" />
+                <text x="330" y="95" class="region-label">MOUNT KALAGA</text>
+                <text x="205" y="210" class="region-label">PORT GELLHORN</text>
+                <text x="430" y="235" class="region-label">AMBROSIA</text>
+                <text x="535" y="375" class="region-label">VICE CITY</text>
+                <text x="415" y="455" class="region-label">GRASSRIVERS</text>
+                <text x="315" y="572" class="region-label">LEONIDA KEYS</text>
+              </svg>
+              <div id="mapPinsLayer"></div>
+            </div>
+          </div>
+
+          <aside class="map-sidebar-list">
+            <h3>Leonida Locations</h3>
+            <p class="muted-sub">Check off collectibles as you discover them.</p>
+            <div id="pinChecklist" class="pin-list"></div>
+          </aside>
         </div>
       </section>
 
+      <!-- VIEW 3: MYSTERIES, EASTER EGGS & CONSPIRACY FORUM -->
+      <section id="view-forum" class="view">
+        <header class="view-header">
+          <div>
+            <h2>Leonida Mysteries & Conspiracy Board</h2>
+            <p>Investigate Mount Kalaga sightings, Chiliad connections, NPC secrets & Easter eggs.</p>
+          </div>
+          <button id="toggleNewPostBtn" class="btn-pro" style="width:auto;">+ Post New Theory</button>
+        </header>
+
+        <!-- New Theory Composer -->
+        <form id="newTheoryForm" class="theory-composer hidden">
+          <div class="composer-row">
+            <input type="text" id="theoryTitle" placeholder="Theory Headline (e.g., Strange Radio Signals at Mount Kalaga Peak at 3:00 AM)" required />
+            <select id="theoryTag">
+              <option value="Mount Kalaga / UFO">🛸 Mount Kalaga / UFO</option>
+              <option value="Chiliad Connection">🔺 Chiliad Connection</option>
+              <option value="NPC Secrets">🕵️ NPC Secrets</option>
+              <option value="Grassrivers Cryptids">🐊 Grassrivers Cryptids</option>
+              <option value="Easter Eggs">🥚 Easter Eggs</option>
+            </select>
+          </div>
+          <div class="composer-row">
+            <input type="text" id="theoryAuthor" placeholder="Your Handle (e.g., ViceInvestigator)" required />
+            <input type="text" id="theoryCoords" placeholder="Location / Time (e.g., Mount Kalaga • 3:00 AM Storm)" />
+          </div>
+          <textarea id="theoryBody" rows="3" placeholder="Share your evidence, coordinates, or connection to past GTA mysteries..." required></textarea>
+          <div class="composer-actions">
+            <button type="button" id="cancelPostBtn" class="btn-secondary">Cancel</button>
+            <button type="submit" class="btn-pro" style="width:auto;">Publish to Board</button>
+          </div>
+        </form>
+
+        <div class="controls-bar">
+          <input type="text" id="forumSearch" placeholder="Search theories, keywords, or NPC names..." />
+          <select id="forumTagFilter">
+            <option value="ALL">All Conspiracy Tags</option>
+            <option value="Mount Kalaga / UFO">🛸 Mount Kalaga / UFO</option>
+            <option value="Chiliad Connection">🔺 Chiliad Connection</option>
+            <option value="NPC Secrets">🕵️ NPC Secrets</option>
+            <option value="Grassrivers Cryptids">🐊 Grassrivers Cryptids</option>
+            <option value="Easter Eggs">🥚 Easter Eggs</option>
+          </select>
+          <select id="forumSort">
+            <option value="top">Sort: Top Upvoted</option>
+            <option value="newest">Sort: Newest First</option>
+          </select>
+        </div>
+
+        <div id="forumFeed" class="forum-feed"></div>
+      </section>
+
+      <!-- Preview Placeholders for Stages 3-4 -->
       <section id="view-database" class="view">
         <div class="coming-soon">
           <h2>🏎️ Vehicles, Properties & Economy Database</h2>
@@ -107,11 +239,12 @@
       <span class="brand-badge">PRO MEMBERSHIP</span>
       <h3>Upgrade to ViceLink Pro</h3>
       <ul>
-        <li>✓ Zero ads across all cheat & database pages</li>
-        <li>✓ Sync collectible map pins across phone & desktop</li>
+        <li>✓ Zero ads across all cheat, map & forum pages</li>
+        <li>✓ Sync collectible map pins across iPhone & Mac</li>
+        <li>✓ Verified "Lore Investigator" badge on Conspiracy Board</li>
         <li>✓ Unlimited AI Mission Assistant questions</li>
       </ul>
-      <button class="btn-pro full-width" onclick="alert('Stripe / LemonSqueezy checkout will connect here!')">Continue — $3.99 One-Time</button>
+      <button class="btn-pro" onclick="alert('Supabase Auth + Stripe checkout connects here!')">Continue — $3.99 One-Time</button>
     </div>
   </div>
 

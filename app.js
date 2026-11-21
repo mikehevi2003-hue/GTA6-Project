@@ -1,41 +1,53 @@
 // ==========================================
-// BILINGUAL ENGINE (ENGLISH & ESPAÑOL)
+// 3-TIER ACCESS CONTROL & BILINGUAL ENGINE
 // ==========================================
+let userTier = localStorage.getItem("gta6_tier") || "free"; // "free" | "street" ($1.99) | "kingpin" ($4.99)
+let currentLang = localStorage.getItem("gta6_lang") || "en";
+let currentPlatform = "PS5";
+
+const TIER_RANK = { free: 0, street: 1, kingpin: 2 };
+function hasAccess(requiredTier) {
+  return TIER_RANK[userTier] >= TIER_RANK[requiredTier];
+}
+
 const TRANSLATIONS = {
   en: {
     badge: "UNOFFICIAL FAN HUB",
     subtitle: "Leonida Tactical Hub & Lore Intel",
     navCheats: "Cheats & Unlocks",
-    navMap: "Leonida Map",
+    navMap: "Leonida Map & Money",
+    navGlitches: "Glitches & Exploits",
     navForum: "Easter Eggs & Theories",
     navDb: "Vehicles & Economy",
     navMech: "New Mechanics Guide",
     navAi: "AI Mission Guide",
-    proDesc: "Ad-free mode, cloud map sync & verified Lore Investigator badge.",
-    proBtn: "Unlock Pro Access",
+    proDesc: "One-time unlock for Full Money Map, Glitches Hub, Ad-Free & AI Advisor.",
+    proBtn: "View One-Time Passes",
     legalNote: "Unofficial fan tool. Not affiliated with Rockstar Games or Take-Two Interactive.",
     cheatsTitle: "GTA VI Cheat Codes & Unlock Checklist",
     cheatsSub: "Visual PS5/Xbox controller inputs + step-by-step unlock requirements for every cheat.",
     unlockTab: "🔓 How to Unlock All",
     searchCheats: "Search cheats or challenges (e.g., $250,000, Shooting Range, Workouts, Flamingo)...",
     allCats: "All Categories (61 Total)",
-    catPlayer: "Player & Stats (10)",
-    catCombat: "Combat & Weapons (11)",
-    catVehicles: "Spawn Vehicles (21)",
-    catWorld: "Environment & Filters (19)",
+    catPlayer: "Player & Stats",
+    catCombat: "Combat & Weapons",
+    catVehicles: "Spawn Vehicles",
+    catWorld: "Environment & Filters",
     statusAll: "All Codes",
     statusVerified: "✓ Verified Button Combos",
     statusPending: "🔒 Challenge Known (Combo Hunting)",
     favOnly: "★ Favorites",
-    mapTitle: "Interactive Leonida Map & 100% Tracker",
-    mapSub: "Click any pin on the satellite radar to inspect details and track completion.",
+    mapTitle: "Interactive Leonida Map, Money Spots & Fences",
+    mapSub: "Track collectibles, high-payout side hustles, and black-market fences.",
     completionLabel: "100% Completion",
     allRegions: "All 6 Leonida Regions",
-    allPins: "All Pin Types",
+    allPins: "All Pin Types (24)",
     hideFound: "Hide Found Pins",
-    cloudSync: "☁️ Cloud Sync (Pro)",
+    cloudSync: "☁️ Cloud Sync ($4.99 VIP)",
     locationsTitle: "Leonida Locations",
-    locationsSub: "Check off collectibles as you discover them.",
+    locationsSub: "Check off collectibles & money spots.",
+    glitchTitle: "Active GTA VI Glitches & Exploits (Patch Tracker)",
+    glitchSub: "Verified money loops, First-Person camera exploit & physics tricks tested on v1.01.",
     forumTitle: "Leonida Easter Eggs & Conspiracy Board",
     forumSub: "Verified launch Easter eggs (Little Sam, Flamingos, WAiNK) & community theories.",
     postTheoryBtn: "+ Post New Theory",
@@ -60,12 +72,7 @@ const TRANSLATIONS = {
     sortPriceHigh: "Price: High to Low",
     mechTitle: "GTA VI New Mechanics & Player FAQ",
     mechSub: "Everything that changed from GTA V: Money laundering, car trunks, hacking tools & fitness.",
-    modalTitle: "Upgrade to ViceLink Pro",
-    proPerk1: "✓ Zero ads across all cheat, map & economy pages",
-    proPerk2: "✓ Sync collectible map pins & Garage Plan across devices",
-    proPerk3: "✓ Verified 'Lore Investigator' badge on Conspiracy Board",
-    proPerk4: "✓ Unlimited AI Mission Assistant questions",
-    proContinue: "Continue — $3.99 One-Time",
+    modalTitle: "Choose Your ViceLink Access Tier",
     addGarage: "+ Add to Garage Plan",
     inGarage: "✓ In Garage Plan",
     buyProp: "+ Buy Property & Garage",
@@ -75,36 +82,39 @@ const TRANSLATIONS = {
     badge: "HUB NO OFICIAL DE FANS",
     subtitle: "Guía Táctica de Leonida y Secretos",
     navCheats: "Trucos y Desbloqueos",
-    navMap: "Mapa de Leonida",
+    navMap: "Mapa, Dinero y Fences",
+    navGlitches: "Glitches y Trucos v1.01",
     navForum: "Easter Eggs y Teorías",
     navDb: "Vehículos y Economía",
-    navMech: "Guía de Nuevas Mecánicas",
+    navMech: "Nuevas Mecánicas",
     navAi: "Guía IA de Misiones",
-    proDesc: "Sin anuncios, sincronización en la nube e insignia de Investigador.",
-    proBtn: "Desbloquear Pro",
+    proDesc: "Pago único para Mapa de Dinero, Glitches, Sin Anuncios y Guía IA.",
+    proBtn: "Ver Pases de Pago Único",
     legalNote: "Herramienta no oficial de fans. Sin afiliación con Rockstar Games ni Take-Two Interactive.",
     cheatsTitle: "Trucos de GTA VI y Guía para Desbloquearlos",
     cheatsSub: "Botones visuales PS5/Xbox + explicación paso a paso de cómo desbloquear cada truco.",
     unlockTab: "🔓 Cómo Desbloquear Todos",
     searchCheats: "Buscar trucos o desafíos (ej. $250,000, Campo de Tiro, Gimnasio, Flamenco)...",
     allCats: "Todas las Categorías (61 Total)",
-    catPlayer: "Jugador y Estadísticas (10)",
-    catCombat: "Combate y Armas (11)",
-    catVehicles: "Generar Vehículos (21)",
-    catWorld: "Entorno y Filtros (19)",
+    catPlayer: "Jugador y Estadísticas",
+    catCombat: "Combate y Armas",
+    catVehicles: "Generar Vehículos",
+    catWorld: "Entorno y Filtros",
     statusAll: "Todos los Códigos",
     statusVerified: "✓ Combinaciones Verificadas",
     statusPending: "🔒 Desafío Conocido (Código en Búsqueda)",
     favOnly: "★ Favoritos",
-    mapTitle: "Mapa Interactivo de Leonida y Rastreador 100%",
-    mapSub: "Haz clic en cualquier pin del radar para ver pistas y marcar tu progreso.",
+    mapTitle: "Mapa Interactivo de Leonida, Dinero Fácil y Fences",
+    mapSub: "Encuentra coleccionables, robos de alto pago y compradores del mercado negro.",
     completionLabel: "Progreso 100%",
     allRegions: "Las 6 Regiones de Leonida",
-    allPins: "Todos los Marcadores",
+    allPins: "Todos los Marcadores (24)",
     hideFound: "Ocultar Encontrados",
-    cloudSync: "☁️ Sincronizar (Pro)",
+    cloudSync: "☁️ Sincronizar ($4.99 VIP)",
     locationsTitle: "Ubicaciones de Leonida",
-    locationsSub: "Marca los coleccionables a medida que los encuentres.",
+    locationsSub: "Marca coleccionables y zonas de dinero.",
+    glitchTitle: "Glitches y Exploits Activos en GTA VI (v1.01)",
+    glitchSub: "Métodos de dinero infinito, cámara en primera persona y trucos verificados.",
     forumTitle: "Foro de Easter Eggs y Conspiraciones de Leonida",
     forumSub: "Easter eggs confirmados (Little Sam, Flamencos, WAiNK) y teorías de la comunidad.",
     postTheoryBtn: "+ Publicar Nueva Teoría",
@@ -129,12 +139,7 @@ const TRANSLATIONS = {
     sortPriceHigh: "Precio: Mayor a Menor",
     mechTitle: "Nuevas Mecánicas de GTA VI y Preguntas Frecuentes",
     mechSub: "Todo lo que cambió respecto a GTA V: lavado de dinero, maleteros, hackeo de autos y físico.",
-    modalTitle: "Mejora a ViceLink Pro",
-    proPerk1: "✓ Cero anuncios en trucos, mapa y economía",
-    proPerk2: "✓ Sincroniza tus pines del mapa y garaje en todos tus dispositivos",
-    proPerk3: "✓ Insignia verificada 'Investigador de Lore' en el Foro",
-    proPerk4: "✓ Preguntas ilimitadas al Asistente IA de Misiones",
-    proContinue: "Continuar — $3.99 Pago Único",
+    modalTitle: "Elige tu Pase de Acceso Único ViceLink",
     addGarage: "+ Añadir al Garaje",
     inGarage: "✓ En tu Garaje",
     buyProp: "+ Comprar Propiedad y Garaje",
@@ -142,11 +147,37 @@ const TRANSLATIONS = {
   }
 };
 
-let currentLang = localStorage.getItem("gta6_lang") || "en";
-let currentPlatform = "PS5";
+window.selectAccessTier = function(tier) {
+  userTier = tier;
+  localStorage.setItem("gta6_tier", tier);
+  document.getElementById("proModal").classList.add("hidden");
+  syncTierUI();
+};
+
+function syncTierUI() {
+  document.querySelectorAll(".tier-pill").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.settier === userTier);
+  });
+
+  const badgeLabels = {
+    free: "FREE RECRUIT",
+    street: "STREET PASS ($1.99)",
+    kingpin: "KINGPIN VIP ($4.99)"
+  };
+  document.getElementById("currentTierBadge").textContent = badgeLabels[userTier];
+
+  // Hide ads for Street Pass ($1.99) and Kingpin VIP ($4.99)
+  const adBanner = document.getElementById("adBannerSlot");
+  if (adBanner) adBanner.style.display = hasAccess("street") ? "none" : "block";
+
+  renderMap();
+  renderGlitches();
+  renderVehicles();
+  renderProperties();
+}
 
 // ==========================================
-// EXPANDED GTA VI CHEATS + FULL UNLOCK GUIDE
+// CHEAT CODES & FULL UNLOCK CHECKLIST
 // ==========================================
 const CHEATS_DATA = [
   {
@@ -154,7 +185,7 @@ const CHEATS_DATA = [
     title: "+$250,000 Instant Cash",
     category: "Player",
     unlock: "Finish all 91 story missions",
-    howToUnlock: "Complete the entire main storyline (all 91 missions). Once credits roll, open Pause > Progress > Cheats and this code unlocks automatically. Note: Only money cheat in GTA 6, and saving is disabled while active.",
+    howToUnlock: "Complete the entire main storyline (all 91 missions). Open Pause > Progress > Cheats to unlock. Note: Only cash cheat in GTA 6, and saving is disabled while active.",
     desc: "Immediately deposits $250,000 into your active character's bank balance.",
     seq: ["UP", "RIGHT", "DOWN", "LEFT", "UP", "LEFT", "DOWN", "RIGHT"]
   },
@@ -163,7 +194,7 @@ const CHEATS_DATA = [
     title: "Unlimited Focus Ability",
     category: "Player",
     unlock: "Finish the main story campaign",
-    howToUnlock: "Beat the final story mission. Jason and Lucia's tactical Focus ability (which slows time and highlights weak points/routes) becomes infinite when toggled.",
+    howToUnlock: "Beat the final story mission. Jason and Lucia's tactical Focus ability becomes infinite when toggled.",
     desc: "Prevents your tactical focus meter from draining during combat and driving.",
     seq: ["DOWN", "UP", "UP", "DOWN", "UP", "DOWN", "UP", "DOWN", "UP", "RIGHT"]
   },
@@ -175,51 +206,6 @@ const CHEATS_DATA = [
     howToUnlock: "Visit Muscle Sands outdoor gym on Ocean Beach or any Leonida fitness club and complete 100 weightlifting/calisthenics sets.",
     desc: "Equips maximum heavy ballistic armor immediately.",
     seq: ["DOWN", "UP", "LEFT", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN"]
-  },
-  {
-    id: "drunk-mode",
-    title: "Drunk Mode (Jason & Lucia)",
-    category: "Player",
-    unlock: "Spend $2,500 on alcohol",
-    howToUnlock: "Buy drinks at Vice City nightclubs, strip clubs, and beach bars until your cumulative bar tab reaches $2,500.",
-    desc: "Makes both Jason and Lucia heavily intoxicated with ragdoll physics.",
-    seq: []
-  },
-  {
-    id: "no-fall-damage",
-    title: "No Fall Damage",
-    category: "Player",
-    unlock: "Survive a 40ft freefall 20 times",
-    howToUnlock: "Jump off roofs, bridges, or cliffs at least 40 feet high (without opening a parachute) and survive the landing 20 times.",
-    desc: "Makes your character completely immune to fall damage from any height.",
-    seq: []
-  },
-  {
-    id: "parachute-cheat",
-    title: "Spawn Parachute",
-    category: "Player",
-    unlock: "Complete 50 skydives or BASE jumps (300ft+)",
-    howToUnlock: "Jump from helicopters, planes, or skyscrapers at 300ft or higher and land safely 50 times.",
-    desc: "Equips a reserve parachute pack directly onto your back.",
-    seq: []
-  },
-  {
-    id: "repair-vehicle",
-    title: "Instant Vehicle Repair",
-    category: "Player",
-    unlock: "Finish 1st in 10 street/track races",
-    howToUnlock: "Win 1st place in 10 total races across Gellhorn Raceway, Thrillbilly Mud Club, and Boone Speedway.",
-    desc: "Instantly fixes all body damage, broken windows, and popped tires on your current car.",
-    seq: []
-  },
-  {
-    id: "unlimited-nitrous",
-    title: "Unlimited Nitrous & Fuel",
-    category: "Player",
-    unlock: "Complete all 50 Stunt Jumps",
-    howToUnlock: "Find and cleanly land all 50 Stunt Jumps across Vice City, Grassrivers, Port Gellhorn, and the Keys.",
-    desc: "Gives every vehicle infinite nitrous boost and zero fuel drain.",
-    seq: []
   },
   {
     id: "raise-heat",
@@ -235,7 +221,7 @@ const CHEATS_DATA = [
     title: "Raise Wanted Level (+1 Star)",
     category: "Player",
     unlock: "Lose a 3-star wanted level 50 times",
-    howToUnlock: "Escape 50 separate 3-star police chases (hiding in alleys or repainting at Pay & Spray speeds this up).",
+    howToUnlock: "Escape 50 separate 3-star police chases (repainting at Pay 'n' Spray speeds this up).",
     desc: "Immediately escalates LCPD police pursuit intensity.",
     seq: ["LEFT", "DOWN", "RIGHT", "DOWN", "UP", "RIGHT", "UP"]
   },
@@ -265,15 +251,6 @@ const CHEATS_DATA = [
     howToUnlock: "Achieve Gold medal accuracy/speed scores in 25 shooting range trials.",
     desc: "Fire continuously without ever pausing to reload magazines.",
     seq: ["DOWN", "UP", "RIGHT", "DOWN", "LEFT", "LEFT", "UP", "DOWN", "DOWN", "UP"]
-  },
-  {
-    id: "fire-ammo",
-    title: "Incendiary Fire Bullets",
-    category: "Combat",
-    unlock: "Inflict fire damage on 100 enemies",
-    howToUnlock: "Use Molotovs, flare guns, or incendiary rounds to ignite 100 hostile gang members or targets.",
-    desc: "All standard bullets ignite targets and vehicles on impact.",
-    seq: []
   },
   {
     id: "attack-force",
@@ -330,30 +307,12 @@ const CHEATS_DATA = [
     seq: ["LEFT", "UP", "RIGHT", "DOWN", "LEFT", "RIGHT", "RIGHT", "DOWN"]
   },
   {
-    id: "spawn-thrax",
-    title: "Spawn Truffade Thrax Hypercar",
-    category: "Vehicles",
-    unlock: "Complete ALL Shopping Challenges",
-    howToUnlock: "Complete every luxury fashion and boutique shopping challenge in Leonida.",
-    desc: "Spawns a flagship Truffade Thrax hypercar.",
-    seq: []
-  },
-  {
     id: "spawn-flamingo",
     title: "Spawn Inflatable Flamingo",
     category: "Vehicles",
     unlock: "Destroy all 50 Cocaine Flamingos",
     howToUnlock: "Find and shoot all 50 hidden pink Cocaine Flamingos scattered across Leonida's 6 regions.",
     desc: "Spawns a rideable giant pink pool flamingo.",
-    seq: []
-  },
-  {
-    id: "spawn-lazer",
-    title: "Spawn Hauners P-996 LAZER Jet",
-    category: "Vehicles",
-    unlock: "Complete 100% of all Progress Challenges",
-    howToUnlock: "Achieve 100% completion across Story, Exploration, Combat, Sports, and Vehicle challenges.",
-    desc: "Spawns a military fighter jet.",
     seq: []
   },
   {
@@ -379,7 +338,7 @@ const CHEATS_DATA = [
     title: "Screen Filter: Dollhouse",
     category: "World",
     unlock: "Hang out with your partner for 8 hours",
-    howToUnlock: "Invite Jason or Lucia on free-roam hangouts (bars, mini-golf, beaches) for 8 cumulative in-game hours.",
+    howToUnlock: "Invite Jason or Lucia on free-roam hangouts for 8 cumulative in-game hours.",
     desc: "Applies hyper-saturated miniature colors in a narrow frame.",
     seq: ["DOWN", "DOWN", "UP", "RIGHT", "RIGHT", "UP", "LEFT", "LEFT", "DOWN", "RIGHT"]
   },
@@ -402,13 +361,12 @@ let showFavsOnly = false;
 function renderControllerGuide() {
   const banner = document.getElementById("controllerGuideBanner");
   if (currentPlatform === "UNLOCKS") {
-    const doneCount = unlockedCheats.length;
     banner.innerHTML = `
       <div class="guide-steps">
-        <span>🔓 <strong>${currentLang === "es" ? "Progreso de Desbloqueo:" : "Cheat Unlock Progress:"}</strong> ${doneCount} / ${CHEATS_DATA.length} ${currentLang === "es" ? "desafíos completados" : "challenges completed"}</span>
+        <span>🔓 <strong>${currentLang === "es" ? "Progreso de Desbloqueo:" : "Cheat Unlock Progress:"}</strong> ${unlockedCheats.length} / ${CHEATS_DATA.length}</span>
       </div>
       <div class="guide-warning">
-        💡 ${currentLang === "es" ? "Paso 1: Completa las 91 misiones. Paso 2: Completa el desafío de cada truco en Pausa > Progreso > Trucos." : "Step 1: Beat all 91 story missions. Step 2: Finish each cheat's specific challenge under Pause > Progress > Cheats."}
+        💡 ${currentLang === "es" ? "Paso 1: Completa las 91 misiones. Paso 2: Completa el desafío de cada truco en Pausa > Progreso > Trucos." : "Step 1: Beat all 91 story missions. Step 2: Finish each cheat's challenge under Pause > Progress > Cheats."}
       </div>
     `;
     return;
@@ -444,7 +402,7 @@ function renderCheats() {
   const isUnlockView = currentPlatform === "UNLOCKS";
 
   const filtered = CHEATS_DATA.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(query) || item.desc.toLowerCase().includes(query) || item.unlock.toLowerCase().includes(query) || item.howToUnlock.toLowerCase().includes(query);
+    const matchesSearch = item.title.toLowerCase().includes(query) || item.desc.toLowerCase().includes(query) || item.unlock.toLowerCase().includes(query);
     const matchesCat = cat === "ALL" || item.category === cat;
     const matchesFav = !showFavsOnly || favorites.includes(item.id);
     const matchesStatus = status === "ALL" || (status === "VERIFIED" && item.seq.length > 0) || (status === "UNLOCK_ONLY" && item.seq.length === 0);
@@ -470,7 +428,7 @@ function renderCheats() {
           <div class="unlock-card-step">
             <strong>How to do it:</strong> ${item.howToUnlock}
             <div class="unlock-check-row">
-              <span style="font-size:11px;color:#94a3b8;">Track your progress:</span>
+              <span style="font-size:11px;color:#94a3b8;">Track progress:</span>
               <button class="unlock-toggle-btn ${isUnlocked ? "done" : ""}" onclick="toggleCheatUnlocked('${item.id}')">
                 ${isUnlocked ? "✓ Challenge Completed" : "Mark Challenge Done"}
               </button>
@@ -486,7 +444,7 @@ function renderCheats() {
 
     const visualKeys = hasSeq
       ? `${prefixKeys}<span class="combo-sep">›</span>` + item.seq.map(dir => `<span class="ctrl-key dpad">${ARROW_MAP[dir]}</span>`).join("")
-      : `<span style="color:#94a3b8;font-size:12px;">🔒 Button combo still being cracked — switch to <strong>🔓 How to Unlock All</strong> tab to prepare the challenge!</span>`;
+      : `<span style="color:#94a3b8;font-size:12px;">🔒 Button combo still being cracked — switch to <strong>🔓 How to Unlock All</strong> to complete the challenge!</span>`;
 
     const plainText = hasSeq ? `${isPS ? "D-Pad Up, Hold L1 + R1, then:" : "D-Pad Up, Hold LB + RB, then:"} ${item.seq.join(", ")}` : "";
 
@@ -523,25 +481,36 @@ window.toggleCheatUnlocked = function(id) {
 };
 
 // ==========================================
-// INTERACTIVE LEONIDA MAP (16 VERIFIED PINS)
+// EXPANDED 24-PIN MAP (WITH MONEY SPOTS & FENCES)
 // ==========================================
 const LEONIDA_PINS = [
-  { id: "p1", name: "Cocaine Flamingo #1 (Ocean Beach)", region: "Vice City", type: "Flamingo", icon: "🦩", x: 79, y: 58, note: "Perched behind the Art Deco lifeguard tower on Ocean Drive. Destroy all 50 to unlock the Inflatable Flamingo cheat." },
-  { id: "p2", name: "Little Sam Cameo ('Boobie Time')", region: "Vice City", type: "EasterEgg", icon: "🥚", x: 73, y: 56, note: "Silent NPC wearing a Rockstar Games shirt during Chapter 3's Boobie Time mission." },
-  { id: "p3", name: "Shore Court Garage ('55 Stanier)", region: "Vice City", type: "Safehouse", icon: "🏠", x: 78, y: 62, note: "Ocean Beach safehouse garage storing the vintage '55 Vapid Stanier." },
-  { id: "p4", name: "Paradise Garage (Watson Bay)", region: "Vice City", type: "Safehouse", icon: "🏠", x: 75, y: 49, note: "Stores the '67 Vapid Dominator Buggy and classic restoration builds." },
-  { id: "p5", name: "Calle Ocho Rooftop Stunt Jump", region: "Vice City", type: "Stunt", icon: "🔥", x: 69, y: 60, note: "Clear the construction gap at 110+ mph." },
-  { id: "p6", name: "Vice City Flamingos Card #1", region: "Vice City", type: "Card", icon: "🃏", x: 72, y: 65, note: "1 of 24 collectible cards that unlock the Bubblegum screen filter." },
-  { id: "p7", name: "Jason's Keys Safehouse & Dock", region: "Leonida Keys", type: "Safehouse", icon: "🏠", x: 45, y: 88, note: "Starting safehouse dock with Dinka Enduro & Crest Kayak access." },
-  { id: "p8", name: "Key Lento Sunken Epsilon Hatch", region: "Leonida Keys", type: "EasterEgg", icon: "🥚", x: 28, y: 95, note: "Underwater hatch 85ft deep playing Morse code lights." },
-  { id: "p9", name: "Cocaine Flamingo #14 (Overseas Bridge)", region: "Leonida Keys", type: "Flamingo", icon: "🦩", x: 54, y: 83, note: "Hidden on the broken concrete piling beneath the Keys bridge." },
-  { id: "p10", name: "Grassrivers Airboat Bayou Jump", region: "Grassrivers", type: "Stunt", icon: "🔥", x: 56, y: 68, note: "Hit the rusted swamp barge ramp in a Panther/POACH airboat." },
-  { id: "p11", name: "Pelican Valley Skunk Ape Sighting", region: "Grassrivers", type: "EasterEgg", icon: "🥚", x: 49, y: 63, note: "Use thermal scope between 1 AM and 4 AM in dense swamp fog." },
-  { id: "p12", name: "Port Gellhorn Collector Watch #3", region: "Port Gellhorn", type: "Card", icon: "🃏", x: 25, y: 37, note: "Collect 20 watches across Leonida to unlock the Pause Time of Day cheat." },
-  { id: "p13", name: "Cocaine Flamingo #29 (Gellhorn Pier)", region: "Port Gellhorn", type: "Flamingo", icon: "🦩", x: 22, y: 44, note: "Sitting inside an abandoned fishing trawler hull." },
-  { id: "p14", name: "WAiNK Space Debris #4 (Ambrosia)", region: "Ambrosia", type: "Card", icon: "🃏", x: 55, y: 41, note: "Scan all space debris with WAiNK to unlock the Powdered Sugar filter." },
-  { id: "p15", name: "Mount Kalaga Eye Glyph", region: "Mount Kalaga", type: "EasterEgg", icon: "🥚", x: 41, y: 15, note: "Carved into the stone behind the summit fire tower—matches the Chiliad eye." },
-  { id: "p16", name: "Kalaga Canyon Stunt Ramp", region: "Mount Kalaga", type: "Stunt", icon: "🔥", x: 35, y: 19, note: "Launch across the northern gorge in an off-road 4x4." }
+  // Free Starter Pins (First 8)
+  { id: "p1", tier: "free", name: "Cocaine Flamingo #1 (Ocean Beach)", region: "Vice City", type: "Flamingo", icon: "🦩", x: 79, y: 58, note: "Behind the Art Deco lifeguard tower on Ocean Drive. Destroy all 50 to unlock Inflatable Flamingo." },
+  { id: "p2", tier: "free", name: "Little Sam Cameo ('Boobie Time')", region: "Vice City", type: "EasterEgg", icon: "🥚", x: 73, y: 56, note: "Silent NPC wearing a Rockstar Games shirt during Chapter 3's Boobie Time mission." },
+  { id: "p3", tier: "free", name: "Shore Court Garage ('55 Stanier)", region: "Vice City", type: "Safehouse", icon: "🏠", x: 78, y: 62, note: "Ocean Beach safehouse garage storing the vintage '55 Vapid Stanier." },
+  { id: "p4", tier: "free", name: "Calle Ocho Rooftop Stunt Jump", region: "Vice City", type: "Stunt", icon: "🔥", x: 69, y: 60, note: "Clear the construction gap at 110+ mph." },
+  { id: "p5", tier: "free", name: "Jason's Keys Safehouse & Dock", region: "Leonida Keys", type: "Safehouse", icon: "🏠", x: 45, y: 88, note: "Starting safehouse dock with Dinka Enduro & Crest Kayak access." },
+  { id: "p6", tier: "free", name: "Grassrivers Airboat Bayou Jump", region: "Grassrivers", type: "Stunt", icon: "🔥", x: 56, y: 68, note: "Hit the rusted swamp barge ramp in a Panther/POACH airboat." },
+  { id: "p7", tier: "free", name: "Port Gellhorn Collector Watch #3", region: "Port Gellhorn", type: "Card", icon: "🃏", x: 25, y: 37, note: "Collect 20 watches across Leonida to unlock Pause Time of Day." },
+  { id: "p8", tier: "free", name: "Mount Kalaga Eye Glyph", region: "Mount Kalaga", type: "EasterEgg", icon: "🥚", x: 41, y: 15, note: "Carved into the stone behind the summit fire tower—matches the Chiliad eye." },
+
+  // Street Pass ($1.99+) Money Spots, Fences & Extra Collectibles (16 Pins)
+  { id: "m1", tier: "street", name: "💰 Apollo Aggregates Red Barn (Infinite Money Spot)", region: "Ambrosia", type: "Money", icon: "💰", x: 59, y: 47, note: "Warehouse east of Hamlet with Teddy-Bear van + office safe (~$40k per van load). Sell narcotics to Tyrone or Dunk!" },
+  { id: "m2", tier: "street", name: "💰 Key Lento Sunken Treasure (Kenton's Scanner)", region: "Leonida Keys", type: "Money", icon: "💰", x: 31, y: 94, note: "Dive reefs around Key Lento using Kenton's scanner for underwater artifacts worth tens of thousands." },
+  { id: "m3", tier: "street", name: "💰 Exotic Animals Front (Illegal Gang Op)", region: "Leonida Keys", type: "Money", icon: "💰", x: 41, y: 91, note: "Sneak through rear wall, crack safe & grab narcotics. Sell to Brian/Donnie (Ch. 1) or Dunk (Ch. 2)." },
+  { id: "m4", tier: "street", name: "💰 La Cascara Motel Gang Hideout", region: "Port Gellhorn", type: "Money", icon: "💰", x: 24, y: 42, note: "Early Ch. 2 gang stash—clear backroom safe and haul narcotics straight to Dunk's Trailer." },
+  { id: "m5", tier: "street", name: "💰 Capri Ocean Beach Jewelry Smash & Grab", region: "Vice City", type: "Money", icon: "💰", x: 77, y: 54, note: "Disable alarm in backroom, smash display cases ($15k–$25k), and deliver to Yasmani for max payout." },
+  { id: "m6", tier: "street", name: "💰 Vice City Bank Vault Loop (~$205k / 5 min)", region: "Vice City", type: "Money", icon: "💰", x: 67, y: 55, note: "Buy security-van tip from Yasmani, tail armored truck to vault window, grab Marked Bills & escape on bike." },
+  { id: "m7", tier: "street", name: "💰 Towable ATM & Payday Loan Strip", region: "Vice City", type: "Money", icon: "💰", x: 64, y: 63, note: "Use a winch truck to rip wall ATMs out for Marked Bills (unlocked via Yasmani's Ch. 3 jobs)." },
+  { id: "m8", tier: "street", name: "💰 Randy's Exotic Car Wish List Drop", region: "Vice City", type: "Money", icon: "💰", x: 71, y: 67, note: "Deliver high-end target sports/supercars to Randy in Balsero for massive payout bonuses." },
+  { id: "f1", tier: "street", name: "🤝 Fence: Brian's Lockup (Keypad: 7700)", region: "Leonida Keys", type: "Fence", icon: "🤝", x: 38, y: 92, note: "South Key Lento (Ch. 1). Keypad code 7700. Buys early narcotics/cash before Ch. 2." },
+  { id: "f2", tier: "street", name: "🤝 Fence: Moses 'Mo' Watkins (Car Chop-Shop)", region: "Port Gellhorn", type: "Fence", icon: "🤝", x: 22, y: 34, note: "Unlocks Slim Jim tool in Ch. 2. Registers stolen vans/cars or buys clean cars ($1,000+ each, no limit)." },
+  { id: "f3", tier: "street", name: "🤝 Fence: Dunk's Trailer (Ch. 2 Narcotics)", region: "Port Gellhorn", type: "Fence", icon: "🤝", x: 28, y: 46, note: "South Port Gellhorn. Drop stash bags in his trunk after mission 'Slam Dunk'." },
+  { id: "f4", tier: "street", name: "🤝 Fence: Tyrone (HIGHEST Narcotics Payout)", region: "Vice City", type: "Fence", icon: "🤝", x: 66, y: 52, note: "La Perle, Vice City (Ch. 3). Pays the highest rate in Leonida for cocaine/narcotics bags." },
+  { id: "f5", tier: "street", name: "🤝 Fence: Yasmani (HIGHEST Jewelry & Vault Tips)", region: "Vice City", type: "Fence", icon: "🤝", x: 68, y: 61, note: "Little Cuba, Vice City (Ch. 3). Best buyer for Jewelry & Marked Bills + sells Bank Vault tips." },
+  { id: "p14", tier: "street", name: "🃏 WAiNK Space Debris #4 (Ambrosia)", region: "Ambrosia", type: "Card", icon: "🃏", x: 53, y: 39, note: "Scan all space debris with WAiNK to unlock the Powdered Sugar filter." },
+  { id: "p15", tier: "street", name: "🥚 Pelican Valley Skunk Ape Sighting", region: "Grassrivers", type: "EasterEgg", icon: "🥚", x: 49, y: 63, note: "Use thermal scope between 1 AM and 4 AM in dense swamp fog." },
+  { id: "p16", tier: "street", name: "🔥 Kalaga Canyon Stunt Ramp", region: "Mount Kalaga", type: "Stunt", icon: "🔥", x: 35, y: 19, note: "Launch across the northern gorge in an off-road 4x4." }
 ];
 
 let foundPins = JSON.parse(localStorage.getItem("gta6_found_pins") || "[]");
@@ -551,6 +520,10 @@ let mapZoom = 1;
 window.inspectPin = function(id) {
   const p = LEONIDA_PINS.find(x => x.id === id);
   if (!p) return;
+  if (!hasAccess(p.tier)) {
+    document.getElementById("proModal").classList.remove("hidden");
+    return;
+  }
   const isFound = foundPins.includes(id);
   const inspector = document.getElementById("mapInspector");
   inspector.classList.remove("hidden");
@@ -587,19 +560,32 @@ function renderMap() {
   });
 
   document.getElementById("mapPinsLayer").innerHTML = visiblePins.map(p => {
+    const unlocked = hasAccess(p.tier);
     const isFound = foundPins.includes(p.id);
     return `
       <button class="map-pin ${isFound ? "found" : ""}"
-              style="left:${p.x}%; top:${p.y}%;"
-              title="${p.name}"
+              style="left:${p.x}%; top:${p.y}%; ${!unlocked ? "border-color:#64748b;opacity:0.75;" : ""}"
+              title="${unlocked ? p.name : "🔒 Unlock with Street Pass ($1.99)"}"
               onclick="inspectPin('${p.id}')">
-        ${p.icon}
+        ${unlocked ? p.icon : "🔒"}
       </button>
     `;
   }).join("");
 
   document.getElementById("pinChecklist").innerHTML = visiblePins.map(p => {
+    const unlocked = hasAccess(p.tier);
     const isFound = foundPins.includes(p.id);
+    if (!unlocked) {
+      return `
+        <div class="pin-row" style="opacity:0.7;border-style:dashed;" onclick="document.getElementById('proModal').classList.remove('hidden')">
+          <span>🔒</span>
+          <div>
+            <h4>${p.icon} ${p.name}</h4>
+            <p><strong>${p.region}</strong> • Unlock all Money & Fence pins with <strong>Street Pass ($1.99)</strong></p>
+          </div>
+        </div>
+      `;
+    }
     return `
       <label class="pin-row ${isFound ? "found" : ""}">
         <input type="checkbox" ${isFound ? "checked" : ""} onchange="togglePinFound('${p.id}')" />
@@ -619,7 +605,120 @@ window.togglePinFound = function(id) {
 };
 
 // ==========================================
-// VERIFIED EASTER EGGS & CONSPIRACY BOARD
+// ACTIVE GLITCHES & EXPLOITS HUB (v1.01)
+// ==========================================
+const GLITCHES_DATA = [
+  {
+    id: "g1",
+    category: "Money",
+    status: "WORKING ON v1.01",
+    title: "Apollo Aggregates Red Barn Unlimited Money Loop (~$40k–$89k / Run)",
+    votes: 842,
+    warning: "Chapter 1 Warning: Cash on hand & standard BuckMe funds get wiped at the end of Ch. 1 ('Tourist Trap'). Either deposit into your BuckMe Savings Account or farm from Chapter 2 onward!",
+    steps: [
+      "Steal a 10-slot delivery van outside Apollo Aggregates (the red warehouse east of Hamlet in South Vice-Dale County) and register it at Moses or Pay 'n' Spray.",
+      "Back the van up to the barn entrance. Loot the Teddy-Bear van outside, the second van inside, the cocaine on the office table, and break open the office safe.",
+      "Stow all stash bags into your van's storage slots (look for the '+1' drop-off confirmation).",
+      "Instant Reset Trick: Switch from Lucia to Jason (make sure Jason is far from the barn), then switch right back to Lucia—or Save & Reload. All cocaine and safe loot respawns immediately!",
+      "Fill all storage slots and sell to Tyrone (La Perle, Vice City) for maximum payout or Dunk (Port Gellhorn)."
+    ]
+  },
+  {
+    id: "g2",
+    category: "Camera",
+    status: "WORKING ON v1.01",
+    title: "True First-Person Camera Mode Glitch (PS5 & Xbox)",
+    votes: 619,
+    warning: "GTA 6 did not ship with a toggleable first-person option—this controller timing trick locks the camera into true first-person until you reload a save.",
+    steps: [
+      "Open Pause > Settings > Controller and change 'Touch Pad Button' (PS5) or 'View Button' (Xbox) from Map to Camera.",
+      "Sit in the driver's seat of any vehicle and press D-Pad Up to pull out your phone.",
+      "Press Circle (PS5) or B (Xbox) to put the phone away, and immediately spam the Touchpad / View button while the phone animation lowers.",
+      "Exit the vehicle—your camera will now be locked in full First-Person view on foot and in vehicles."
+    ]
+  },
+  {
+    id: "g3",
+    category: "Stealth",
+    status: "WORKING ON v1.01",
+    title: "Instant Police Vehicle-ID & Tracker Bypass",
+    votes: 314,
+    warning: "Works best during 3-star and 4-star Bank Vault or Jewelry escapes.",
+    steps: [
+      "Break line-of-sight inside a Vice City parking garage or alley while police search cones sweep the block.",
+      "Exit your getaway car and enter any parked civilian car—LCPD dispatch tracks your specific license plate/model rather than your face.",
+      "Alternatively, pull into Pay 'n' Spray or use your WAiNK phone app (D-Pad Up + Hold R1/RB) to scan and disable GPS trackers."
+    ]
+  },
+  {
+    id: "g4",
+    category: "Physics",
+    status: "WORKING ON v1.01",
+    title: "Port Gellhorn Dock Gate & Airboat Sky Launch",
+    votes: 205,
+    warning: "Enable No Fall Damage cheat or equip a parachute before attempting.",
+    steps: [
+      "Drive a Panther Airboat or Dinka Enduro into the hinged metal security gate at Port Gellhorn Pier at a 45-degree angle.",
+      "Hold throttle + handbrake as the gate physics clip into the rear suspension to launch skyward across the map."
+    ]
+  }
+];
+
+let glitchVotes = JSON.parse(localStorage.getItem("gta6_glitch_votes") || "[]");
+
+function renderGlitches() {
+  const container = document.getElementById("glitchesContainer");
+  if (!hasAccess("street")) {
+    container.innerHTML = `
+      <div class="paywall-box">
+        <span class="brand-badge">STREET PASS ($1.99 ONE-TIME)</span>
+        <h3>⚡ Unlock Active Glitches & Money Loops</h3>
+        <p>Get step-by-step instructions for the <strong>Red Barn Unlimited Money Loop</strong>, <strong>First-Person Camera Glitch</strong>, and live patch verification status.</p>
+        <button class="btn-pro" style="max-width:280px;margin:0 auto;" onclick="document.getElementById('proModal').classList.remove('hidden')">Unlock for $1.99 One-Time</button>
+      </div>
+    `;
+    return;
+  }
+
+  const cat = document.getElementById("glitchCatFilter").value;
+  const filtered = GLITCHES_DATA.filter(g => cat === "ALL" || g.category === cat);
+
+  container.innerHTML = `<div class="forum-feed">` + filtered.map(g => {
+    const voted = glitchVotes.includes(g.id);
+    return `
+      <div class="cheat-card">
+        <div class="card-top">
+          <span class="status-working">● ${g.status} • ${g.category}</span>
+          <button class="unlock-toggle-btn ${voted ? "done" : ""}" onclick="voteGlitch('${g.id}')">
+            👍 Still Working (${g.votes})
+          </button>
+        </div>
+        <h3 style="margin-top:8px;">${g.title}</h3>
+        <ol class="glitch-steps">
+          ${g.steps.map(s => `<li>${s}</li>`).join("")}
+        </ol>
+        <div class="unlock-pill">⚠️ ${g.warning}</div>
+      </div>
+    `;
+  }).join("") + `</div>`;
+}
+
+window.voteGlitch = function(id) {
+  const item = GLITCHES_DATA.find(x => x.id === id);
+  if (!item) return;
+  if (glitchVotes.includes(id)) {
+    glitchVotes = glitchVotes.filter(x => x !== id);
+    item.votes -= 1;
+  } else {
+    glitchVotes.push(id);
+    item.votes += 1;
+  }
+  localStorage.setItem("gta6_glitch_votes", JSON.stringify(glitchVotes));
+  renderGlitches();
+};
+
+// ==========================================
+// EASTER EGGS & CONSPIRACY BOARD
 // ==========================================
 const DEFAULT_THEORIES = [
   {
@@ -661,16 +760,6 @@ const DEFAULT_THEORIES = [
     body: "Scanning all fallen space debris pieces with the in-game WAiNK scanner unlocks the 'Powdered Sugar' world filter and triggers strange orbital signals near Lake Leonida.",
     votes: 245,
     timestamp: 1732205000000
-  },
-  {
-    id: "t5",
-    title: "The Grassrivers 'Skunk Ape' Thermal Heat Signature",
-    tag: "Grassrivers Cryptids",
-    author: "BayouTracker",
-    coords: "Pelican Valley • 1:00 AM – 4:00 AM",
-    body: "Shutting off your airboat engine in the deep Grassrivers fog after 1 AM lets thermal scopes spot a 7-foot humanoid heat signature moving between the cypress trees before disappearing.",
-    votes: 192,
-    timestamp: 1732200000000
   }
 ];
 
@@ -893,32 +982,22 @@ const MECHANICS_DATA = [
   {
     tag: "ECONOMY & CASH",
     title: "3-Tier Money System (Bank, Cash & Duffel Bags)",
-    desc: "Unlike GTA V, stolen cash doesn't teleport into your bank account. Money is split into Bank Balance (safe), Cash on Hand (carried physically), and Duffel Bag Loot (unprocessed goods). Visit ATMs/Banks to deposit cash, and bring stolen jewelry, art, or cars to specialized Fences to turn loot into clean money."
+    desc: "Stolen cash doesn't teleport into your bank account. Money is split into Bank Balance (BuckMe Savings/Checking), Cash on Hand, and Duffel Bag Loot. Deposit cash at ATMs/Banks, and bring stolen jewelry, narcotics, or cars to specialized Fences."
   },
   {
     tag: "WEAPONS & INVENTORY",
     title: "Realistic Carry Limit & Car Trunk Arsenal",
-    desc: "Jason and Lucia can only carry 2 handguns and 2 long guns on foot. Your personal vehicle's trunk acts as your mobile armory and loot stash—open the trunk to swap rifles, store heavy gear, or hide loaded duffel bags between heists."
+    desc: "Jason and Lucia carry 2 handguns and 2 long guns on foot. Your personal vehicle's trunk acts as your mobile armory and loot stash—open the trunk to swap rifles or store loaded stash bags between jobs."
   },
   {
     tag: "VEHICLE THEFT & SECURITY",
-    title: "Car Security Tiers & Anti-Theft Trackers",
-    desc: "Older street cars can be hotwired with a Slim Jim or smashed window, but modern luxury supercars have immobilizers and GPS trackers. You'll need Key-Cloners or Phone-Hacking tools to steal high-end rides, and a Pay & Spray respray to strip trackers."
+    title: "Car Security Tiers & WAiNK Tracker Scanner",
+    desc: "Use Moses' Slim Jim tool in Chapter 2 for parked cars, or Key-Cloners for luxury rides. Press D-Pad Up + Hold R1/RB to scan vehicles for trackers with the WAiNK app, and visit Pay 'n' Spray to strip trackers."
   },
   {
     tag: "FITNESS & PHYSIQUE",
     title: "Gyms, Weight Gain & Melee Stamina",
-    desc: "Working out at Ocean Beach's outdoor gym or local fitness clubs visibly builds muscle and boosts melee stamina. Eating fast food increases body weight—and completing 100 workouts unlocks the Full Body Armor cheat!"
-  },
-  {
-    tag: "TACTICAL FOCUS & COMBAT",
-    title: "Focus Mode & Non-Lethal Hit Indicators",
-    desc: "Focus highlights escape routes, police sightlines, and weak points while slowing aim. In gunfights, a yellow hitmarker means an enemy is injured/incapacitated while red confirms a kill—useful if you want a clean reputation for better heist payouts."
-  },
-  {
-    tag: "WORLD & ACTIVITIES",
-    title: "Enterable Interiors, Social Feeds & Side Sports",
-    desc: "You can rob convenience stores, pawn shops, salons, and armored vans dynamically. Between jobs, explore basketball, kayaking, mini-golf, pool, scuba diving, fishing, hunting, and live in-game social media feeds on your phone."
+    desc: "Working out at Ocean Beach's outdoor gym or local fitness clubs visibly builds muscle and boosts melee stamina—and completing 100 workouts unlocks the Full Body Armor cheat!"
   }
 ];
 
@@ -965,6 +1044,10 @@ document.querySelectorAll(".lang-btn").forEach(btn => {
   btn.addEventListener("click", () => applyLanguage(btn.dataset.lang));
 });
 
+document.querySelectorAll(".tier-pill").forEach(btn => {
+  btn.addEventListener("click", () => selectAccessTier(btn.dataset.settier));
+});
+
 document.querySelectorAll(".plat-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".plat-btn").forEach(b => b.classList.remove("active"));
@@ -999,6 +1082,8 @@ document.getElementById("hideFoundBtn").addEventListener("click", () => {
   document.getElementById("hideFoundBtn").classList.toggle("active", hideFound);
   renderMap();
 });
+
+document.getElementById("glitchCatFilter").addEventListener("change", renderGlitches);
 
 const mapCanvas = document.getElementById("mapCanvas");
 document.getElementById("zoomInBtn").onclick = () => {
@@ -1070,6 +1155,6 @@ document.getElementById("vehClassFilter").addEventListener("change", renderVehic
 document.getElementById("vehSort").addEventListener("change", renderVehicles);
 
 applyLanguage(currentLang);
-renderMap();
+syncTierUI();
 renderForum();
 renderMechanics();

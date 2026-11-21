@@ -24,12 +24,25 @@
           <p data-i18n="subtitle">Leonida Tactical Hub & Lore Intel</p>
         </div>
 
+        <!-- Live Tier Simulator (For Testing Free vs $1.99 vs $4.99) -->
+        <div class="tier-sim-box">
+          <span class="tier-sim-label">PREVIEW ACCESS TIER:</span>
+          <div class="tier-sim-pills">
+            <button class="tier-pill active" data-settier="free">FREE</button>
+            <button class="tier-pill" data-settier="street">$1.99</button>
+            <button class="tier-pill" data-settier="kingpin">$4.99</button>
+          </div>
+        </div>
+
         <nav class="nav-menu">
           <button class="nav-btn active" data-view="cheats">
             <span class="nav-icon">🎮</span> <span data-i18n="navCheats">Cheats & Unlocks</span>
           </button>
           <button class="nav-btn" data-view="map">
-            <span class="nav-icon">🗺️</span> <span data-i18n="navMap">Leonida Map</span> <small class="badge-live">16 PINS</small>
+            <span class="nav-icon">🗺️</span> <span data-i18n="navMap">Leonida Map & Money</span> <small class="badge-live">24 PINS</small>
+          </button>
+          <button class="nav-btn" data-view="glitches">
+            <span class="nav-icon">⚡</span> <span data-i18n="navGlitches">Glitches & Exploits</span> <small class="badge-new">v1.01</small>
           </button>
           <button class="nav-btn" data-view="forum">
             <span class="nav-icon">👁️</span> <span data-i18n="navForum">Easter Eggs & Theories</span>
@@ -38,7 +51,7 @@
             <span class="nav-icon">🏎️</span> <span data-i18n="navDb">Vehicles & Economy</span>
           </button>
           <button class="nav-btn" data-view="mechanics">
-            <span class="nav-icon">📘</span> <span data-i18n="navMech">New Mechanics Guide</span> <small class="badge-new">NEW</small>
+            <span class="nav-icon">📘</span> <span data-i18n="navMech">New Mechanics Guide</span>
           </button>
           <button class="nav-btn" data-view="ai">
             <span class="nav-icon">🤖</span> <span data-i18n="navAi">AI Mission Guide</span> <small>Stage 4</small>
@@ -49,11 +62,11 @@
       <div class="sidebar-footer">
         <div class="pro-card">
           <div class="pro-header">
-            <h4>ViceLink PRO</h4>
-            <span>$3.99</span>
+            <h4 id="currentTierBadge">FREE RECRUIT</h4>
+            <span>$1.99 / $4.99</span>
           </div>
-          <p data-i18n="proDesc">Ad-free mode, cloud map sync & verified Lore Investigator badge.</p>
-          <button id="openProModal" class="btn-pro" data-i18n="proBtn">Unlock Pro Access</button>
+          <p data-i18n="proDesc">One-time unlock for Full Money Map, Glitches Hub, Ad-Free & AI Advisor.</p>
+          <button id="openProModal" class="btn-pro" data-i18n="proBtn">View One-Time Passes</button>
         </div>
         <p class="legal-note" data-i18n="legalNote">Unofficial fan tool. Not affiliated with Rockstar Games or Take-Two Interactive.</p>
       </div>
@@ -77,14 +90,18 @@
 
         <div class="controller-guide-banner" id="controllerGuideBanner"></div>
 
+        <div id="adBannerSlot" class="ad-banner">
+          <span>SPONSORED AD SLOT (Hidden automatically for Street Pass $1.99 & Kingpin VIP $4.99)</span>
+        </div>
+
         <div class="controls-bar">
           <input type="text" id="cheatSearch" data-i18n-placeholder="searchCheats" placeholder="Search cheats or challenges (e.g., $250,000, Shooting Range, Workouts, Flamingo)..." />
           <select id="categoryFilter">
             <option value="ALL" data-i18n="allCats">All Categories (61 Total)</option>
-            <option value="Player" data-i18n="catPlayer">Player & Stats (10)</option>
-            <option value="Combat" data-i18n="catCombat">Combat & Weapons (11)</option>
-            <option value="Vehicles" data-i18n="catVehicles">Spawn Vehicles (21)</option>
-            <option value="World" data-i18n="catWorld">Environment & Filters (19)</option>
+            <option value="Player" data-i18n="catPlayer">Player & Stats</option>
+            <option value="Combat" data-i18n="catCombat">Combat & Weapons</option>
+            <option value="Vehicles" data-i18n="catVehicles">Spawn Vehicles</option>
+            <option value="World" data-i18n="catWorld">Environment & Filters</option>
           </select>
           <select id="statusFilter">
             <option value="ALL" data-i18n="statusAll">All Codes</option>
@@ -97,17 +114,17 @@
         <div id="cheatsGrid" class="cards-grid"></div>
       </section>
 
-      <!-- VIEW 2: INTERACTIVE LEONIDA MAP & TRACKER -->
+      <!-- VIEW 2: INTERACTIVE LEONIDA MAP, FAST MONEY SPOTS & FENCES -->
       <section id="view-map" class="view">
         <header class="view-header">
           <div>
-            <h2 data-i18n="mapTitle">Interactive Leonida Map & 100% Tracker</h2>
-            <p data-i18n="mapSub">Click any pin on the satellite radar to inspect details and track completion.</p>
+            <h2 data-i18n="mapTitle">Interactive Leonida Map, Money Spots & Fences</h2>
+            <p data-i18n="mapSub">Track collectibles, high-payout side hustles, and black-market fences.</p>
           </div>
           <div class="progress-pill">
             <div class="progress-top">
               <span data-i18n="completionLabel">100% Completion</span>
-              <strong id="mapProgressText">0 / 16 (0%)</strong>
+              <strong id="mapProgressText">0 / 24 (0%)</strong>
             </div>
             <div class="progress-track"><div id="mapProgressBar" class="progress-fill"></div></div>
           </div>
@@ -124,7 +141,9 @@
             <option value="Mount Kalaga">Mount Kalaga National Park</option>
           </select>
           <select id="pinTypeFilter">
-            <option value="ALL" data-i18n="allPins">All Pin Types</option>
+            <option value="ALL" data-i18n="allPins">All Pin Types (24)</option>
+            <option value="Money">💰 Fast Money & Side Hustles ($1.99+)</option>
+            <option value="Fence">🤝 Black-Market Fences ($1.99+)</option>
             <option value="Flamingo">🦩 Cocaine Flamingos</option>
             <option value="Card">🃏 Collectible Cards & Watches</option>
             <option value="Stunt">🔥 Stunt Jumps</option>
@@ -132,7 +151,7 @@
             <option value="EasterEgg">🥚 Easter Eggs & Cameos</option>
           </select>
           <button id="hideFoundBtn" class="btn-secondary" data-i18n="hideFound">Hide Found Pins</button>
-          <button id="syncCloudBtn" class="btn-pro" style="width:auto;" data-i18n="cloudSync">☁️ Cloud Sync (Pro)</button>
+          <button id="syncCloudBtn" class="btn-pro" style="width:auto;" data-i18n="cloudSync">☁️ Cloud Sync ($4.99 VIP)</button>
         </div>
 
         <div class="map-workspace">
@@ -197,13 +216,93 @@
 
           <aside class="map-sidebar-list">
             <h3 data-i18n="locationsTitle">Leonida Locations</h3>
-            <p class="muted-sub" data-i18n="locationsSub">Check off collectibles as you discover them.</p>
+            <p class="muted-sub" data-i18n="locationsSub">Check off collectibles & money spots.</p>
             <div id="pinChecklist" class="pin-list"></div>
           </aside>
         </div>
+
+        <!-- All 7 Black-Market Fences Payout Cheat-Sheet -->
+        <div class="fence-sheet">
+          <h3>🤝 Leonida Black-Market Fence Payout Guide (Where to Sell Loot)</h3>
+          <div class="fence-table-wrap">
+            <table class="fence-table">
+              <thead>
+                <tr>
+                  <th>Fence & Location</th>
+                  <th>Unlock Mission</th>
+                  <th>Best Loot Specialty</th>
+                  <th>Payout & Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Brian</strong> (South Key Lento)</td>
+                  <td>Ch. 1: <em>Lab Fees</em></td>
+                  <td>Early Narcotics & Cash</td>
+                  <td>Low rate • Lockup Keypad: <code>7700</code> (Closes after Ch. 1)</td>
+                </tr>
+                <tr>
+                  <td><strong>Donnie</strong> (South Key Lento)</td>
+                  <td>Ch. 1: <em>Clean Up After Donnie</em></td>
+                  <td>Early Drop-Box Goods</td>
+                  <td>Low rate • Closes after Ch. 1 quest <em>Swamped</em></td>
+                </tr>
+                <tr>
+                  <td><strong>Moses "Mo" Watkins</strong> (Port Gellhorn)</td>
+                  <td>Ch. 2: <em>Moses</em></td>
+                  <td><strong>Stolen Cars (No Trackers)</strong></td>
+                  <td>Registers cars as personal or buys clean cars ($1,000+ each)</td>
+                </tr>
+                <tr>
+                  <td><strong>Dunk</strong> (South Port Gellhorn)</td>
+                  <td>Ch. 2: <em>Slam Dunk</em></td>
+                  <td>Ch. 2 Narcotics & Stash Bags</td>
+                  <td>Medium-Low rate • Drop box in his car trunk</td>
+                </tr>
+                <tr>
+                  <td><strong>Tyrone</strong> (La Perle, Vice City)</td>
+                  <td>Ch. 3 Story Progression</td>
+                  <td><strong>HIGHEST for Narcotics</strong></td>
+                  <td>Top payout for Red Barn / Gang Op cocaine bags</td>
+                </tr>
+                <tr>
+                  <td><strong>Yasmani</strong> (Little Cuba, Vice City)</td>
+                  <td>Ch. 3: <em>Boobie Time</em></td>
+                  <td><strong>HIGHEST for Jewelry & Marked Bills</strong></td>
+                  <td>Also sells Security-Van & Bank Vault robbery tips</td>
+                </tr>
+                <tr>
+                  <td><strong>Randy</strong> (Balsero, Vice City)</td>
+                  <td>Ch. 3+ Story Progression</td>
+                  <td><strong>High-End Exotic Cars</strong></td>
+                  <td>Pays premium bonuses for Wish-List supercars</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
-      <!-- VIEW 3: EASTER EGGS, MYSTERIES & CONSPIRACY FORUM -->
+      <!-- VIEW 3: ACTIVE GLITCHES & EXPLOITS HUB -->
+      <section id="view-glitches" class="view">
+        <header class="view-header">
+          <div>
+            <h2 data-i18n="glitchTitle">Active GTA VI Glitches & Exploits (Patch Tracker)</h2>
+            <p data-i18n="glitchSub">Verified money loops, First-Person camera exploit & physics tricks tested on v1.01.</p>
+          </div>
+          <select id="glitchCatFilter" class="btn-secondary">
+            <option value="ALL">All Glitches</option>
+            <option value="Money">💰 Money Loops</option>
+            <option value="Camera">🎥 Camera & Visual</option>
+            <option value="Stealth">🚓 Wanted & Stealth</option>
+            <option value="Physics">🚀 Physics & Traversal</option>
+          </select>
+        </header>
+
+        <div id="glitchesContainer"></div>
+      </section>
+
+      <!-- VIEW 4: EASTER EGGS, MYSTERIES & CONSPIRACY FORUM -->
       <section id="view-forum" class="view">
         <header class="view-header">
           <div>
@@ -254,7 +353,7 @@
         <div id="forumFeed" class="forum-feed"></div>
       </section>
 
-      <!-- VIEW 4: VEHICLES, PROPERTIES & LEONIDA ECONOMY -->
+      <!-- VIEW 5: VEHICLES, PROPERTIES & LEONIDA ECONOMY -->
       <section id="view-database" class="view">
         <header class="view-header">
           <div>
@@ -310,7 +409,7 @@
         </div>
       </section>
 
-      <!-- VIEW 5: NEW GTA VI MECHANICS & SURVIVAL GUIDE -->
+      <!-- VIEW 6: NEW GTA VI MECHANICS & SURVIVAL GUIDE -->
       <section id="view-mechanics" class="view">
         <header class="view-header">
           <div>
@@ -325,25 +424,57 @@
       <section id="view-ai" class="view">
         <div class="coming-soon">
           <h2>🤖 AI Leonida Mission & Strategy Assistant</h2>
-          <p>Ready for <strong>Stage 4</strong>: Powered by Gemini API with bilingual English & Español mission help.</p>
+          <p>Ready for <strong>Stage 4</strong>: Powered by Gemini API with bilingual English & Español mission help + TikTok Flex Card Generator.</p>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Pro Upgrade Modal -->
+  <!-- 3-Tier One-Time Pricing Modal (Panama-Calibrated) -->
   <div id="proModal" class="modal hidden">
-    <div class="modal-content">
+    <div class="modal-content modal-wide">
       <button id="closeProModal" class="close-btn">&times;</button>
-      <span class="brand-badge">PRO MEMBERSHIP</span>
-      <h3 data-i18n="modalTitle">Upgrade to ViceLink Pro</h3>
-      <ul>
-        <li data-i18n="proPerk1">✓ Zero ads across all cheat, map & economy pages</li>
-        <li data-i18n="proPerk2">✓ Sync collectible map pins & Garage Plan across devices</li>
-        <li data-i18n="proPerk3">✓ Verified "Lore Investigator" badge on Conspiracy Board</li>
-        <li data-i18n="proPerk4">✓ Unlimited AI Mission Assistant questions</li>
-      </ul>
-      <button class="btn-pro" onclick="alert('Supabase Auth + Stripe checkout connects here!')" data-i18n="proContinue">Continue — $3.99 One-Time</button>
+      <span class="brand-badge">LIFETIME ONE-TIME PASSES • NO SUBSCRIPTIONS</span>
+      <h3 data-i18n="modalTitle">Choose Your ViceLink Access Tier</h3>
+      <p class="modal-sub">Pay once, keep forever. Supports Yappy, Punto Pago & International Cards.</p>
+
+      <div class="pricing-grid">
+        <div class="price-tier-card">
+          <span class="tier-name">FREE RECRUIT</span>
+          <div class="tier-price">$0 <span>forever</span></div>
+          <ul>
+            <li>✓ All 61 Cheat Codes & Unlock Guide</li>
+            <li>✓ Easter Eggs & Conspiracy Board</li>
+            <li>✓ Starter Leonida Map (8 Pins)</li>
+            <li>• Includes display ads</li>
+          </ul>
+          <button class="btn-secondary full-width" onclick="selectAccessTier('free')">Activate Free</button>
+        </div>
+
+        <div class="price-tier-card featured-street">
+          <span class="tier-name text-cyan">STREET PASS</span>
+          <div class="tier-price">$1.99 <span>one-time</span></div>
+          <ul>
+            <li>✓ <strong>100% Ad-Free</strong> Experience</li>
+            <li>✓ <strong>Full 24-Pin Map</strong> (All Money Spots & Fences)</li>
+            <li>✓ <strong>Active Glitches & Exploits Hub</strong></li>
+            <li>✓ Full 24-Vehicle & Property Planner</li>
+          </ul>
+          <button class="btn-pro" onclick="selectAccessTier('street')">Unlock Street Pass — $1.99</button>
+        </div>
+
+        <div class="price-tier-card featured-kingpin">
+          <span class="tier-name" style="color:#facc15;">KINGPIN VIP</span>
+          <div class="tier-price">$4.99 <span>one-time</span></div>
+          <ul>
+            <li>✓ Everything in <strong>Street Pass</strong></li>
+            <li>✓ <strong>Unlimited AI Mission Advisor</strong> (Stage 4)</li>
+            <li>✓ <strong>Cloud Sync</strong> across Phone & Mac</li>
+            <li>✓ <strong>TikTok Stat Card Exporter</strong> + VIP Badge</li>
+          </ul>
+          <button class="btn-pro" style="background:linear-gradient(90deg,#f59e0b,#ea580c);" onclick="selectAccessTier('kingpin')">Unlock Kingpin VIP — $4.99</button>
+        </div>
+      </div>
     </div>
   </div>
 

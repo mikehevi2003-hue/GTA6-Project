@@ -26,7 +26,7 @@
 
         <nav class="nav-menu">
           <button class="nav-btn active" data-view="cheats">
-            <span class="nav-icon">🎮</span> <span data-i18n="navCheats">Cheat Codes & Controller</span>
+            <span class="nav-icon">🎮</span> <span data-i18n="navCheats">Cheats & Unlocks</span>
           </button>
           <button class="nav-btn" data-view="map">
             <span class="nav-icon">🗺️</span> <span data-i18n="navMap">Leonida Map</span> <small class="badge-live">16 PINS</small>
@@ -35,7 +35,10 @@
             <span class="nav-icon">👁️</span> <span data-i18n="navForum">Easter Eggs & Theories</span>
           </button>
           <button class="nav-btn" data-view="database">
-            <span class="nav-icon">🏎️</span> <span data-i18n="navDb">Vehicles & Economy</span> <small class="badge-live">24</small>
+            <span class="nav-icon">🏎️</span> <span data-i18n="navDb">Vehicles & Economy</span>
+          </button>
+          <button class="nav-btn" data-view="mechanics">
+            <span class="nav-icon">📘</span> <span data-i18n="navMech">New Mechanics Guide</span> <small class="badge-new">NEW</small>
           </button>
           <button class="nav-btn" data-view="ai">
             <span class="nav-icon">🤖</span> <span data-i18n="navAi">AI Mission Guide</span> <small>Stage 4</small>
@@ -58,30 +61,30 @@
 
     <!-- Main Workspace -->
     <main class="main-content">
-      <!-- VIEW 1: CHEAT CODES & VISUAL CONTROLLER INPUTS -->
+      <!-- VIEW 1: CHEAT CODES & UNLOCK GUIDE -->
       <section id="view-cheats" class="view active">
         <header class="view-header">
           <div>
-            <h2 data-i18n="cheatsTitle">GTA VI Cheat Codes & Controller Inputs</h2>
-            <p data-i18n="cheatsSub">Visual PS5 & Xbox button combinations, unlock challenges, and activation steps.</p>
+            <h2 data-i18n="cheatsTitle">GTA VI Cheat Codes & Unlock Checklist</h2>
+            <p data-i18n="cheatsSub">Visual PS5/Xbox controller inputs + step-by-step unlock requirements for every cheat.</p>
           </div>
           <div class="platform-toggle">
-            <button class="plat-btn active" data-platform="PS5">PlayStation 5</button>
+            <button class="plat-btn active" data-platform="PS5">PS5</button>
             <button class="plat-btn" data-platform="XBOX">Xbox Series X|S</button>
+            <button class="plat-btn" data-platform="UNLOCKS" data-i18n="unlockTab">🔓 How to Unlock All</button>
           </div>
         </header>
 
-        <!-- How to Enter Cheats Visual Controller Bar -->
         <div class="controller-guide-banner" id="controllerGuideBanner"></div>
 
         <div class="controls-bar">
-          <input type="text" id="cheatSearch" data-i18n-placeholder="searchCheats" placeholder="Search cheats (e.g., $250,000, Max Ammo, Banshee, Weather)..." />
+          <input type="text" id="cheatSearch" data-i18n-placeholder="searchCheats" placeholder="Search cheats or challenges (e.g., $250,000, Shooting Range, Workouts, Flamingo)..." />
           <select id="categoryFilter">
             <option value="ALL" data-i18n="allCats">All Categories (61 Total)</option>
-            <option value="Player" data-i18n="catPlayer">Player & Stats</option>
-            <option value="Combat" data-i18n="catCombat">Combat & Weapons</option>
-            <option value="Vehicles" data-i18n="catVehicles">Spawn Vehicles</option>
-            <option value="World" data-i18n="catWorld">Environment & Filters</option>
+            <option value="Player" data-i18n="catPlayer">Player & Stats (10)</option>
+            <option value="Combat" data-i18n="catCombat">Combat & Weapons (11)</option>
+            <option value="Vehicles" data-i18n="catVehicles">Spawn Vehicles (21)</option>
+            <option value="World" data-i18n="catWorld">Environment & Filters (19)</option>
           </select>
           <select id="statusFilter">
             <option value="ALL" data-i18n="statusAll">All Codes</option>
@@ -139,12 +142,8 @@
               <button id="zoomOutBtn" title="Zoom Out">−</button>
               <button id="resetZoomBtn" title="Reset View">⟲</button>
             </div>
-
-            <!-- Selected Pin Inspector Overlay -->
             <div id="mapInspector" class="map-inspector hidden"></div>
-
             <div class="map-canvas" id="mapCanvas">
-              <!-- Original Detailed Geographic SVG Layout of Leonida -->
               <svg viewBox="0 0 900 680" class="leonida-svg">
                 <defs>
                   <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
@@ -160,54 +159,31 @@
                     <stop offset="100%" stop-color="#111b2e"/>
                   </linearGradient>
                 </defs>
-
-                <!-- Deep Ocean & Radar Grid -->
                 <rect width="900" height="680" fill="url(#oceanGrad)" />
                 <rect width="900" height="680" fill="url(#grid)" />
-
-                <!-- Shallow Coastal Shelf -->
                 <path d="M165,30 L615,30 L685,210 L725,425 L675,525 L555,585 L370,635 L220,665 L205,645 L350,605 L465,550 L395,485 L295,455 L235,345 L145,255 L125,130 Z"
                       fill="rgba(0, 229, 255, 0.05)" />
-
-                <!-- Main Leonida Peninsula -->
                 <path d="M185,40 L595,40 L645,165 L675,310 L692,415 L665,485 L620,518 L555,535 L490,515 L440,468 L360,445 L290,415 L258,340 L215,318 L185,250 L160,150 Z"
                       fill="url(#landGrad)" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.6" />
-
-                <!-- Vice City Barrier Islands (Ocean Beach / Starfish / Bayside) -->
                 <path d="M706,335 L722,338 L715,438 L698,435 Z" fill="#1b2947" stroke="#ff2a85" stroke-width="1.5" />
                 <ellipse cx="696" cy="382" rx="9" ry="14" fill="#1b2947" stroke="#00e5ff" stroke-width="1" />
-                <!-- Causeways connecting Mainland Vice City to Barrier Island -->
                 <line x1="684" y1="362" x2="707" y2="362" stroke="#ff2a85" stroke-width="2" />
                 <line x1="686" y1="405" x2="705" y2="405" stroke="#ff2a85" stroke-width="2" />
-
-                <!-- Mount Kalaga Topographic Elevation Contours (North) -->
                 <path d="M265,95 Q365,55 470,98 Q445,148 355,142 Q275,138 265,95 Z" fill="none" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.35" stroke-dasharray="4 3"/>
                 <path d="M305,102 Q365,76 425,104 Q405,128 355,125 Q315,122 305,102 Z" fill="none" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.5"/>
-
-                <!-- Lake Leonida & Ambrosia Waterways -->
                 <path d="M455,255 Q515,245 535,288 Q525,335 475,332 Q435,320 455,255 Z"
                       fill="#070d19" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.5" />
                 <path d="M535,295 L678,325" stroke="#070d19" stroke-width="6" />
-
-                <!-- Grassrivers Wetland Channels -->
                 <path d="M415,430 Q475,455 545,442 M445,465 Q515,485 595,472 M385,405 Q435,415 480,395"
                       fill="none" stroke="#070d19" stroke-width="4" stroke-linecap="round" />
-
-                <!-- Port Gellhorn Western Bay -->
                 <path d="M215,318 Q250,305 268,332 Q245,355 215,318 Z" fill="#070d19" />
-
-                <!-- Leonida Keys Archipelago & Overseas Highway -->
                 <path d="M565,535 Q485,585 375,615 Q290,635 225,650" fill="none" stroke="#ff2a85" stroke-width="1.5" stroke-dasharray="5 4" stroke-opacity="0.75" />
                 <ellipse cx="535" cy="552" rx="18" ry="6" transform="rotate(-24 535 552)" fill="#18243d" stroke="#00e5ff" stroke-width="1.2"/>
                 <ellipse cx="475" cy="582" rx="22" ry="6" transform="rotate(-20 475 582)" fill="#18243d" stroke="#00e5ff" stroke-width="1.2"/>
                 <ellipse cx="405" cy="608" rx="24" ry="6" transform="rotate(-16 405 608)" fill="#18243d" stroke="#00e5ff" stroke-width="1.2"/>
                 <ellipse cx="325" cy="628" rx="20" ry="6" transform="rotate(-14 325 628)" fill="#18243d" stroke="#00e5ff" stroke-width="1.2"/>
                 <ellipse cx="242" cy="646" rx="22" ry="7" transform="rotate(-12 242 646)" fill="#18243d" stroke="#00e5ff" stroke-width="1.2"/>
-
-                <!-- Major Highway Network -->
                 <path d="M365,115 L255,285 L340,415 L655,405 L635,185 L465,115" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="2" />
-
-                <!-- Region Labels -->
                 <text x="365" y="82" class="region-label">MOUNT KALAGA NATIONAL PARK</text>
                 <text x="245" y="245" class="region-label">PORT GELLHORN</text>
                 <text x="490" y="232" class="region-label">AMBROSIA</text>
@@ -283,11 +259,11 @@
         <header class="view-header">
           <div>
             <h2 data-i18n="dbTitle">Leonida Vehicles, Properties & Economy</h2>
-            <p data-i18n="dbSub">24 confirmed GTA VI vehicles across land, sea & air + property ROI planner.</p>
+            <p data-i18n="dbSub">Buy properties to expand garage slots & passive income, then fill your garages with vehicles.</p>
           </div>
           <div class="platform-toggle">
             <button class="db-tab-btn active" data-dbtab="vehicles" data-i18n="tabVehicles">🏎️ Vehicles (24)</button>
-            <button class="db-tab-btn" data-dbtab="properties" data-i18n="tabProperties">🏢 Properties & ROI</button>
+            <button class="db-tab-btn" data-dbtab="properties" data-i18n="tabProperties">🏢 Properties & Garages</button>
           </div>
         </header>
 
@@ -301,7 +277,7 @@
             <strong id="plannerDailyIncome" class="text-cyan">$0 / day</strong>
           </div>
           <div class="planner-stat">
-            <span data-i18n="plannerGarage">Garage Slots Used</span>
+            <span data-i18n="plannerGarage">Garage Slots (From Properties)</span>
             <strong id="plannerGarageSlots">0 / 0 Slots</strong>
           </div>
           <button id="clearPlannerBtn" class="btn-secondary" data-i18n="clearPlan">Reset Plan</button>
@@ -332,6 +308,17 @@
         <div id="db-properties" class="db-subview">
           <div id="propertiesGrid" class="cards-grid"></div>
         </div>
+      </section>
+
+      <!-- VIEW 5: NEW GTA VI MECHANICS & SURVIVAL GUIDE -->
+      <section id="view-mechanics" class="view">
+        <header class="view-header">
+          <div>
+            <h2 data-i18n="mechTitle">GTA VI New Mechanics & Player FAQ</h2>
+            <p data-i18n="mechSub">Everything that changed from GTA V: Money laundering, car trunks, hacking tools & fitness.</p>
+          </div>
+        </header>
+        <div id="mechanicsGrid" class="cards-grid"></div>
       </section>
 
       <!-- Preview Placeholder for Stage 4 -->

@@ -5,22 +5,24 @@ const TRANSLATIONS = {
   en: {
     badge: "UNOFFICIAL FAN HUB",
     subtitle: "Leonida Tactical Hub & Lore Intel",
-    navCheats: "Cheat Codes & Controller",
+    navCheats: "Cheats & Unlocks",
     navMap: "Leonida Map",
     navForum: "Easter Eggs & Theories",
     navDb: "Vehicles & Economy",
+    navMech: "New Mechanics Guide",
     navAi: "AI Mission Guide",
     proDesc: "Ad-free mode, cloud map sync & verified Lore Investigator badge.",
     proBtn: "Unlock Pro Access",
     legalNote: "Unofficial fan tool. Not affiliated with Rockstar Games or Take-Two Interactive.",
-    cheatsTitle: "GTA VI Cheat Codes & Controller Inputs",
-    cheatsSub: "Visual PS5 & Xbox button combinations, unlock challenges, and activation steps.",
-    searchCheats: "Search cheats (e.g., $250,000, Max Ammo, Banshee, Weather)...",
+    cheatsTitle: "GTA VI Cheat Codes & Unlock Checklist",
+    cheatsSub: "Visual PS5/Xbox controller inputs + step-by-step unlock requirements for every cheat.",
+    unlockTab: "🔓 How to Unlock All",
+    searchCheats: "Search cheats or challenges (e.g., $250,000, Shooting Range, Workouts, Flamingo)...",
     allCats: "All Categories (61 Total)",
-    catPlayer: "Player & Stats",
-    catCombat: "Combat & Weapons",
-    catVehicles: "Spawn Vehicles",
-    catWorld: "Environment & Filters",
+    catPlayer: "Player & Stats (10)",
+    catCombat: "Combat & Weapons (11)",
+    catVehicles: "Spawn Vehicles (21)",
+    catWorld: "Environment & Filters (19)",
     statusAll: "All Codes",
     statusVerified: "✓ Verified Button Combos",
     statusPending: "🔒 Challenge Known (Combo Hunting)",
@@ -44,18 +46,20 @@ const TRANSLATIONS = {
     sortTop: "Sort: Top Upvoted",
     sortNew: "Sort: Newest First",
     dbTitle: "Leonida Vehicles, Properties & Economy",
-    dbSub: "24 confirmed GTA VI vehicles across land, sea & air + property ROI planner.",
+    dbSub: "Buy properties to expand garage slots & passive income, then fill your garages with vehicles.",
     tabVehicles: "🏎️ Vehicles (24)",
-    tabProperties: "🏢 Properties & ROI",
+    tabProperties: "🏢 Properties & Garages",
     plannerWorth: "Planned Asset Value",
     plannerIncome: "Daily Passive Income",
-    plannerGarage: "Garage Slots Used",
+    plannerGarage: "Garage Slots (From Properties)",
     clearPlan: "Reset Plan",
     searchVeh: "Search vehicles (e.g., Cheetah, Banshee, Ganado, Airboat, Enduro)...",
     allClasses: "All Vehicle Classes",
     sortSpeed: "Sort: Top Speed",
     sortPriceLow: "Price: Low to High",
     sortPriceHigh: "Price: High to Low",
+    mechTitle: "GTA VI New Mechanics & Player FAQ",
+    mechSub: "Everything that changed from GTA V: Money laundering, car trunks, hacking tools & fitness.",
     modalTitle: "Upgrade to ViceLink Pro",
     proPerk1: "✓ Zero ads across all cheat, map & economy pages",
     proPerk2: "✓ Sync collectible map pins & Garage Plan across devices",
@@ -64,28 +68,30 @@ const TRANSLATIONS = {
     proContinue: "Continue — $3.99 One-Time",
     addGarage: "+ Add to Garage Plan",
     inGarage: "✓ In Garage Plan",
-    buyProp: "+ Add Property to Empire",
+    buyProp: "+ Buy Property & Garage",
     ownedProp: "✓ Owned in Empire"
   },
   es: {
     badge: "HUB NO OFICIAL DE FANS",
     subtitle: "Guía Táctica de Leonida y Secretos",
-    navCheats: "Trucos y Control",
+    navCheats: "Trucos y Desbloqueos",
     navMap: "Mapa de Leonida",
     navForum: "Easter Eggs y Teorías",
     navDb: "Vehículos y Economía",
+    navMech: "Guía de Nuevas Mecánicas",
     navAi: "Guía IA de Misiones",
     proDesc: "Sin anuncios, sincronización en la nube e insignia de Investigador.",
     proBtn: "Desbloquear Pro",
     legalNote: "Herramienta no oficial de fans. Sin afiliación con Rockstar Games ni Take-Two Interactive.",
-    cheatsTitle: "Códigos de Trucos y Botones del Control",
-    cheatsSub: "Combinaciones visuales para PS5 y Xbox, requisitos de desbloqueo y pasos de activación.",
-    searchCheats: "Buscar trucos (ej. $250,000, Munición, Banshee, Clima)...",
+    cheatsTitle: "Trucos de GTA VI y Guía para Desbloquearlos",
+    cheatsSub: "Botones visuales PS5/Xbox + explicación paso a paso de cómo desbloquear cada truco.",
+    unlockTab: "🔓 Cómo Desbloquear Todos",
+    searchCheats: "Buscar trucos o desafíos (ej. $250,000, Campo de Tiro, Gimnasio, Flamenco)...",
     allCats: "Todas las Categorías (61 Total)",
-    catPlayer: "Jugador y Estadísticas",
-    catCombat: "Combate y Armas",
-    catVehicles: "Generar Vehículos",
-    catWorld: "Entorno y Filtros",
+    catPlayer: "Jugador y Estadísticas (10)",
+    catCombat: "Combate y Armas (11)",
+    catVehicles: "Generar Vehículos (21)",
+    catWorld: "Entorno y Filtros (19)",
     statusAll: "Todos los Códigos",
     statusVerified: "✓ Combinaciones Verificadas",
     statusPending: "🔒 Desafío Conocido (Código en Búsqueda)",
@@ -109,9 +115,9 @@ const TRANSLATIONS = {
     sortTop: "Ordenar: Más Votadas",
     sortNew: "Ordenar: Más Recientes",
     dbTitle: "Vehículos, Propiedades y Economía de Leonida",
-    dbSub: "24 vehículos confirmados en GTA VI por tierra, mar y aire + planificador.",
+    dbSub: "Compra propiedades para ganar espacios de garaje e ingresos diarios, y guarda tus autos.",
     tabVehicles: "🏎️ Vehículos (24)",
-    tabProperties: "🏢 Propiedades y ROI",
+    tabProperties: "🏢 Propiedades y Garajes",
     plannerWorth: "Valor Total del Plan",
     plannerIncome: "Ingreso Pasivo Diario",
     plannerGarage: "Espacios de Garaje",
@@ -121,6 +127,8 @@ const TRANSLATIONS = {
     sortSpeed: "Ordenar: Velocidad Máx.",
     sortPriceLow: "Precio: Menor a Mayor",
     sortPriceHigh: "Precio: Mayor a Menor",
+    mechTitle: "Nuevas Mecánicas de GTA VI y Preguntas Frecuentes",
+    mechSub: "Todo lo que cambió respecto a GTA V: lavado de dinero, maleteros, hackeo de autos y físico.",
     modalTitle: "Mejora a ViceLink Pro",
     proPerk1: "✓ Cero anuncios en trucos, mapa y economía",
     proPerk2: "✓ Sincroniza tus pines del mapa y garaje en todos tus dispositivos",
@@ -129,7 +137,7 @@ const TRANSLATIONS = {
     proContinue: "Continuar — $3.99 Pago Único",
     addGarage: "+ Añadir al Garaje",
     inGarage: "✓ En tu Garaje",
-    buyProp: "+ Añadir Propiedad",
+    buyProp: "+ Comprar Propiedad y Garaje",
     ownedProp: "✓ En tu Imperio"
   }
 };
@@ -138,14 +146,15 @@ let currentLang = localStorage.getItem("gta6_lang") || "en";
 let currentPlatform = "PS5";
 
 // ==========================================
-// VERIFIED GTA VI CHEAT CODES & CONTROLLER INPUTS
+// EXPANDED GTA VI CHEATS + FULL UNLOCK GUIDE
 // ==========================================
 const CHEATS_DATA = [
   {
     id: "cash-250k",
     title: "+$250,000 Instant Cash",
     category: "Player",
-    unlock: "Finish all 91 story missions (or fence $250,000 in goods)",
+    unlock: "Finish all 91 story missions",
+    howToUnlock: "Complete the entire main storyline (all 91 missions). Once credits roll, open Pause > Progress > Cheats and this code unlocks automatically. Note: Only money cheat in GTA 6, and saving is disabled while active.",
     desc: "Immediately deposits $250,000 into your active character's bank balance.",
     seq: ["UP", "RIGHT", "DOWN", "LEFT", "UP", "LEFT", "DOWN", "RIGHT"]
   },
@@ -154,6 +163,7 @@ const CHEATS_DATA = [
     title: "Unlimited Focus Ability",
     category: "Player",
     unlock: "Finish the main story campaign",
+    howToUnlock: "Beat the final story mission. Jason and Lucia's tactical Focus ability (which slows time and highlights weak points/routes) becomes infinite when toggled.",
     desc: "Prevents your tactical focus meter from draining during combat and driving.",
     seq: ["DOWN", "UP", "UP", "DOWN", "UP", "DOWN", "UP", "DOWN", "UP", "RIGHT"]
   },
@@ -162,14 +172,61 @@ const CHEATS_DATA = [
     title: "Full Body Armor Loadout",
     category: "Player",
     unlock: "Complete 100 gym / beach workouts",
+    howToUnlock: "Visit Muscle Sands outdoor gym on Ocean Beach or any Leonida fitness club and complete 100 weightlifting/calisthenics sets.",
     desc: "Equips maximum heavy ballistic armor immediately.",
     seq: ["DOWN", "UP", "LEFT", "UP", "UP", "UP", "UP", "UP", "DOWN", "DOWN"]
+  },
+  {
+    id: "drunk-mode",
+    title: "Drunk Mode (Jason & Lucia)",
+    category: "Player",
+    unlock: "Spend $2,500 on alcohol",
+    howToUnlock: "Buy drinks at Vice City nightclubs, strip clubs, and beach bars until your cumulative bar tab reaches $2,500.",
+    desc: "Makes both Jason and Lucia heavily intoxicated with ragdoll physics.",
+    seq: []
+  },
+  {
+    id: "no-fall-damage",
+    title: "No Fall Damage",
+    category: "Player",
+    unlock: "Survive a 40ft freefall 20 times",
+    howToUnlock: "Jump off roofs, bridges, or cliffs at least 40 feet high (without opening a parachute) and survive the landing 20 times.",
+    desc: "Makes your character completely immune to fall damage from any height.",
+    seq: []
+  },
+  {
+    id: "parachute-cheat",
+    title: "Spawn Parachute",
+    category: "Player",
+    unlock: "Complete 50 skydives or BASE jumps (300ft+)",
+    howToUnlock: "Jump from helicopters, planes, or skyscrapers at 300ft or higher and land safely 50 times.",
+    desc: "Equips a reserve parachute pack directly onto your back.",
+    seq: []
+  },
+  {
+    id: "repair-vehicle",
+    title: "Instant Vehicle Repair",
+    category: "Player",
+    unlock: "Finish 1st in 10 street/track races",
+    howToUnlock: "Win 1st place in 10 total races across Gellhorn Raceway, Thrillbilly Mud Club, and Boone Speedway.",
+    desc: "Instantly fixes all body damage, broken windows, and popped tires on your current car.",
+    seq: []
+  },
+  {
+    id: "unlimited-nitrous",
+    title: "Unlimited Nitrous & Fuel",
+    category: "Player",
+    unlock: "Complete all 50 Stunt Jumps",
+    howToUnlock: "Find and cleanly land all 50 Stunt Jumps across Vice City, Grassrivers, Port Gellhorn, and the Keys.",
+    desc: "Gives every vehicle infinite nitrous boost and zero fuel drain.",
+    seq: []
   },
   {
     id: "raise-heat",
     title: "Raise Map Heat Level",
     category: "Player",
     unlock: "Lose a 3-star wanted level 25 times",
+    howToUnlock: "Trigger a 3-star LCPD pursuit and escape out of the police search cone 25 times.",
     desc: "Pushes your regional heat level higher across Leonida.",
     seq: ["LEFT", "DOWN", "RIGHT", "DOWN", "UP", "DOWN", "UP"]
   },
@@ -178,6 +235,7 @@ const CHEATS_DATA = [
     title: "Raise Wanted Level (+1 Star)",
     category: "Player",
     unlock: "Lose a 3-star wanted level 50 times",
+    howToUnlock: "Escape 50 separate 3-star police chases (hiding in alleys or repainting at Pay & Spray speeds this up).",
     desc: "Immediately escalates LCPD police pursuit intensity.",
     seq: ["LEFT", "DOWN", "RIGHT", "DOWN", "UP", "RIGHT", "UP"]
   },
@@ -185,7 +243,8 @@ const CHEATS_DATA = [
     id: "max-ammo",
     title: "Max Ammo (All Weapons)",
     category: "Combat",
-    unlock: "Win 25 Bronze medals or higher at shooting ranges",
+    unlock: "Win 25 Bronze medals at shooting ranges",
+    howToUnlock: "Visit Ammu-Nation or gun club shooting ranges and score at least Bronze in 25 weapon trials.",
     desc: "Fills ammunition reserves for every weapon in your wheel.",
     seq: ["DOWN", "UP", "RIGHT", "DOWN", "LEFT", "LEFT", "UP", "UP", "DOWN", "LEFT"]
   },
@@ -193,7 +252,8 @@ const CHEATS_DATA = [
     id: "infinite-ammo",
     title: "Infinite Ammo",
     category: "Combat",
-    unlock: "Win 25 Silver medals or higher at shooting ranges",
+    unlock: "Win 25 Silver medals at shooting ranges",
+    howToUnlock: "Score Silver or higher across 25 shooting range challenges.",
     desc: "Weapons never consume reserve ammunition when firing.",
     seq: ["DOWN", "UP", "RIGHT", "DOWN", "LEFT", "LEFT", "UP", "DOWN", "DOWN", "DOWN"]
   },
@@ -202,14 +262,25 @@ const CHEATS_DATA = [
     title: "No Reload (Bottomless Clip)",
     category: "Combat",
     unlock: "Win 25 Gold medals at shooting ranges",
+    howToUnlock: "Achieve Gold medal accuracy/speed scores in 25 shooting range trials.",
     desc: "Fire continuously without ever pausing to reload magazines.",
     seq: ["DOWN", "UP", "RIGHT", "DOWN", "LEFT", "LEFT", "UP", "DOWN", "DOWN", "UP"]
+  },
+  {
+    id: "fire-ammo",
+    title: "Incendiary Fire Bullets",
+    category: "Combat",
+    unlock: "Inflict fire damage on 100 enemies",
+    howToUnlock: "Use Molotovs, flare guns, or incendiary rounds to ignite 100 hostile gang members or targets.",
+    desc: "All standard bullets ignite targets and vehicles on impact.",
+    seq: []
   },
   {
     id: "attack-force",
     title: "Super Attack Force",
     category: "Combat",
-    unlock: "Finish the main story (or knock out 100 enemies)",
+    unlock: "Finish the main story campaign",
+    howToUnlock: "Complete all 91 story missions to unlock super-knockback melee and gunfire.",
     desc: "Melee strikes and bullets send targets flying across the street.",
     seq: ["DOWN", "UP", "LEFT", "LEFT", "RIGHT", "DOWN", "DOWN", "UP", "DOWN"]
   },
@@ -218,7 +289,8 @@ const CHEATS_DATA = [
     title: "Exploding Sports Balls",
     category: "Combat",
     unlock: "Hit 20 enemies with explosive damage",
-    desc: "Basketballs and sports balls detonate like grenades on impact.",
+    howToUnlock: "Eliminate or damage 20 enemies using grenades, RPGs, or sticky bombs.",
+    desc: "Basketballs and beach balls detonate like grenades on impact.",
     seq: ["DOWN", "UP", "LEFT", "LEFT", "RIGHT", "DOWN", "DOWN", "UP", "RIGHT"]
   },
   {
@@ -226,6 +298,7 @@ const CHEATS_DATA = [
     title: "Super Vehicle Ram Force",
     category: "Combat",
     unlock: "Eliminate 25 enemies with a vehicle",
+    howToUnlock: "Run over or ram 25 hostile enemies using any car or truck.",
     desc: "Anything your vehicle collides with launches into the air.",
     seq: ["DOWN", "UP", "LEFT", "LEFT", "RIGHT", "DOWN", "LEFT", "UP", "DOWN"]
   },
@@ -233,7 +306,8 @@ const CHEATS_DATA = [
     id: "spawn-boomazoom",
     title: "Spawn Maibatsu Boomazoom",
     category: "Vehicles",
-    unlock: "Complete 5 shopping challenges",
+    unlock: "Complete 5 Shopping Challenges",
+    howToUnlock: "Buy clothing, accessories, and gear across 5 different Vice City & Port Gellhorn stores.",
     desc: "Spawns a compact Maibatsu Boomazoom directly beside you.",
     seq: ["LEFT", "UP", "RIGHT", "DOWN", "LEFT", "LEFT", "UP", "LEFT"]
   },
@@ -241,7 +315,8 @@ const CHEATS_DATA = [
     id: "spawn-pumper",
     title: "Spawn MTL Fire Pumper",
     category: "Vehicles",
-    unlock: "Discover the MTL Pumper in the Progress menu",
+    unlock: "Discover the MTL Pumper in Progress menu",
+    howToUnlock: "Find or drive an MTL Fire Truck once in free roam so it registers in Pause > Progress > Vehicles.",
     desc: "Spawns a heavy fire truck with a working water cannon.",
     seq: ["LEFT", "UP", "RIGHT", "DOWN", "LEFT", "RIGHT", "RIGHT", "UP"]
   },
@@ -249,15 +324,44 @@ const CHEATS_DATA = [
     id: "spawn-bulldozer",
     title: "Spawn HVY Bulldozer",
     category: "Vehicles",
-    unlock: "Discover the HVY Bulldozer in the Progress menu",
+    unlock: "Discover the HVY Bulldozer in Progress menu",
+    howToUnlock: "Visit a construction site in Vice City or Ambrosia and enter an HVY Bulldozer to register it.",
     desc: "Spawns an industrial yellow construction bulldozer.",
     seq: ["LEFT", "UP", "RIGHT", "DOWN", "LEFT", "RIGHT", "RIGHT", "DOWN"]
+  },
+  {
+    id: "spawn-thrax",
+    title: "Spawn Truffade Thrax Hypercar",
+    category: "Vehicles",
+    unlock: "Complete ALL Shopping Challenges",
+    howToUnlock: "Complete every luxury fashion and boutique shopping challenge in Leonida.",
+    desc: "Spawns a flagship Truffade Thrax hypercar.",
+    seq: []
+  },
+  {
+    id: "spawn-flamingo",
+    title: "Spawn Inflatable Flamingo",
+    category: "Vehicles",
+    unlock: "Destroy all 50 Cocaine Flamingos",
+    howToUnlock: "Find and shoot all 50 hidden pink Cocaine Flamingos scattered across Leonida's 6 regions.",
+    desc: "Spawns a rideable giant pink pool flamingo.",
+    seq: []
+  },
+  {
+    id: "spawn-lazer",
+    title: "Spawn Hauners P-996 LAZER Jet",
+    category: "Vehicles",
+    unlock: "Complete 100% of all Progress Challenges",
+    howToUnlock: "Achieve 100% completion across Story, Exploration, Combat, Sports, and Vehicle challenges.",
+    desc: "Spawns a military fighter jet.",
+    seq: []
   },
   {
     id: "cycle-weather",
     title: "Cycle Leonida Weather",
     category: "World",
     unlock: "Reveal 100% of the Leonida map",
+    howToUnlock: "Fly or drive across every fogged-out sector of Leonida until 100% of the map is uncovered.",
     desc: "Cycles through Vice Sun, Tropical Storm, Overcast, and Sunset.",
     seq: ["DOWN", "RIGHT", "UP", "DOWN", "RIGHT", "UP", "RIGHT"]
   },
@@ -265,7 +369,8 @@ const CHEATS_DATA = [
     id: "filter-cataclysm",
     title: "Screen Filter: Cataclysm",
     category: "World",
-    unlock: "Discover Martha's Vamos in the Progress menu",
+    unlock: "Discover Martha's Vamos in Progress menu",
+    howToUnlock: "Locate Martha's custom Declasse Vamos in the world to register it in your Progress menu.",
     desc: "Covers Leonida in dark, apocalyptic murky smoke.",
     seq: ["DOWN", "DOWN", "UP", "RIGHT", "RIGHT", "UP", "LEFT", "LEFT", "RIGHT", "RIGHT"]
   },
@@ -273,7 +378,8 @@ const CHEATS_DATA = [
     id: "filter-dollhouse",
     title: "Screen Filter: Dollhouse",
     category: "World",
-    unlock: "Spend 8 in-game hours hanging out with your partner",
+    unlock: "Hang out with your partner for 8 hours",
+    howToUnlock: "Invite Jason or Lucia on free-roam hangouts (bars, mini-golf, beaches) for 8 cumulative in-game hours.",
     desc: "Applies hyper-saturated miniature colors in a narrow frame.",
     seq: ["DOWN", "DOWN", "UP", "RIGHT", "RIGHT", "UP", "LEFT", "LEFT", "DOWN", "RIGHT"]
   },
@@ -282,47 +388,32 @@ const CHEATS_DATA = [
     title: "Screen Filter: Faded Glory (CRT)",
     category: "World",
     unlock: "Rob 50 stores with your partner",
+    howToUnlock: "Bring your partner along and hold up 50 convenience stores, liquor shops, or pawn shops across Leonida.",
     desc: "Applies a retro 1980s Vice City CRT television visual filter.",
     seq: ["DOWN", "DOWN", "UP", "RIGHT", "RIGHT", "UP", "LEFT", "LEFT", "LEFT", "RIGHT"]
-  },
-  {
-    id: "spawn-banshee",
-    title: "Spawn Bravado Banshee",
-    category: "Vehicles",
-    unlock: "Complete all Combat Challenges",
-    desc: "Spawns the classic V10 sports coupe (D-pad sequence still being cracked by community).",
-    seq: []
-  },
-  {
-    id: "spawn-flamingo",
-    title: "Spawn Inflatable Flamingo",
-    category: "Vehicles",
-    unlock: "Destroy all 50 Cocaine Flamingos across Leonida",
-    desc: "Spawns a rideable pink pool flamingo (D-pad sequence still being cracked by community).",
-    seq: []
-  },
-  {
-    id: "spawn-lazer",
-    title: "Spawn Hauners P-996 LAZER Jet",
-    category: "Vehicles",
-    unlock: "Complete 100% of all Progress Challenges",
-    desc: "Spawns a military fighter jet (D-pad sequence still being cracked by community).",
-    seq: []
   }
 ];
 
-const ARROW_MAP = {
-  UP: "↑ UP",
-  DOWN: "↓ DOWN",
-  LEFT: "← LEFT",
-  RIGHT: "→ RIGHT"
-};
-
+const ARROW_MAP = { UP: "↑ UP", DOWN: "↓ DOWN", LEFT: "← LEFT", RIGHT: "→ RIGHT" };
 let favorites = JSON.parse(localStorage.getItem("gta6_favs") || "[]");
+let unlockedCheats = JSON.parse(localStorage.getItem("gta6_unlocked_cheats") || "[]");
 let showFavsOnly = false;
 
 function renderControllerGuide() {
   const banner = document.getElementById("controllerGuideBanner");
+  if (currentPlatform === "UNLOCKS") {
+    const doneCount = unlockedCheats.length;
+    banner.innerHTML = `
+      <div class="guide-steps">
+        <span>🔓 <strong>${currentLang === "es" ? "Progreso de Desbloqueo:" : "Cheat Unlock Progress:"}</strong> ${doneCount} / ${CHEATS_DATA.length} ${currentLang === "es" ? "desafíos completados" : "challenges completed"}</span>
+      </div>
+      <div class="guide-warning">
+        💡 ${currentLang === "es" ? "Paso 1: Completa las 91 misiones. Paso 2: Completa el desafío de cada truco en Pausa > Progreso > Trucos." : "Step 1: Beat all 91 story missions. Step 2: Finish each cheat's specific challenge under Pause > Progress > Cheats."}
+      </div>
+    `;
+    return;
+  }
+
   const isPS = currentPlatform === "PS5";
   const bumper1 = isPS ? `<span class="ctrl-key ps-bumper">L1</span>` : `<span class="ctrl-key xb-bumper">LB</span>`;
   const bumper2 = isPS ? `<span class="ctrl-key ps-bumper">R1</span>` : `<span class="ctrl-key xb-bumper">RB</span>`;
@@ -350,9 +441,10 @@ function renderCheats() {
   const cat = document.getElementById("categoryFilter").value;
   const status = document.getElementById("statusFilter").value;
   const isPS = currentPlatform === "PS5";
+  const isUnlockView = currentPlatform === "UNLOCKS";
 
   const filtered = CHEATS_DATA.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(query) || item.desc.toLowerCase().includes(query) || item.unlock.toLowerCase().includes(query);
+    const matchesSearch = item.title.toLowerCase().includes(query) || item.desc.toLowerCase().includes(query) || item.unlock.toLowerCase().includes(query) || item.howToUnlock.toLowerCase().includes(query);
     const matchesCat = cat === "ALL" || item.category === cat;
     const matchesFav = !showFavsOnly || favorites.includes(item.id);
     const matchesStatus = status === "ALL" || (status === "VERIFIED" && item.seq.length > 0) || (status === "UNLOCK_ONLY" && item.seq.length === 0);
@@ -361,14 +453,40 @@ function renderCheats() {
 
   document.getElementById("cheatsGrid").innerHTML = filtered.map(item => {
     const isFav = favorites.includes(item.id);
+    const isUnlocked = unlockedCheats.includes(item.id);
     const hasSeq = item.seq.length > 0;
+
+    if (isUnlockView) {
+      return `
+        <div class="cheat-card">
+          <div>
+            <div class="card-top">
+              <span class="cat-tag">${item.category} • ${hasSeq ? "Combo Verified" : "Combo Pending"}</span>
+              <button class="fav-btn ${isFav ? "saved" : ""}" onclick="toggleFav('${item.id}')">★</button>
+            </div>
+            <h3>${item.title}</h3>
+            <p style="margin-bottom:8px;"><strong>Requirement:</strong> ${item.unlock}</p>
+          </div>
+          <div class="unlock-card-step">
+            <strong>How to do it:</strong> ${item.howToUnlock}
+            <div class="unlock-check-row">
+              <span style="font-size:11px;color:#94a3b8;">Track your progress:</span>
+              <button class="unlock-toggle-btn ${isUnlocked ? "done" : ""}" onclick="toggleCheatUnlocked('${item.id}')">
+                ${isUnlocked ? "✓ Challenge Completed" : "Mark Challenge Done"}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     const prefixKeys = isPS
       ? `<span class="ctrl-key dpad">↑</span><span class="ctrl-key ps-bumper">L1+R1</span>`
       : `<span class="ctrl-key dpad">↑</span><span class="ctrl-key xb-bumper">LB+RB</span>`;
 
     const visualKeys = hasSeq
       ? `${prefixKeys}<span class="combo-sep">›</span>` + item.seq.map(dir => `<span class="ctrl-key dpad">${ARROW_MAP[dir]}</span>`).join("")
-      : `<span style="color:#94a3b8;font-size:12px;">🔒 Code sequence locked — complete challenge below to reveal in Progress > Cheats</span>`;
+      : `<span style="color:#94a3b8;font-size:12px;">🔒 Button combo still being cracked — switch to <strong>🔓 How to Unlock All</strong> tab to prepare the challenge!</span>`;
 
     const plainText = hasSeq ? `${isPS ? "D-Pad Up, Hold L1 + R1, then:" : "D-Pad Up, Hold LB + RB, then:"} ${item.seq.join(", ")}` : "";
 
@@ -384,7 +502,7 @@ function renderCheats() {
         </div>
         <div class="combo-visual-wrap">
           <div class="combo-keys-row">${visualKeys}</div>
-          <div class="unlock-pill"><strong>Unlock:</strong> ${item.unlock}</div>
+          <div class="unlock-pill"><strong>How to Unlock:</strong> ${item.howToUnlock}</div>
           ${hasSeq ? `<button class="copy-combo-btn" onclick="navigator.clipboard.writeText('${plainText}'); this.textContent='✓ Copied!'">📋 Copy Button Sequence</button>` : ""}
         </div>
       </div>
@@ -395,6 +513,12 @@ function renderCheats() {
 window.toggleFav = function(id) {
   favorites = favorites.includes(id) ? favorites.filter(f => f !== id) : [...favorites, id];
   localStorage.setItem("gta6_favs", JSON.stringify(favorites));
+  renderCheats();
+};
+
+window.toggleCheatUnlocked = function(id) {
+  unlockedCheats = unlockedCheats.includes(id) ? unlockedCheats.filter(f => f !== id) : [...unlockedCheats, id];
+  localStorage.setItem("gta6_unlocked_cheats", JSON.stringify(unlockedCheats));
   renderCheats();
 };
 
@@ -671,7 +795,13 @@ function updatePlannerSummary() {
 
   document.getElementById("plannerTotalCost").textContent = `$${(vehTotal + propTotal).toLocaleString()}`;
   document.getElementById("plannerDailyIncome").textContent = `$${dailyIncome.toLocaleString()} / day`;
-  document.getElementById("plannerGarageSlots").textContent = `${plannedVehicles.length} / ${totalSlots} Slots`;
+
+  const slotEl = document.getElementById("plannerGarageSlots");
+  const overCapacity = plannedVehicles.length > totalSlots;
+  slotEl.textContent = overCapacity
+    ? `${plannedVehicles.length} / ${totalSlots} Slots (Need Garage!)`
+    : `${plannedVehicles.length} / ${totalSlots} Slots`;
+  slotEl.classList.toggle("slot-warning", overCapacity);
 }
 
 function renderVehicles() {
@@ -725,7 +855,7 @@ function renderProperties() {
       <div class="cheat-card">
         <div>
           <div class="card-top">
-            <span class="cat-tag">${p.region} • ${p.slots} Garage Slots</span>
+            <span class="cat-tag">${p.region} • +${p.slots} Garage Slots</span>
             <span class="price-pill">$${p.price.toLocaleString()}</span>
           </div>
           <h3>${p.name}</h3>
@@ -755,6 +885,54 @@ window.togglePlanProperty = function(id) {
   localStorage.setItem("gta6_plan_props", JSON.stringify(plannedProps));
   renderProperties();
 };
+
+// ==========================================
+// NEW GTA VI MECHANICS & PLAYER FAQ GUIDE
+// ==========================================
+const MECHANICS_DATA = [
+  {
+    tag: "ECONOMY & CASH",
+    title: "3-Tier Money System (Bank, Cash & Duffel Bags)",
+    desc: "Unlike GTA V, stolen cash doesn't teleport into your bank account. Money is split into Bank Balance (safe), Cash on Hand (carried physically), and Duffel Bag Loot (unprocessed goods). Visit ATMs/Banks to deposit cash, and bring stolen jewelry, art, or cars to specialized Fences to turn loot into clean money."
+  },
+  {
+    tag: "WEAPONS & INVENTORY",
+    title: "Realistic Carry Limit & Car Trunk Arsenal",
+    desc: "Jason and Lucia can only carry 2 handguns and 2 long guns on foot. Your personal vehicle's trunk acts as your mobile armory and loot stash—open the trunk to swap rifles, store heavy gear, or hide loaded duffel bags between heists."
+  },
+  {
+    tag: "VEHICLE THEFT & SECURITY",
+    title: "Car Security Tiers & Anti-Theft Trackers",
+    desc: "Older street cars can be hotwired with a Slim Jim or smashed window, but modern luxury supercars have immobilizers and GPS trackers. You'll need Key-Cloners or Phone-Hacking tools to steal high-end rides, and a Pay & Spray respray to strip trackers."
+  },
+  {
+    tag: "FITNESS & PHYSIQUE",
+    title: "Gyms, Weight Gain & Melee Stamina",
+    desc: "Working out at Ocean Beach's outdoor gym or local fitness clubs visibly builds muscle and boosts melee stamina. Eating fast food increases body weight—and completing 100 workouts unlocks the Full Body Armor cheat!"
+  },
+  {
+    tag: "TACTICAL FOCUS & COMBAT",
+    title: "Focus Mode & Non-Lethal Hit Indicators",
+    desc: "Focus highlights escape routes, police sightlines, and weak points while slowing aim. In gunfights, a yellow hitmarker means an enemy is injured/incapacitated while red confirms a kill—useful if you want a clean reputation for better heist payouts."
+  },
+  {
+    tag: "WORLD & ACTIVITIES",
+    title: "Enterable Interiors, Social Feeds & Side Sports",
+    desc: "You can rob convenience stores, pawn shops, salons, and armored vans dynamically. Between jobs, explore basketball, kayaking, mini-golf, pool, scuba diving, fishing, hunting, and live in-game social media feeds on your phone."
+  }
+];
+
+function renderMechanics() {
+  document.getElementById("mechanicsGrid").innerHTML = MECHANICS_DATA.map(m => `
+    <div class="cheat-card">
+      <div>
+        <span class="mech-badge">${m.tag}</span>
+        <h3>${m.title}</h3>
+        <p style="margin-top:8px;line-height:1.55;">${m.desc}</p>
+      </div>
+    </div>
+  `).join("");
+}
 
 // ==========================================
 // EVENT LISTENERS & INITIALIZATION
@@ -894,3 +1072,4 @@ document.getElementById("vehSort").addEventListener("change", renderVehicles);
 applyLanguage(currentLang);
 renderMap();
 renderForum();
+renderMechanics();

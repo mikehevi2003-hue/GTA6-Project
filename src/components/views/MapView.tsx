@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Language, LocalizedText, MapPin, PinType, UserTier } from "@/types/vicelink";
 import { FenceTable } from "./FenceTable";
 
@@ -9,9 +9,11 @@ export type MapViewProps = {
   tier?: UserTier;
   pins: MapPin[];
   foundPins: string[];
+  initialPinId?: string | null;
   onTogglePinFound: (pinId: string) => void;
   onOpenPricing: () => void;
   onOpenSocialStudio: () => void;
+  onShowToast?: (kind: "success" | "info" | "error", text: string) => void;
 };
 
 type LayerFilter = "ALL" | PinType;
@@ -158,9 +160,11 @@ export function MapView({
   tier,
   pins,
   foundPins,
+  initialPinId,
   onTogglePinFound,
   onOpenPricing,
-  onOpenSocialStudio
+  onOpenSocialStudio,
+  onShowToast
 }: MapViewProps) {
   const isEs = lang === "es";
 
@@ -168,8 +172,90 @@ export function MapView({
   const [selectedRegion, setSelectedRegion] = useState<string>("ALL");
   const [hideFound, setHideFound] = useState<boolean>(false);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [copiedPinId, setCopiedPinId] = useState<string | null>(null);
   const [showCashRoute, setShowCashRoute] = useState<boolean>(false);
   const [showFreeRoutePreview, setShowFreeRoutePreview] = useState<boolean>(false);
+  const appliedDeepLinkRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!initialPinId || appliedDeepLinkRef.current === initialPinId || pins.length === 0) {
+      return;
+    }
+    const matched = pins.find((p) => p.id.toLowerCase() === initialPinId.toLowerCase());
+    if (!matched) return;
+    appliedDeepLinkRef.current = initialPinId;
+
+    setActiveLayer("ALL");
+    setSelectedRegion("ALL");
+    setHideFound(false);
+
+    if (matched.locked) {
+      onShowToast?.(
+        "info",
+        isEs
+          ? `🔒 Pin compartido (${matched.id}) requiere Street Pass ($1.99) para ver coordenadas completas.`
+          : `🔒 Shared pin (${matched.id}) requires Street Pass ($1.99) to inspect full coordinates.`
+      );
+      return;
+    }
+
+    setSelectedPinId(matched.id);
+    const title = cleanPinName(resolveLocalized(matched.name, lang), matched.icon);
+    onShowToast?.(
+      "info",
+      isEs
+        ? `📍 Pin enfocado vía enlace directo: ${title}`
+        : `📍 Focused shared deep-link pin: ${title}`
+    );
+  }, [initialPinId, pins, lang, isEs, onShowToast]);
+
+  const handleCopyShareLink = useCallback(
+    async (pin: MapPin) => {
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://vicelink.app";
+      const shareUrl = `${origin}/?view=map&pin=${encodeURIComponent(pin.id)}`;
+      const title = cleanPinName(resolveLocalized(pin.name, lang), pin.icon);
+
+      let copied = false;
+      try {
+        if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+          copied = true;
+        }
+      } catch {
+        copied = false;
+      }
+
+      if (!copied && typeof document !== "undefined") {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = shareUrl;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          copied = document.execCommand("copy");
+          document.body.removeChild(ta);
+        } catch {
+          copied = false;
+        }
+      }
+
+      setCopiedPinId(pin.id);
+      window.setTimeout(() => {
+        setCopiedPinId((curr) => (curr === pin.id ? null : curr));
+      }, 2200);
+
+      onShowToast?.(
+        copied ? "success" : "info",
+        copied
+          ? isEs
+            ? `🔗 Enlace directo copiado para ${title}: ${shareUrl}`
+            : `🔗 Share link copied for ${title}: ${shareUrl}`
+          : shareUrl
+      );
+    },
+    [lang, isEs, onShowToast]
+  );
 
   const hasPaidRouteAccess = useMemo(() => {
     if (tier) return tier === "street" || tier === "kingpin";
@@ -744,6 +830,80 @@ export function MapView({
         </div>
       )}
 
+      {/* Tactical Selected Pin Details Strip (including Deep-Link Focus & Share Pin) */}
+      {selectedPin && (
+        <div
+          id="mapTacticalFocusStrip"
+          className="admin-card"
+          style={{
+            marginBottom: 14,
+            padding: "12px 16px",
+            borderRadius: 13,
+            background:
+              "linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(255, 42, 133, 0.1))",
+            border: "1px solid rgba(0, 229, 255, 0.55)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 12
+          }}
+        >
+          <div style={{ minWidth: 0, flex: "1 1 260px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span className="implemented-badge" style={{ fontSize: 10.5, padding: "2px 8px" }}>
+                📍 {isEs ? "PIN ENFOCADO" : "FOCUSED PIN"} • {selectedPin.id.toUpperCase()}
+              </span>
+              <span className="cat-tag">
+                {selectedPin.region} • {selectedPin.type} • GPS ({selectedPin.x}%, {selectedPin.y}%)
+              </span>
+            </div>
+            <h4 style={{ margin: "5px 0 3px", fontSize: 15, color: "#ffffff" }}>
+              {selectedPin.icon}{" "}
+              {cleanPinName(resolveLocalized(selectedPin.name, lang), selectedPin.icon)}
+            </h4>
+            <p style={{ margin: 0, fontSize: 12, color: "#cbd5e1" }}>
+              {resolveLocalized(selectedPin.note, lang)}
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{
+                fontSize: 11.5,
+                padding: "7px 11px",
+                borderColor: "rgba(0, 229, 255, 0.5)",
+                color: "#00e5ff"
+              }}
+              onClick={() => void handleCopyShareLink(selectedPin)}
+            >
+              {copiedPinId === selectedPin.id
+                ? isEs
+                  ? "✓ Enlace Copiado"
+                  : "✓ Link Copied"
+                : isEs
+                  ? "🔗 Copiar Enlace"
+                  : "🔗 Copy Share Link"}
+            </button>
+            <button
+              type="button"
+              className="btn-pro"
+              style={{ width: "auto", fontSize: 11.5, padding: "7px 12px" }}
+              onClick={() => onTogglePinFound(selectedPin.id)}
+            >
+              {foundPins.includes(selectedPin.id)
+                ? isEs
+                  ? "✓ Encontrado"
+                  : "✓ Found"
+                : isEs
+                  ? "Marcar Encontrado"
+                  : "Mark Found"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="map-workspace">
         <div
           id="mapViewport"
@@ -797,6 +957,20 @@ export function MapView({
                 </p>
               </div>
               <div className="map-inspector-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: 11.5, padding: "7px 10px" }}
+                  onClick={() => void handleCopyShareLink(selectedPin)}
+                >
+                  {copiedPinId === selectedPin.id
+                    ? isEs
+                      ? "✓ Copiado"
+                      : "✓ Copied"
+                    : isEs
+                      ? "🔗 Compartir"
+                      : "🔗 Copy Share Link"}
+                </button>
                 <button
                   type="button"
                   className="btn-pro"
@@ -1176,10 +1350,48 @@ export function MapView({
                     onChange={() => onTogglePinFound(p.id)}
                     aria-label={cleanName}
                   />
-                  <div>
-                    <h4>
-                      {p.icon} {cleanName}
-                    </h4>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 8
+                      }}
+                    >
+                      <h4>
+                        {p.icon} {cleanName}
+                      </h4>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        title={isEs ? "Copiar enlace directo del pin" : "Copy Share Link"}
+                        aria-label={isEs ? `Compartir ${cleanName}` : `Share Pin ${cleanName}`}
+                        style={{
+                          fontSize: 10.5,
+                          padding: "3px 7px",
+                          flexShrink: 0,
+                          whiteSpace: "nowrap",
+                          borderColor:
+                            copiedPinId === p.id
+                              ? "rgba(34, 197, 94, 0.65)"
+                              : "rgba(0, 229, 255, 0.35)",
+                          color: copiedPinId === p.id ? "#4ade80" : "#00e5ff"
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleCopyShareLink(p);
+                        }}
+                      >
+                        {copiedPinId === p.id
+                          ? isEs
+                            ? "✓ Copiado"
+                            : "✓ Copied"
+                          : isEs
+                            ? "🔗 Compartir"
+                            : "🔗 Share Pin"}
+                      </button>
+                    </div>
                     <p>
                       <strong>{p.region}</strong> • {resolveLocalized(p.note, lang)}
                     </p>

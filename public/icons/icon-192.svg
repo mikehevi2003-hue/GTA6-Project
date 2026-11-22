@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="vlBg192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#05070e" />
+      <stop offset="60%" stop-color="#0b1224" />
+      <stop offset="100%" stop-color="#140c24" />
+    </linearGradient>
+    <linearGradient id="vlNeon192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff" />
+      <stop offset="55%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ff2a85" />
+    </linearGradient>
+    <linearGradient id="vlText192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#00e5ff" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="184" height="184" rx="40" fill="url(#vlBg192)" stroke="url(#vlNeon192)" stroke-width="5" />
+  <circle cx="96" cy="96" r="68" fill="none" stroke="rgba(0,229,255,0.22)" stroke-width="2" stroke-dasharray="6 5" />
+  <path d="M46 62 L74 132 L102 62" fill="none" stroke="url(#vlNeon192)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M114 62 L114 130 L150 130" fill="none" stroke="url(#vlText192)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="150" cy="64" r="7" fill="#ff2a85" />
+  <text x="96" y="164" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="800" letter-spacing="4">VICELINK</text>
+</svg>

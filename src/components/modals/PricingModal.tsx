@@ -186,8 +186,8 @@ export default function PricingModal({
     setNotice({
       kind: "error",
       text: isEs
-        ? "Debes marcar la casilla obligatoria de Entrega Digital Inmediata y Política de No Reembolso antes de continuar al pago."
-        : "You must check the mandatory Immediate Digital Delivery & No-Refund Waiver box below before proceeding to checkout."
+        ? "Debes marcar la casilla superior obligatoria de Entrega Digital Inmediata y Política de No Reembolso antes de continuar al pago."
+        : "You must check the mandatory Immediate Digital Delivery & No-Refund Waiver box above before proceeding to checkout."
     });
     return false;
   };

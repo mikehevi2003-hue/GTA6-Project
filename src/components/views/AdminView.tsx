@@ -37,8 +37,10 @@ export type AdminViewProps = {
   lang: Language;
   isAdmin: boolean;
   userEmail?: string;
+  initialAal?: "aal1" | "aal2";
+  requireAal2Notice?: boolean;
   onNavigateToAccount?: () => void;
-  onAdminDataChanged: () => Promise<void> | void;
+  onAdminDataChanged?: () => Promise<void> | void;
   onSiteSettingsChanged?: (s: SiteSettingsPayload) => void;
   onToast?: (kind: "success" | "info" | "error", text: string) => void;
 };
@@ -187,6 +189,8 @@ export function AdminView({
   lang,
   isAdmin,
   userEmail,
+  initialAal,
+  requireAal2Notice,
   onNavigateToAccount,
   onAdminDataChanged,
   onSiteSettingsChanged,
@@ -196,6 +200,11 @@ export function AdminView({
 
   const [activeTab, setActiveTab] = useState<AdminTab>("telemetry_flags");
   const [forbidden, setForbidden] = useState(!isAdmin);
+  const [aal2Required, setAal2Required] = useState<boolean>(
+    Boolean(isAdmin && (requireAal2Notice || initialAal === "aal1"))
+  );
+  const [aal2SetupUrl, setAal2SetupUrl] = useState<string>("/?setup2fa=1");
+  const [aal2Message, setAal2Message] = useState<string | null>(null);
   const [loading, setLoading] = useState(isAdmin);
   const [banner, setBanner] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
@@ -203,7 +212,7 @@ export function AdminView({
     telemetry: DEFAULT_TELEMETRY,
     siteSettings: DEFAULT_SITE_SETTINGS,
     auditLogs: [],
-    callerAal: "aal1",
+    callerAal: initialAal === "aal2" ? "aal2" : "aal1",
     cheats: [],
     glitches: [],
     dynamicPins: [],
@@ -321,6 +330,22 @@ export function AdminView({
     [onToast]
   );
 
+  const handle403Response = useCallback((data: Record<string, unknown>) => {
+    if (data?.error === "MFA_AAL2_REQUIRED") {
+      setAal2Required(true);
+      setForbidden(false);
+      setOverview((prev) => ({ ...prev, callerAal: "aal1" }));
+      if (typeof data?.setupUrl === "string" && data.setupUrl.startsWith("/")) {
+        setAal2SetupUrl(data.setupUrl);
+      }
+      if (typeof data?.message === "string" && data.message.trim()) {
+        setAal2Message(data.message.trim());
+      }
+      return;
+    }
+    setForbidden(true);
+  }, []);
+
   // Inspect browser MFA factor status for inline 6-digit OTP step-up verification
   const checkMfaStatus = useCallback(async () => {
     if (!isAdmin) return;
@@ -350,11 +375,11 @@ export function AdminView({
     setLoading(true);
     try {
       const res = await fetch("/api/admin/overview", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -436,6 +461,12 @@ export function AdminView({
         return merged;
       });
       setForbidden(false);
+      if (requireAal2Notice && nextOverview.callerAal !== "aal2") {
+        setAal2Required(true);
+      } else {
+        setAal2Required(false);
+        setAal2Message(null);
+      }
     } catch (err) {
       showBanner(
         "error",
@@ -448,7 +479,7 @@ export function AdminView({
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, isEs, showBanner]);
+  }, [isAdmin, isEs, showBanner, handle403Response, requireAal2Notice]);
 
   const searchUsers = useCallback(
     async (queryText: string) => {
@@ -459,11 +490,11 @@ export function AdminView({
           `/api/admin/users?q=${encodeURIComponent(queryText.trim())}`,
           { cache: "no-store" }
         );
+        const data = await res.json().catch(() => ({}));
         if (res.status === 403) {
-          setForbidden(true);
+          handle403Response(data);
           return;
         }
-        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           throw new Error(
             data?.message ||
@@ -486,7 +517,7 @@ export function AdminView({
         setSearchingUsers(false);
       }
     },
-    [isAdmin, isEs, showBanner]
+    [isAdmin, isEs, showBanner, handle403Response]
   );
 
   useEffect(() => {
@@ -495,10 +526,10 @@ export function AdminView({
   }, [loadOverview, checkMfaStatus]);
 
   useEffect(() => {
-    if (activeTab === "users" && !forbidden && isAdmin && users.length === 0) {
+    if (activeTab === "users" && !forbidden && !aal2Required && isAdmin && users.length === 0) {
       void searchUsers("");
     }
-  }, [activeTab, forbidden, isAdmin, users.length, searchUsers]);
+  }, [activeTab, forbidden, aal2Required, isAdmin, users.length, searchUsers]);
 
   // --- Inline 6-Digit OTP Verification Handler ---
   const handleVerifyInlineOtp = async (e: FormEvent) => {
@@ -517,6 +548,8 @@ export function AdminView({
       }
       setOtpCode("");
       setOverview((prev) => ({ ...prev, callerAal: "aal2" }));
+      setAal2Required(false);
+      setAal2Message(null);
       showBanner(
         "success",
         isEs
@@ -559,11 +592,11 @@ export function AdminView({
           glitchesTabEnabled
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -592,7 +625,7 @@ export function AdminView({
           : "✓ Live Global Ticker, Feature Flags & Free AI Limit synced across Hub."
       );
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -629,11 +662,11 @@ export function AdminView({
           warningEs: glitch.warning.es
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -652,7 +685,7 @@ export function AdminView({
             : `🟢 Glitch marked WORKING: ${tField(glitch.title, lang)}`
       );
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -723,11 +756,11 @@ export function AdminView({
           warningEs: glitchWarningEs.trim() || glitchWarningEn.trim()
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message || data?.error || (isEs ? "No se pudo guardar el glitch." : "Could not save glitch.")
@@ -741,7 +774,7 @@ export function AdminView({
       );
       resetGlitchForm();
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -806,11 +839,11 @@ export function AdminView({
           seq: cheatSeq
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message || data?.error || (isEs ? "No se pudo guardar el truco." : "Could not save cheat.")
@@ -824,7 +857,7 @@ export function AdminView({
       );
       resetCheatForm();
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -872,11 +905,11 @@ export function AdminView({
           noteEs: pinNoteEs.trim() || pinNoteEn.trim()
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message || data?.error || (isEs ? "No se pudo publicar el pin." : "Failed to publish pin.")
@@ -893,7 +926,7 @@ export function AdminView({
       setPinNoteEn("");
       setPinNoteEs("");
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -911,11 +944,11 @@ export function AdminView({
       const res = await fetch(`/api/admin/pins?id=${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message || data?.error || (isEs ? "No se pudo eliminar el pin." : "Could not delete pin.")
@@ -926,7 +959,7 @@ export function AdminView({
         isEs ? "✓ Pin dinámico eliminado del mapa." : "✓ Dynamic map pin deleted."
       );
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -951,11 +984,11 @@ export function AdminView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, adminNotes })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -978,7 +1011,7 @@ export function AdminView({
           : `✓ Submission updated to "${status}".`
       );
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -1019,11 +1052,11 @@ export function AdminView({
           reference: grantReference.trim() || undefined
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -1041,7 +1074,7 @@ export function AdminView({
       setGrantReference("");
       await searchUsers(userQuery);
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -1069,11 +1102,11 @@ export function AdminView({
           isBanned: nextBanned
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -1092,7 +1125,7 @@ export function AdminView({
             : `🔓 Account unbanned: ${userRecord.handle}`
       );
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       // Revert optimistic update
       setUsers((prev) =>
@@ -1145,11 +1178,11 @@ export function AdminView({
           active: true
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -1167,7 +1200,7 @@ export function AdminView({
           : `✓ Promo code ${cleanedCode} (${clampedDiscount}% OFF) saved live.`
       );
       await loadOverview();
-      await onAdminDataChanged();
+      await onAdminDataChanged?.();
     } catch (err) {
       showBanner(
         "error",
@@ -1195,11 +1228,11 @@ export function AdminView({
           active: nextActive
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -1303,11 +1336,11 @@ export function AdminView({
           bodyEs: campaignBodyEs.trim() || campaignBodyEn.trim()
         })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.status === 403) {
-        setForbidden(true);
+        handle403Response(data);
         return;
       }
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
           data?.message ||
@@ -1465,6 +1498,247 @@ export function AdminView({
               ? "Tu cuenta no tiene permisos de administrador (is_admin). Todas las rutas administrativas están protegidas en el servidor con RBAC y Row-Level Security."
               : "Your account does not hold administrator privileges (is_admin). All admin API routes are strictly protected server-side via RBAC and Postgres RLS."}
           </p>
+        </div>
+      </section>
+    );
+  }
+
+  // Stage 13 SEC-05 Hard AAL2 Step-Up Gate: hides ALL 4 KPI cards & CMS tabs until AAL2 verified
+  if (aal2Required) {
+    return (
+      <section id="view-admin" className="view active">
+        <div
+          id="adminAal2GateCard"
+          className="paywall-box"
+          style={{
+            maxWidth: 680,
+            margin: "18px auto",
+            textAlign: "left",
+            padding: "28px 28px 26px",
+            background:
+              "linear-gradient(145deg, rgba(10, 15, 30, 0.96), rgba(24, 10, 32, 0.94))",
+            border: "1px solid rgba(255, 42, 133, 0.55)",
+            boxShadow: "0 20px 54px rgba(0, 0, 0, 0.65)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span
+              className="status-patched"
+              style={{
+                background: "rgba(245, 158, 11, 0.18)",
+                border: "1px solid rgba(250, 204, 21, 0.55)",
+                color: "#fde047"
+              }}
+            >
+              🔒 MANDATORY CO-FOUNDER 2FA (AAL2) GATE
+            </span>
+            <span className="brand-badge">SEC-05 ZERO-TRUST</span>
+            {isCoFounder && (
+              <span className="kingpin-badge">👑 {normalizedEmail}</span>
+            )}
+          </div>
+
+          <h2 style={{ marginTop: 14, fontSize: 22, fontWeight: 900, color: "#ffffff" }}>
+            {isEs
+              ? "Verificación 2FA (AAL2) Obligatoria para Desbloquear /admin"
+              : "Mandatory Co-Founder 2FA (AAL2) Security Gate"}
+          </h2>
+
+          <p style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6, color: "#cbd5e1" }}>
+            {isEs
+              ? "Las cuentas de Co-Fundador (mikehevi2003@gmail.com y felipedleon@gmail.com) requieren una sesión 2FA verificada en nivel AAL2 antes de desbloquear /admin, las tarjetas KPI de telemetría o cualquier ruta /api/admin/*."
+              : "Co-Founder accounts (mikehevi2003@gmail.com & felipedleon@gmail.com) require an AAL2 verified 2FA session before /admin, live KPI telemetry cards, or any /api/admin/* endpoint unlocks."}
+          </p>
+
+          {aal2Message && (
+            <div
+              className="auth-alert"
+              style={{
+                marginTop: 12,
+                background: "rgba(0, 229, 255, 0.08)",
+                borderColor: "rgba(0, 229, 255, 0.35)",
+                color: "#bae6fd",
+                fontSize: 12.5
+              }}
+            >
+              {aal2Message}
+            </div>
+          )}
+
+          {banner && (
+            <div
+              className={`auth-alert ${banner.kind === "error" ? "auth-alert-error" : "auth-alert-success"}`}
+              role={banner.kind === "error" ? "alert" : "status"}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 10,
+                marginTop: 12
+              }}
+            >
+              <span>{banner.text}</span>
+              <button
+                type="button"
+                onClick={() => setBanner(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "inherit",
+                  fontWeight: 800,
+                  cursor: "pointer"
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {totpFactorId ? (
+            <form
+              id="adminAal2InlineTotpForm"
+              onSubmit={handleVerifyInlineOtp}
+              style={{
+                marginTop: 18,
+                padding: "16px 18px",
+                borderRadius: 12,
+                background: "rgba(5, 7, 14, 0.85)",
+                border: "1px solid rgba(0, 229, 255, 0.42)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10
+              }}
+            >
+              <strong style={{ fontSize: 13.5, color: "#00e5ff" }}>
+                🔑{" "}
+                {isEs
+                  ? "Factor TOTP Detectado — Ingresa tu Código de 6 Dígitos"
+                  : "Verified TOTP Authenticator Detected — Enter 6-Digit Code"}
+              </strong>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {isEs
+                  ? "Abre Google Authenticator, Authy o 1Password e ingresa el código actual para elevar tu sesión a AAL2 al instante."
+                  : "Open Google Authenticator, Authy, or 1Password and enter your current 6-digit code to elevate this session to AAL2 immediately."}
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <input
+                  id="adminAal2OtpInput"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  style={{
+                    width: 150,
+                    background: "#080c16",
+                    border: "1px solid rgba(0, 229, 255, 0.55)",
+                    color: "#ffffff",
+                    padding: "10px 14px",
+                    borderRadius: 9,
+                    fontSize: 18,
+                    fontWeight: 800,
+                    letterSpacing: "4px",
+                    textAlign: "center",
+                    fontVariantNumeric: "tabular-nums"
+                  }}
+                />
+                <button
+                  type="submit"
+                  className="btn-pro"
+                  style={{ width: "auto", padding: "10px 18px", fontSize: 13 }}
+                  disabled={verifyingOtp || otpCode.length < 6}
+                >
+                  {verifyingOtp
+                    ? isEs
+                      ? "Verificando AAL2..."
+                      : "Verifying AAL2..."
+                    : isEs
+                      ? "🔓 Verificar Código y Desbloquear Admin"
+                      : "🔓 Verify 6-Digit Code & Unlock Admin"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div
+              style={{
+                marginTop: 18,
+                padding: "14px 16px",
+                borderRadius: 12,
+                background: "rgba(255, 42, 133, 0.08)",
+                border: "1px dashed rgba(255, 42, 133, 0.45)",
+                fontSize: 12.5,
+                color: "#fda4af",
+                lineHeight: 1.5
+              }}
+            >
+              {isEs
+                ? "Aún no se detecta un autenticador TOTP verificado en tu sesión. Escanea tu código QR 2FA en la Bóveda de Seguridad de tu cuenta para activar AAL2."
+                : "No verified TOTP authenticator factor was found yet for this session. Enroll your 2FA Authenticator QR code in your Account Security Vault to unlock AAL2."}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              marginTop: 18
+            }}
+          >
+            {onNavigateToAccount ? (
+              <button
+                type="button"
+                className="btn-pro"
+                style={{ width: "auto", padding: "10px 16px", fontSize: 13 }}
+                onClick={onNavigateToAccount}
+              >
+                🔐{" "}
+                {isEs
+                  ? "Registrar / Gestionar Código QR 2FA"
+                  : "Enroll / Manage 2FA Authenticator QR Code"}
+              </button>
+            ) : (
+              <a
+                href={aal2SetupUrl}
+                className="btn-pro"
+                style={{
+                  width: "auto",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  textDecoration: "none",
+                  padding: "10px 16px",
+                  fontSize: 13
+                }}
+              >
+                🔐{" "}
+                {isEs
+                  ? "Registrar / Gestionar Código QR 2FA"
+                  : "Enroll / Manage 2FA Authenticator QR Code"}
+              </a>
+            )}
+
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={loading}
+              onClick={() => {
+                void checkMfaStatus();
+                void loadOverview();
+              }}
+              style={{ padding: "10px 14px", fontSize: 12.5 }}
+            >
+              {loading
+                ? isEs
+                  ? "Comprobando AAL2..."
+                  : "Checking AAL2..."
+                : isEs
+                  ? "↻ Comprobar Sesión AAL2"
+                  : "↻ Recheck AAL2 Session"}
+            </button>
+          </div>
         </div>
       </section>
     );

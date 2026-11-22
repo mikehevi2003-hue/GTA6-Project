@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
@@ -49,6 +49,22 @@ export type ActiveView =
   | "account"
   | "admin";
 
+const VALID_ACTIVE_VIEWS = new Set<ActiveView>([
+  "cheats",
+  "map",
+  "glitches",
+  "forum",
+  "database",
+  "mechanics",
+  "controls",
+  "radio",
+  "trophies",
+  "ai",
+  "feedback",
+  "account",
+  "admin"
+]);
+
 const EMPTY_PROGRESS: UserProgress = {
   favorites: [],
   unlockedCheats: [],
@@ -79,6 +95,8 @@ export default function ViceLinkHub() {
   const [theories, setTheories] = useState<TheoryPost[]>([]);
   const [lang, setLang] = useState<Language>("en");
   const [activeView, setActiveView] = useState<ActiveView>("cheats");
+  const [deepLinkPinId, setDeepLinkPinId] = useState<string | null>(null);
+  const initialQueryHandledRef = useRef(false);
 
   const [pricingOpen, setPricingOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
@@ -155,12 +173,17 @@ export default function ViceLinkHub() {
     void loadAll();
   }, [loadAll]);
 
-  // Handle ?checkout=success / ?checkout=canceled / ?setup2fa=1 query parameters
+  // Handle ?view=... / ?pin=... / ?checkout=success / ?checkout=canceled / ?setup2fa=1 query parameters
   useEffect(() => {
+    if (initialQueryHandledRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
     const setup2fa = params.get("setup2fa");
-    if (!checkout && !setup2fa) return;
+    const rawView = params.get("view")?.trim().toLowerCase() ?? "";
+    const rawPin = params.get("pin")?.trim() ?? "";
+
+    if (!checkout && !setup2fa && !rawView && !rawPin) return;
+    initialQueryHandledRef.current = true;
 
     if (setup2fa === "1") {
       setActiveView("account");
@@ -170,6 +193,12 @@ export default function ViceLinkHub() {
           ? "🛡️ Acceso de Co-Fundador activo. Escanea tu código QR 2FA en Bóveda de Seguridad para elevar a AAL2."
           : "🛡️ Co-Founder Admin session active. Scan your 2FA Authenticator QR code below to enable AAL2."
       );
+    } else if (rawPin) {
+      const cleanedPin = rawPin.slice(0, 48);
+      setActiveView("map");
+      setDeepLinkPinId(cleanedPin);
+    } else if (rawView && VALID_ACTIVE_VIEWS.has(rawView as ActiveView)) {
+      setActiveView(rawView as ActiveView);
     }
 
     if (checkout === "success") {
@@ -189,7 +218,9 @@ export default function ViceLinkHub() {
       );
     }
 
-    window.history.replaceState({}, "", "/");
+    if (checkout || setup2fa) {
+      window.history.replaceState({}, "", "/");
+    }
   }, [lang, loadAll, showToast]);
 
   const patchMe = useCallback(
@@ -1039,9 +1070,11 @@ export default function ViceLinkHub() {
                 tier={me.profile.tier}
                 pins={content.pins}
                 foundPins={progress.foundPins}
+                initialPinId={deepLinkPinId}
                 onTogglePinFound={handleTogglePinFound}
                 onOpenPricing={() => setPricingOpen(true)}
                 onOpenSocialStudio={() => setSocialOpen(true)}
+                onShowToast={showToast}
               />
             )}
 
@@ -1166,6 +1199,7 @@ export default function ViceLinkHub() {
                 lang={lang}
                 isAdmin={me.profile.isAdmin}
                 userEmail={me.profile.email}
+                initialAal={me.profile.aal}
                 onNavigateToAccount={() => setActiveView("account")}
                 onAdminDataChanged={loadAll}
                 onSiteSettingsChanged={(nextSettings) => {

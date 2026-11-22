@@ -31,7 +31,9 @@ export interface SidebarNavigatorProps {
   siteSettings: SiteSettingsPayload;
   tierBadgeLabel: string;
   collapsed: boolean;
+  mobileDrawerOpen: boolean;
   onToggleCollapsed: () => void;
+  onCloseMobileDrawer: () => void;
   onLanguageChange: (nextLang: Language) => void;
   onSelectView: (view: ActiveView) => void;
   onJumpFromKeyword: (view: ActiveView, keyword: string, pinId?: string) => void;
@@ -60,7 +62,9 @@ export default function SidebarNavigator({
   siteSettings,
   tierBadgeLabel,
   collapsed,
+  mobileDrawerOpen,
   onToggleCollapsed,
+  onCloseMobileDrawer,
   onLanguageChange,
   onSelectView,
   onJumpFromKeyword,
@@ -261,52 +265,72 @@ export default function SidebarNavigator({
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <div>
-        <div className="sidebar-top-row">
-          {!collapsed && (
-            <span className="brand-badge">
-              {t(lang, "badge", isEs ? "HUB NO OFICIAL DE FANS" : "UNOFFICIAL FAN HUB")}
-            </span>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: collapsed ? "auto" : undefined }}>
+    <>
+      {mobileDrawerOpen && (
+        <div
+          className="sidebar-drawer-backdrop"
+          onClick={onCloseMobileDrawer}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`sidebar ${collapsed ? "sidebar-collapsed" : ""} ${
+          mobileDrawerOpen ? "drawer-open" : ""
+        }`}
+      >
+        <div>
+          <div className="sidebar-top-row">
             {!collapsed && (
-              <div className="lang-switch" title="Select Language / Seleccionar Idioma">
-                <button
-                  type="button"
-                  className={`lang-btn ${lang === "en" ? "active" : ""}`}
-                  onClick={() => onLanguageChange("en")}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  className={`lang-btn ${lang === "es" ? "active" : ""}`}
-                  onClick={() => onLanguageChange("es")}
-                >
-                  ES
-                </button>
-              </div>
+              <span className="brand-badge">
+                {t(lang, "badge", isEs ? "HUB NO OFICIAL DE FANS" : "UNOFFICIAL FAN HUB")}
+              </span>
             )}
-            <button
-              type="button"
-              className="sidebar-collapse-btn"
-              onClick={onToggleCollapsed}
-              title={
-                collapsed
-                  ? isEs
-                    ? "Expandir barra lateral"
-                    : "Expand sidebar"
-                  : isEs
-                    ? "Colapsar barra lateral"
-                    : "Collapse sidebar"
-              }
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? "»" : "«"}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: collapsed ? "auto" : undefined }}>
+              {!collapsed && (
+                <div className="lang-switch" title="Select Language / Seleccionar Idioma">
+                  <button
+                    type="button"
+                    className={`lang-btn ${lang === "en" ? "active" : ""}`}
+                    onClick={() => onLanguageChange("en")}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    className={`lang-btn ${lang === "es" ? "active" : ""}`}
+                    onClick={() => onLanguageChange("es")}
+                  >
+                    ES
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                className="sidebar-collapse-btn"
+                onClick={onToggleCollapsed}
+                title={
+                  collapsed
+                    ? isEs
+                      ? "Expandir barra lateral"
+                      : "Expand sidebar"
+                    : isEs
+                      ? "Colapsar barra lateral"
+                      : "Collapse sidebar"
+                }
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? "»" : "«"}
+              </button>
+              <button
+                type="button"
+                className="sidebar-drawer-close-btn"
+                onClick={onCloseMobileDrawer}
+                aria-label={isEs ? "Cerrar menú lateral" : "Close navigation menu"}
+              >
+                ✕
+              </button>
+            </div>
           </div>
-        </div>
 
         {!collapsed ? (
           <>
@@ -396,6 +420,39 @@ export default function SidebarNavigator({
                 </button>
               </div>
             </div>
+
+            {me.profile.isAdmin === true && (
+              <div className="cofounder-admin-box">
+                <div className="cofounder-admin-box-head">
+                  🛡️ {isEs ? "ESPACIO ADMIN CO-FUNDADOR" : "CO-FOUNDER ADMIN SPACE"}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    className="btn-pro"
+                    style={{ flex: 1, padding: "7px 8px", fontSize: 11.5 }}
+                    onClick={() => onSelectView("admin")}
+                  >
+                    ⚙️ {isEs ? "Abrir Admin" : "Open Admin"}
+                  </button>
+                  <Link
+                    href="/admin"
+                    className="btn-secondary"
+                    style={{
+                      padding: "7px 9px",
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center"
+                    }}
+                    onClick={onCloseMobileDrawer}
+                  >
+                    /admin ↗
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Quick Jump Section Dropdown */}
             <div className="sidebar-quick-jump">
@@ -600,5 +657,6 @@ export default function SidebarNavigator({
         </div>
       )}
     </aside>
+    </>
   );
 }

@@ -105,7 +105,21 @@ export default function ViceLinkHub() {
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [tickerDismissed, setTickerDismissed] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [activeKeywordBanner, setActiveKeywordBanner] = useState<string | null>(null);
+
+  const navigateToView = useCallback(
+    (nextView: ActiveView, keyword?: string | null, pinId?: string | null) => {
+      setActiveKeywordBanner(keyword ?? null);
+      setActiveView(nextView);
+      setMobileDrawerOpen(false);
+      if (pinId !== undefined) setDeepLinkPinId(pinId);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    []
+  );
 
   const [toast, setToast] = useState<{ kind: "success" | "info" | "error"; text: string } | null>(
     null
@@ -580,18 +594,18 @@ export default function ViceLinkHub() {
         siteSettings={siteSettings}
         tierBadgeLabel={tierBadgeLabel}
         collapsed={sidebarCollapsed}
+        mobileDrawerOpen={mobileDrawerOpen}
         onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
+        onCloseMobileDrawer={() => setMobileDrawerOpen(false)}
         onLanguageChange={(nextLang) => void handleLanguageChange(nextLang)}
-        onSelectView={(nextView) => {
-          setActiveKeywordBanner(null);
-          setActiveView(nextView);
+        onSelectView={(nextView) => navigateToView(nextView)}
+        onJumpFromKeyword={(targetView, keyword, pinId) =>
+          navigateToView(targetView, keyword, pinId)
+        }
+        onOpenPricing={() => {
+          setMobileDrawerOpen(false);
+          setPricingOpen(true);
         }}
-        onJumpFromKeyword={(targetView, keyword, pinId) => {
-          setActiveKeywordBanner(keyword);
-          setActiveView(targetView);
-          if (pinId) setDeepLinkPinId(pinId);
-        }}
-        onOpenPricing={() => setPricingOpen(true)}
         onSignOut={() => void handleSignOut()}
       />
 
@@ -678,9 +692,9 @@ export default function ViceLinkHub() {
           </div>
         )}
 
-        {/* Stage 11 Neo-Glass HUD Top Bar with ⌘K Command Palette Trigger & @handle Account Pill */}
+        {/* Sticky Neo-Glass HUD Top Bar with Left Drawer Menu Trigger, Admin Space, ⌘K & @handle */}
         <div
-          className="top-bar"
+          className="top-bar sticky-hud-bar"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -690,17 +704,58 @@ export default function ViceLinkHub() {
             marginBottom: 16,
             padding: "10px 14px",
             borderRadius: 13,
-            background: "rgba(13, 19, 34, 0.78)",
-            border: "1px solid rgba(255, 255, 255, 0.08)"
+            background: "rgba(13, 19, 34, 0.9)",
+            border: "1px solid rgba(255, 255, 255, 0.1)"
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn-secondary menu-drawer-trigger"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.innerWidth <= 980) {
+                  setMobileDrawerOpen((o) => !o);
+                } else {
+                  setSidebarCollapsed((c) => !c);
+                }
+              }}
+              aria-label={isEs ? "Abrir menú lateral de navegación" : "Toggle navigation menu"}
+            >
+              ☰ {isEs ? "Menú" : "Menu"}
+            </button>
             <span className="brand-badge">VICELINK // LEONIDA HUD</span>
             {me.profile.psnVerified && <span className="console-verified-pill">PSN ✓</span>}
             {me.profile.xboxVerified && <span className="console-verified-pill">XBOX ✓</span>}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {me.profile.isAdmin === true && (
+              <>
+                <button
+                  type="button"
+                  className={`cofounder-admin-pill ${activeView === "admin" ? "active" : ""}`}
+                  onClick={() => navigateToView("admin")}
+                >
+                  🛡️ {isEs ? "Espacio Admin" : "Admin Space"}
+                </button>
+                <Link
+                  href="/admin"
+                  className="btn-secondary"
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 99,
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    textDecoration: "none",
+                    borderColor: "rgba(255, 42, 133, 0.45)",
+                    color: "#ff7ab3"
+                  }}
+                >
+                  /admin ↗
+                </Link>
+              </>
+            )}
+
             <button
               type="button"
               className="cmdk-trigger-btn btn-secondary"
@@ -735,7 +790,7 @@ export default function ViceLinkHub() {
             <button
               type="button"
               className={`btn-secondary ${activeView === "account" ? "active" : ""}`}
-              onClick={() => setActiveView("account")}
+              onClick={() => navigateToView("account")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1037,16 +1092,26 @@ export default function ViceLinkHub() {
         </footer>
       </main>
 
-      {/* Stage 11 Mobile-First Floating Glass Bottom Dock (<768px) */}
+      {/* Responsive Floating Glass Bottom Dock (<=980px) */}
       <nav
         className="mobile-bottom-dock"
         aria-label={isEs ? "Navegación rápida móvil" : "Mobile quick navigation"}
       >
         <button
           type="button"
+          className={`mobile-dock-btn ${mobileDrawerOpen ? "active" : ""}`}
+          style={{ minHeight: 48 }}
+          onClick={() => setMobileDrawerOpen((o) => !o)}
+        >
+          <span aria-hidden="true">☰</span>
+          <span>{isEs ? "Menú" : "Menu"}</span>
+        </button>
+
+        <button
+          type="button"
           className={`mobile-dock-btn ${activeView === "cheats" ? "active" : ""}`}
-          style={{ minWidth: 52, minHeight: 48 }}
-          onClick={() => setActiveView("cheats")}
+          style={{ minHeight: 48 }}
+          onClick={() => navigateToView("cheats")}
         >
           <span aria-hidden="true">🎮</span>
           <span>{isEs ? "Trucos" : "Cheats"}</span>
@@ -1055,8 +1120,8 @@ export default function ViceLinkHub() {
         <button
           type="button"
           className={`mobile-dock-btn ${activeView === "map" ? "active" : ""}`}
-          style={{ minWidth: 52, minHeight: 48 }}
-          onClick={() => setActiveView("map")}
+          style={{ minHeight: 48 }}
+          onClick={() => navigateToView("map")}
         >
           <span aria-hidden="true">🗺️</span>
           <span>{isEs ? "Mapa" : "Map"}</span>
@@ -1066,13 +1131,12 @@ export default function ViceLinkHub() {
           type="button"
           className={`mobile-dock-btn ${activeView === "glitches" ? "active" : ""}`}
           style={{
-            minWidth: 52,
             minHeight: 48,
             opacity: glitchesAllowed ? 1 : 0.45
           }}
           disabled={!glitchesAllowed}
           onClick={() => {
-            if (glitchesAllowed) setActiveView("glitches");
+            if (glitchesAllowed) navigateToView("glitches");
           }}
         >
           <span aria-hidden="true">⚡</span>
@@ -1082,22 +1146,34 @@ export default function ViceLinkHub() {
         <button
           type="button"
           className={`mobile-dock-btn ${activeView === "ai" ? "active" : ""}`}
-          style={{ minWidth: 52, minHeight: 48 }}
-          onClick={() => setActiveView("ai")}
+          style={{ minHeight: 48 }}
+          onClick={() => navigateToView("ai")}
         >
           <span aria-hidden="true">🤖</span>
           <span>{isEs ? "IA" : "AI"}</span>
         </button>
 
-        <button
-          type="button"
-          className={`mobile-dock-btn ${activeView === "account" ? "active" : ""}`}
-          style={{ minWidth: 52, minHeight: 48 }}
-          onClick={() => setActiveView("account")}
-        >
-          <span aria-hidden="true">👤</span>
-          <span>{isEs ? "Cuenta" : "Account"}</span>
-        </button>
+        {me.profile.isAdmin === true ? (
+          <button
+            type="button"
+            className={`mobile-dock-btn ${activeView === "admin" ? "active" : ""}`}
+            style={{ minHeight: 48, color: "#ff7ab3" }}
+            onClick={() => navigateToView("admin")}
+          >
+            <span aria-hidden="true">🛡️</span>
+            <span>Admin</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`mobile-dock-btn ${activeView === "account" ? "active" : ""}`}
+            style={{ minHeight: 48 }}
+            onClick={() => navigateToView("account")}
+          >
+            <span aria-hidden="true">👤</span>
+            <span>{isEs ? "Cuenta" : "Account"}</span>
+          </button>
+        )}
       </nav>
 
       {/* Modals */}

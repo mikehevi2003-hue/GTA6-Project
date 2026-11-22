@@ -2070,19 +2070,179 @@ body {
 }
 
 @media (max-width: 768px) {
+  .auth-strength-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cmdk-backdrop {
+    padding: 16px 10px;
+  }
+
+  .cyber-hero {
+    padding: 14px;
+  }
+
+  .cyber-hero-title-row h2 {
+    font-size: 16.5px;
+  }
+
+  .cyber-hero-rings {
+    width: 100%;
+  }
+
+  .cyber-progress-ring {
+    flex: 1 1 135px;
+  }
+}
+
+/* ==========================================================================
+   Stage 18: Slide-Out Left Menu Drawer (<=980px), Sticky HUD Bar &
+   Co-Founder Admin Space Quick Access
+   ========================================================================== */
+
+.sticky-hud-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 45;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.menu-drawer-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px !important;
+  border-radius: 9px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  border-color: rgba(0, 229, 255, 0.48) !important;
+  color: #ffffff !important;
+  background: rgba(0, 229, 255, 0.14) !important;
+}
+
+.cofounder-admin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(90deg, rgba(255, 42, 133, 0.25), rgba(250, 204, 21, 0.2));
+  border: 1px solid rgba(255, 42, 133, 0.65);
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 42, 133, 0.22);
+}
+
+.cofounder-admin-pill.active {
+  background: linear-gradient(90deg, #ff2a85, #e11d48);
+  border-color: #ff7ab3;
+}
+
+.cofounder-admin-box {
+  margin-top: 10px;
+  padding: 10px 11px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(255, 42, 133, 0.16), rgba(250, 204, 21, 0.1));
+  border: 1px solid rgba(255, 42, 133, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cofounder-admin-box-head {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.75px;
+  color: #fde047;
+  text-transform: uppercase;
+}
+
+.sidebar-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(5, 7, 14, 0.74);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.sidebar-drawer-close-btn {
+  display: none;
+  background: rgba(255, 42, 133, 0.18);
+  border: 1px solid rgba(255, 42, 133, 0.55);
+  color: #ffffff;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 981px) {
+  .sidebar-drawer-backdrop {
+    display: none;
+  }
+
+  .sidebar-drawer-close-btn {
+    display: none !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(312px, 86vw) !important;
+    max-width: 86vw !important;
+    height: 100dvh !important;
+    z-index: 90;
+    transform: translateX(-106%);
+    transition: transform 0.22s ease;
+    box-shadow: 16px 0 48px rgba(0, 0, 0, 0.8);
+    overflow-y: auto;
+  }
+
+  .sidebar.drawer-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-collapse-btn {
+    display: none !important;
+  }
+
+  .sidebar-drawer-close-btn {
+    display: inline-flex !important;
+  }
+
+  .main-panel,
+  .main-content {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px 14px 92px !important;
+  }
+
   .mobile-bottom-dock {
     display: flex;
     align-items: center;
-    justify-content: space-around;
-    gap: 4px;
+    justify-content: space-between;
+    gap: 2px;
     position: fixed;
     left: 10px;
     right: 10px;
     bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 60;
-    min-height: 60px;
-    padding: 6px 8px;
-    background: rgba(10, 14, 26, 0.9);
+    min-height: 58px;
+    padding: 5px 6px;
+    background: rgba(10, 14, 26, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(0, 229, 255, 0.4);
@@ -2092,17 +2252,10 @@ body {
       0 0 20px rgba(0, 229, 255, 0.12);
   }
 
-  .main-panel,
-  .main-content {
-    padding-bottom: 92px !important;
-  }
-
-  .auth-strength-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .cmdk-backdrop {
-    padding: 16px 10px;
+  .mobile-dock-btn {
+    min-width: 0 !important;
+    padding: 5px 2px !important;
+    font-size: 10px !important;
   }
 }
 
@@ -2643,22 +2796,4 @@ body {
   height: 100%;
   border-radius: 99px;
   background: linear-gradient(90deg, var(--accent-cyan), var(--accent-pink));
-}
-
-@media (max-width: 768px) {
-  .cyber-hero {
-    padding: 14px;
-  }
-
-  .cyber-hero-title-row h2 {
-    font-size: 16.5px;
-  }
-
-  .cyber-hero-rings {
-    width: 100%;
-  }
-
-  .cyber-progress-ring {
-    flex: 1 1 135px;
-  }
 }

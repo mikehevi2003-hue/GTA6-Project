@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useMemo, useRef, useState } from "react";
-import type { Language, LocalizedText, MapPin, PinType } from "@/types/vicelink";
+import type { Language, LocalizedText, MapPin, PinType, UserTier } from "@/types/vicelink";
 import { FenceTable } from "./FenceTable";
 
 export type MapViewProps = {
   lang: Language;
+  tier?: UserTier;
   pins: MapPin[];
   foundPins: string[];
   onTogglePinFound: (pinId: string) => void;
@@ -14,6 +15,109 @@ export type MapViewProps = {
 };
 
 type LayerFilter = "ALL" | PinType;
+
+type FirstHourRouteStop = {
+  step: number;
+  pinId: string;
+  defaultX: number;
+  defaultY: number;
+  payoutBadge: LocalizedText;
+  title: LocalizedText;
+  instruction: LocalizedText;
+};
+
+const FIRST_HOUR_ROUTE_STOPS: FirstHourRouteStop[] = [
+  {
+    step: 1,
+    pinId: "rc1",
+    defaultX: 74,
+    defaultY: 65,
+    payoutBadge: { en: "FREE SUPERCAR", es: "AUTO GRATIS" },
+    title: {
+      en: "Paul Walker's Green Mitsubishi Eclipse (Vespucci Island)",
+      es: "Mitsubishi Eclipse Verde de Paul Walker (Vespucci Island)"
+    },
+    instruction: {
+      en: "Disable villa garage wall alarm & claim a fast street-tuned getaway car for $0.",
+      es: "Desactiva la alarma del garaje en la villa y llévate el auto tuneado por $0."
+    }
+  },
+  {
+    step: 2,
+    pinId: "atm1",
+    defaultX: 75.5,
+    defaultY: 57,
+    payoutBadge: { en: "+$12,000 CASH", es: "+$12,000 EFECTIVO" },
+    title: {
+      en: "Ocean Drive Payday & Wall ATMs",
+      es: "Cajeros ATM de Pared (Ocean Drive)"
+    },
+    instruction: {
+      en: "Crack wall ATMs with WAiNK scanner or tow-winch for instant early seed cash.",
+      es: "Hackea los cajeros con WAiNK o grúa para capital inicial inmediato."
+    }
+  },
+  {
+    step: 3,
+    pinId: "m5",
+    defaultX: 79.5,
+    defaultY: 55.5,
+    payoutBadge: { en: "+$25,000 GEMS", es: "+$25,000 JOYAS" },
+    title: {
+      en: "Capri Ocean Beach Jewelry Smash & Grab",
+      es: "Robo Rápido a Joyería Capri (Ocean Beach)"
+    },
+    instruction: {
+      en: "Cut rear backroom alarm, smash display cases ($15K–$25K gems), and sprint out.",
+      es: "Corta la alarma trasera, rompe las vitrinas ($15K–$25K en joyas) y sal rápido."
+    }
+  },
+  {
+    step: 4,
+    pinId: "rc2",
+    defaultX: 74,
+    defaultY: 48,
+    payoutBadge: { en: "FREE 4x4 RIG", es: "BUGGY 4x4 GRATIS" },
+    title: {
+      en: "'67 Vapid Dominator Off-Road Buggy (Watson Bay)",
+      es: "Buggy Todoterreno '67 Vapid Dominator (Watson Bay)"
+    },
+    instruction: {
+      en: "Grab the lifted dune/swamp racer at Paradise Garage to outrun police off-road.",
+      es: "Toma el buggy elevado en Paradise Garage para evadir patrullas fuera de ruta."
+    }
+  },
+  {
+    step: 5,
+    pinId: "m6",
+    defaultX: 70,
+    defaultY: 52,
+    payoutBadge: { en: "+$205,000 VAULT", es: "+$205,000 BÓVEDA" },
+    title: {
+      en: "Vice City Bank Vault Armored Loop (~5 Min)",
+      es: "Bucle de Bóveda Bancaria Vice City (~5 Min)"
+    },
+    instruction: {
+      en: "Tail armored security truck to vault window, loot Marked Bills & escape down alleys.",
+      es: "Sigue el camión blindado a la ventana de bóveda, toma billetes marcados y escapa."
+    }
+  },
+  {
+    step: 6,
+    pinId: "f5",
+    defaultX: 66,
+    defaultY: 62,
+    payoutBadge: { en: "$250K+/HR CASHOUT", es: "LIQUIDACIÓN $250K+/H" },
+    title: {
+      en: "Fence: Yasmani (Little Cuba Top Buyer)",
+      es: "Comprador: Yasmani (Little Cuba — Pago Máximo)"
+    },
+    instruction: {
+      en: "Launder all Jewelry & Marked Bills at 100% top rate and buy next Bank Vault tip!",
+      es: "Vende todas las joyas y billetes marcados al precio máximo y compra otra pista bancaria."
+    }
+  }
+];
 
 const MAP_REGIONS: { value: string; label: string }[] = [
   { value: "Vice City", label: "Vice City" },
@@ -51,6 +155,7 @@ function clampPan(x: number, y: number, zoom: number): { x: number; y: number } 
 
 export function MapView({
   lang,
+  tier,
   pins,
   foundPins,
   onTogglePinFound,
@@ -63,6 +168,39 @@ export function MapView({
   const [selectedRegion, setSelectedRegion] = useState<string>("ALL");
   const [hideFound, setHideFound] = useState<boolean>(false);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [showCashRoute, setShowCashRoute] = useState<boolean>(false);
+  const [showFreeRoutePreview, setShowFreeRoutePreview] = useState<boolean>(false);
+
+  const hasPaidRouteAccess = useMemo(() => {
+    if (tier) return tier === "street" || tier === "kingpin";
+    return !pins.some((p) => Boolean(p.locked));
+  }, [tier, pins]);
+
+  const resolvedRouteStops = useMemo(() => {
+    return FIRST_HOUR_ROUTE_STOPS.map((stop) => {
+      const matchedPin = pins.find((p) => p.id === stop.pinId);
+      const x = matchedPin ? matchedPin.x : stop.defaultX;
+      const y = matchedPin ? matchedPin.y : stop.defaultY;
+      return {
+        ...stop,
+        x,
+        y,
+        svgX: Number((x * 9).toFixed(1)),
+        svgY: Number((y * 6.8).toFixed(1)),
+        pin: matchedPin ?? null
+      };
+    });
+  }, [pins]);
+
+  const routeSvgPoints = useMemo(
+    () => resolvedRouteStops.map((s) => `${s.svgX},${s.svgY}`).join(" "),
+    [resolvedRouteStops]
+  );
+
+  const routeCompletedCount = useMemo(
+    () => resolvedRouteStops.filter((s) => foundPins.includes(s.pinId)).length,
+    [resolvedRouteStops, foundPins]
+  );
 
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -293,6 +431,60 @@ export function MapView({
           {isEs ? "Ocultar Encontrados" : "Hide Found Pins"}
         </button>
 
+        {hasPaidRouteAccess ? (
+          <button
+            type="button"
+            id="toggleFirstHourRouteBtn"
+            className="btn-pro"
+            style={{
+              width: "auto",
+              background: showCashRoute
+                ? "linear-gradient(135deg, #22c55e, #00e5ff)"
+                : "linear-gradient(135deg, #ff2a85, #00e5ff)",
+              color: showCashRoute ? "#04111d" : "#ffffff",
+              boxShadow: "0 0 22px rgba(0, 229, 255, 0.35)"
+            }}
+            onClick={() => {
+              setShowCashRoute((prev) => {
+                const next = !prev;
+                if (next) {
+                  setActiveLayer("ALL");
+                  setSelectedRegion("ALL");
+                  setHideFound(false);
+                }
+                return next;
+              });
+            }}
+          >
+            {showCashRoute
+              ? isEs
+                ? "💸 Ocultar Ruta $250K/hr Primera Hora (6 Paradas)"
+                : "💸 Hide $250K/hr First-Hour Route (6 Stops)"
+              : isEs
+                ? "💸 Mostrar Ruta $250K/hr Primera Hora (6 Paradas)"
+                : "💸 Show $250K/hr First-Hour Route (6 Stops)"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            id="lockedFirstHourRouteBtn"
+            className="btn-pro"
+            style={{
+              width: "auto",
+              background: "linear-gradient(135deg, #f59e0b, #ff2a85)",
+              boxShadow: "0 0 20px rgba(255, 42, 133, 0.38)"
+            }}
+            onClick={() => {
+              setShowFreeRoutePreview(true);
+              onOpenPricing();
+            }}
+          >
+            {isEs
+              ? "🔒 Ruta $250K/hr Primera Hora (VIP)"
+              : "🔒 $250K/hr First-Hour Cash Route (VIP)"}
+          </button>
+        )}
+
         <button
           type="button"
           id="openShareCardBtn"
@@ -303,6 +495,254 @@ export function MapView({
           {isEs ? "📱 Tarjeta TikTok / IG" : "📱 TikTok & IG Card"}
         </button>
       </div>
+
+      {/* Free User High-Conversion Preview Banner for $250K/hr First-Hour Cash & Supercar Route */}
+      {!hasPaidRouteAccess && showFreeRoutePreview && (
+        <div
+          id="firstHourRoutePreviewBanner"
+          className="admin-card"
+          style={{
+            marginBottom: 16,
+            padding: "16px 18px",
+            borderRadius: 14,
+            background:
+              "linear-gradient(135deg, rgba(255, 42, 133, 0.16), rgba(0, 229, 255, 0.12))",
+            border: "1px solid rgba(255, 42, 133, 0.55)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 10
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span className="kingpin-badge">
+                💸 {isEs ? "RUTA SPEEDRUN DE 6 PARADAS" : "6-STOP FIRST-HOUR SPEEDRUN"}
+              </span>
+              <span className="verified-badge">$250K+/hr + 2 Free Cars</span>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: 11.5, padding: "4px 9px" }}
+              onClick={() => setShowFreeRoutePreview(false)}
+            >
+              ✕
+            </button>
+          </div>
+
+          <h3 style={{ fontSize: 17, fontWeight: 900, color: "#fff", margin: 0 }}>
+            {isEs
+              ? "Unlock 6-Stop First-Hour Cash & Supercar Route with Street Pass ($1.99) — $250K+/hr + 2 Autos Gratis"
+              : "Unlock 6-Stop First-Hour Cash & Supercar Route with Street Pass ($1.99)"}
+          </h3>
+          <p style={{ fontSize: 12.5, color: "#cbd5e1", margin: 0, lineHeight: 1.5 }}>
+            {isEs
+              ? "Empieza GTA VI con el Eclipse Verde de Paul Walker ($0), limpia cajeros de Ocean Drive (+$12K), asalta Joyería Capri (+$25K), asegura el Buggy 4x4 '67 Dominator ($0), ejecuta el Bucle de Bóveda Bancaria (+$205K) y liquida con Yasmani en menos de 45 minutos."
+              : "Start GTA VI with Paul Walker's Green Eclipse ($0), crack Ocean Drive ATMs (+$12K), hit Capri Jewelry (+$25K), claim the '67 Dominator 4x4 Buggy ($0), run the Vice City Bank Vault Loop (+$205K), and cash out 100% clean with Yasmani in under 45 minutes."}
+          </p>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+            <button
+              type="button"
+              className="btn-pro"
+              style={{ width: "auto" }}
+              onClick={onOpenPricing}
+            >
+              ⚡{" "}
+              {isEs
+                ? "Desbloquear con Street Pass ($1.99 Pago Único)"
+                : "Unlock with Street Pass ($1.99 One-Time)"}
+            </button>
+            <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+              {isEs
+                ? "Usa el código PANAMA50 en el checkout para 50% de descuento ($1.00 USD)."
+                : "Use promo code PANAMA50 at checkout for 50% off ($1.00 USD)."}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Paid Tier 6-Stop $250K/hr First-Hour Cash & Supercar Speedrun Checklist Card */}
+      {hasPaidRouteAccess && showCashRoute && (
+        <div
+          id="firstHourRouteCard"
+          className="admin-card"
+          style={{
+            marginBottom: 16,
+            padding: "16px 18px",
+            borderRadius: 14,
+            background:
+              "linear-gradient(145deg, rgba(8, 16, 32, 0.94), rgba(14, 23, 42, 0.92))",
+            border: "1px solid rgba(0, 229, 255, 0.55)",
+            boxShadow: "0 14px 36px rgba(0, 0, 0, 0.55)"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 12
+            }}
+          >
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span className="kingpin-badge">
+                  💸 {isEs ? "RUTA TÁCTICA DE PRIMERA HORA" : "FIRST-HOUR TACTICAL SPEEDRUN"}
+                </span>
+                <span className="implemented-badge">$250K+/hr + 2 Free Cars</span>
+                <span className="verified-badge">
+                  {routeCompletedCount} / 6 {isEs ? "Completadas" : "Stops Done"}
+                </span>
+              </div>
+              <h3 style={{ fontSize: 17, fontWeight: 900, marginTop: 6, color: "#fff" }}>
+                {isEs
+                  ? "Ruta de 6 Paradas: $250K+/hr + 2 Superautos Gratis en Vice City"
+                  : "6-Stop First-Hour Cash & Supercar Route ($250K+/hr + 2 Free Cars)"}
+              </h3>
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: 12, padding: "6px 11px" }}
+              onClick={() => setShowCashRoute(false)}
+            >
+              {isEs ? "Ocultar Ruta ✕" : "Hide Route ✕"}
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+              gap: 10
+            }}
+          >
+            {resolvedRouteStops.map((stop) => {
+              const done = foundPins.includes(stop.pinId);
+              const active = selectedPinId === stop.pinId;
+              return (
+                <div
+                  key={stop.pinId}
+                  onClick={() => setSelectedPinId(stop.pinId)}
+                  style={{
+                    padding: "11px 12px",
+                    borderRadius: 11,
+                    background: active
+                      ? "rgba(0, 229, 255, 0.13)"
+                      : done
+                        ? "rgba(34, 197, 94, 0.09)"
+                        : "rgba(6, 10, 20, 0.82)",
+                    border: active
+                      ? "1px solid var(--accent-cyan)"
+                      : done
+                        ? "1px solid rgba(34, 197, 94, 0.45)"
+                        : "1px solid rgba(255, 255, 255, 0.1)",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 5
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 6
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontWeight: 900,
+                        fontSize: 12,
+                        color: "var(--accent-cyan)"
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          background: done ? "#22c55e" : "#ff2a85",
+                          color: "#fff",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11.5,
+                          fontWeight: 900
+                        }}
+                      >
+                        {stop.step}
+                      </span>
+                      <span>({stop.step})</span>
+                    </span>
+
+                    <span
+                      className="implemented-badge"
+                      style={{ fontSize: 10, padding: "2px 7px" }}
+                    >
+                      {resolveLocalized(stop.payoutBadge, lang)}
+                    </span>
+                  </div>
+
+                  <strong style={{ fontSize: 13, color: "#fff" }}>
+                    {resolveLocalized(stop.title, lang)}
+                  </strong>
+                  <p style={{ fontSize: 11.5, color: "#94a3b8", margin: 0, lineHeight: 1.4 }}>
+                    {resolveLocalized(stop.instruction, lang)}
+                  </p>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: "auto",
+                      paddingTop: 4
+                    }}
+                  >
+                    <span style={{ fontSize: 10.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                      GPS: ({stop.x}%, {stop.y}%)
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: 10.5, padding: "3px 8px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTogglePinFound(stop.pinId);
+                      }}
+                    >
+                      {done
+                        ? isEs
+                          ? "✓ Completada"
+                          : "✓ Done"
+                        : isEs
+                          ? "Marcar Parada"
+                          : "Mark Stop"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="map-workspace">
         <div
@@ -576,6 +1016,39 @@ export function MapView({
               <text x="385" y="655" className="region-label">
                 LEONIDA KEYS
               </text>
+
+              {hasPaidRouteAccess && showCashRoute && (
+                <g id="firstHourRouteSvgLayer">
+                  <polyline
+                    points={routeSvgPoints}
+                    fill="none"
+                    stroke="rgba(255, 42, 133, 0.35)"
+                    strokeWidth="9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <polyline
+                    points={routeSvgPoints}
+                    fill="none"
+                    stroke="#00e5ff"
+                    strokeWidth="3.5"
+                    strokeDasharray="9 5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {resolvedRouteStops.map((stop) => (
+                    <circle
+                      key={`svg-stop-${stop.step}`}
+                      cx={stop.svgX}
+                      cy={stop.svgY}
+                      r="8"
+                      fill="#060b16"
+                      stroke="#facc15"
+                      strokeWidth="2.5"
+                    />
+                  ))}
+                </g>
+              )}
             </svg>
 
             <div id="mapPinsLayer">
@@ -611,6 +1084,44 @@ export function MapView({
                   </button>
                 );
               })}
+
+              {hasPaidRouteAccess &&
+                showCashRoute &&
+                resolvedRouteStops.map((stop) => {
+                  const done = foundPins.includes(stop.pinId);
+                  return (
+                    <button
+                      key={`route-badge-${stop.step}`}
+                      type="button"
+                      onClick={() => setSelectedPinId(stop.pinId)}
+                      title={`(${stop.step}) ${resolveLocalized(stop.title, lang)} — ${resolveLocalized(
+                        stop.payoutBadge,
+                        lang
+                      )}`}
+                      style={{
+                        position: "absolute",
+                        left: `${stop.x}%`,
+                        top: `${stop.y}%`,
+                        transform: "translate(10px, -28px)",
+                        zIndex: 18,
+                        background: done
+                          ? "linear-gradient(135deg, #22c55e, #00e5ff)"
+                          : "linear-gradient(135deg, #ff2a85, #facc15)",
+                        color: "#05070e",
+                        border: "1.5px solid #ffffff",
+                        borderRadius: 99,
+                        padding: "2px 7px",
+                        fontSize: 10.5,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.75)",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      ({stop.step})
+                    </button>
+                  );
+                })}
             </div>
           </div>
         </div>

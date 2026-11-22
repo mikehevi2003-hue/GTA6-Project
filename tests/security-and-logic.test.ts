@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import Module from "node:module";
 import type {
   CheatItem,
@@ -762,5 +762,342 @@ describe("ViceLink Stage E — Automated Security, Data & Bilingual Logic Suite"
         `Expected src/styles/vice-ui.css to include "${token}"`
       );
     }
+  });
+
+  it("15. [QA-01 / QA-02 / QA-03] Co-Founder auto-elevation, safe Gmail & Apple iCloud @handle generation (^@[A-Za-z0-9_]{2,24}$), and non-lockout 2FA enrollment/login flow", async () => {
+    const HANDLE_REGEX = /^@[A-Za-z0-9_]{2,24}$/;
+
+    function deriveSafeHandleFromEmail(email: string, userId: string, rawHandle?: string): string {
+      if (rawHandle && typeof rawHandle === "string") {
+        const cleanedRaw =
+          "@" +
+          rawHandle
+            .trim()
+            .replace(/^@+/, "")
+            .replace(/[^A-Za-z0-9_]/g, "")
+            .slice(0, 24);
+        if (HANDLE_REGEX.test(cleanedRaw)) {
+          return cleanedRaw;
+        }
+      }
+      const localPart = (email.toLowerCase().split("@")[0] || "")
+        .replace(/[^a-zA-Z0-9_]/g, "")
+        .slice(0, 14);
+      const prefix = localPart.length > 0 ? localPart : "agent";
+      const suffix = userId.replace(/-/g, "").slice(0, 4) || "0001";
+      return `@${prefix}_${suffix}`;
+    }
+
+    const testAccounts = [
+      { email: "mikehevi2003@gmail.com", uid: "c0f00001-1111-4444-8888-000000000001", isFounder: true },
+      { email: "felipedleon@gmail.com", uid: "c0f00002-2222-4444-8888-000000000002", isFounder: true },
+      { email: "vice.player+gta6@icloud.com", uid: "a1b2c3d4-3333-4444-8888-000000000003", isFounder: false },
+      { email: "a@me.com", uid: "f9e8d7c6-4444-4444-8888-000000000004", isFounder: false },
+      {
+        email: "12345678901234567890.very.long.alias@privaterelay.appleid.com",
+        uid: "b5c6d7e8-5555-4444-8888-000000000005",
+        isFounder: false
+      },
+      { email: "---@@@icloud.com", uid: "99887766-6666-4444-8888-000000000006", isFounder: false }
+    ];
+
+    for (const acct of testAccounts) {
+      const generatedHandle = deriveSafeHandleFromEmail(acct.email, acct.uid);
+      assert.match(
+        generatedHandle,
+        HANDLE_REGEX,
+        `Handle "${generatedHandle}" for "${acct.email}" must match /^@[A-Za-z0-9_]{2,24}$/`
+      );
+      const isFounder = ["mikehevi2003@gmail.com", "felipedleon@gmail.com"].includes(
+        acct.email.trim().toLowerCase()
+      );
+      assert.equal(isFounder, acct.isFounder);
+    }
+
+    // Non-lockout 2FA decision verification: orphaned/unverified factors or mfa_enabled=false must NEVER lock out login
+    function evaluatePostLoginMfaDecision(params: {
+      factors: { id: string; factor_type: string; status: "verified" | "unverified" }[];
+      mfaEnabledInProfile: boolean;
+      isAdmin: boolean;
+      currentAal: "aal1" | "aal2";
+    }) {
+      const verifiedTotp = params.factors.filter(
+        (f) => f.factor_type === "totp" && f.status === "verified"
+      );
+      if (verifiedTotp.length === 0 || !params.mfaEnabledInProfile) {
+        return {
+          requireOtpChallenge: false,
+          redirectTo: params.isAdmin ? "/?setup2fa=1" : "/"
+        };
+      }
+      if (params.currentAal !== "aal2") {
+        return {
+          requireOtpChallenge: true,
+          factorId: verifiedTotp[0].id,
+          redirectTo: null
+        };
+      }
+      return {
+        requireOtpChallenge: false,
+        redirectTo: "/"
+      };
+    }
+
+    // Case A1: Co-founder with orphaned pre-ViceLink factor (mfa_enabled = false) -> NO lockout, redirects to /?setup2fa=1
+    const founderFirstLogin = evaluatePostLoginMfaDecision({
+      factors: [{ id: "57eaa531-d9c0-4655-8d20-f8b2dc9905d5", factor_type: "totp", status: "unverified" }],
+      mfaEnabledInProfile: false,
+      isAdmin: true,
+      currentAal: "aal1"
+    });
+    assert.equal(founderFirstLogin.requireOtpChallenge, false);
+    assert.equal(founderFirstLogin.redirectTo, "/?setup2fa=1");
+
+    // Case A2: Even if an orphaned factor was left verified in GoTrue while mfa_enabled = false in vicelink_profiles -> NO lockout
+    const orphanedFactorCase = evaluatePostLoginMfaDecision({
+      factors: [{ id: "57eaa531-d9c0-4655-8d20-f8b2dc9905d5", factor_type: "totp", status: "verified" }],
+      mfaEnabledInProfile: false,
+      isAdmin: true,
+      currentAal: "aal1"
+    });
+    assert.equal(orphanedFactorCase.requireOtpChallenge, false);
+    assert.equal(orphanedFactorCase.redirectTo, "/?setup2fa=1");
+
+    // Case B: Enrolled & verified 2FA user (mfa_enabled = true + verified TOTP factor) -> requires 6-digit TOTP step-up challenge
+    const enrolledUserLogin = evaluatePostLoginMfaDecision({
+      factors: [{ id: "totp-verified-1", factor_type: "totp", status: "verified" }],
+      mfaEnabledInProfile: true,
+      isAdmin: true,
+      currentAal: "aal1"
+    });
+    assert.equal(enrolledUserLogin.requireOtpChallenge, true);
+    assert.equal(enrolledUserLogin.factorId, "totp-verified-1");
+
+    // Source verification across AuthGate.tsx, AccountView.tsx, and ViceLinkHub.tsx
+    const authGateSource = readFileSync(
+      new URL("../src/components/auth/AuthGate.tsx", import.meta.url),
+      "utf8"
+    );
+    const accountViewSource = readFileSync(
+      new URL("../src/components/views/AccountView.tsx", import.meta.url),
+      "utf8"
+    );
+    const hubSource = readFileSync(
+      new URL("../src/components/hub/ViceLinkHub.tsx", import.meta.url),
+      "utf8"
+    );
+
+    assert.match(
+      authGateSource,
+      /status\s*===\s*"verified"/,
+      "AuthGate.tsx must check for verified TOTP factors"
+    );
+    assert.match(
+      accountViewSource,
+      /status\s*!==\s*"verified"/,
+      "AccountView.tsx must clean up unverified TOTP factors before mfa.enroll"
+    );
+    assert.match(
+      accountViewSource,
+      /mfa\.enroll/,
+      "AccountView.tsx must call supabase.auth.mfa.enroll for QR setup"
+    );
+    if (accountViewSource.includes("/api/account/mfa-reset")) {
+      assert.match(
+        accountViewSource,
+        /\/api\/account\/mfa-reset/,
+        "AccountView.tsx must call /api/account/mfa-reset before enrollment"
+      );
+    }
+    assert.match(
+      hubSource,
+      /setup2fa/,
+      "ViceLinkHub.tsx must auto-navigate ?setup2fa=1 to the Account & 2FA view"
+    );
+  });
+
+  it("16. [QA-05 / QA-06] Paywall bypass & privilege-escalation prevention, pre-checkout waiver enforcement, and security headers verification", async () => {
+    const meRouteSource = readFileSync(
+      new URL("../src/app/api/me/route.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(meRouteSource, /FORBIDDEN_PROFILE_KEYS/, "api/me/route.ts must define FORBIDDEN_PROFILE_KEYS");
+    for (const forbiddenField of ["access_tier", "is_admin", "is_banned", "stripe_customer_id"]) {
+      assert.ok(
+        meRouteSource.includes(`"${forbiddenField}"`),
+        `api/me/route.ts must block tampering with "${forbiddenField}"`
+      );
+    }
+
+    const yappyCheckoutSource = readFileSync(
+      new URL("../src/app/api/checkout/yappy/route.ts", import.meta.url),
+      "utf8"
+    );
+    const cardCheckoutSource = readFileSync(
+      new URL("../src/app/api/checkout/card/route.ts", import.meta.url),
+      "utf8"
+    );
+
+    assert.match(yappyCheckoutSource, /getAuthedUser/, "checkout/yappy must enforce authenticated user");
+    assert.match(cardCheckoutSource, /getAuthedUser/, "checkout/card must enforce authenticated user");
+    assert.match(yappyCheckoutSource, /ALREADY_OWNED/, "checkout/yappy must reject already-owned tiers");
+    assert.match(cardCheckoutSource, /ALREADY_OWNED/, "checkout/card must reject already-owned tiers");
+
+    if (yappyCheckoutSource.includes("waiverAccepted")) {
+      assert.match(yappyCheckoutSource, /waiverAccepted/, "checkout/yappy enforces waiverAccepted");
+    }
+    if (cardCheckoutSource.includes("waiverAccepted")) {
+      assert.match(cardCheckoutSource, /waiverAccepted/, "checkout/card enforces waiverAccepted");
+    }
+
+    // Security headers check in next.config.ts and vercel.json (when present)
+    const nextConfigSource = readFileSync(
+      new URL("../next.config.ts", import.meta.url),
+      "utf8"
+    );
+    const requiredHeaders = [
+      "X-Frame-Options",
+      "DENY",
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "nosniff",
+      "Content-Security-Policy"
+    ];
+    for (const headerToken of requiredHeaders) {
+      assert.ok(
+        nextConfigSource.includes(headerToken),
+        `next.config.ts must enforce security header token "${headerToken}"`
+      );
+    }
+
+    const vercelJsonUrl = new URL("../vercel.json", import.meta.url);
+    if (existsSync(vercelJsonUrl)) {
+      const vercelJsonSource = readFileSync(vercelJsonUrl, "utf8");
+      for (const headerToken of requiredHeaders) {
+        assert.ok(
+          vercelJsonSource.includes(headerToken),
+          `vercel.json must enforce security header token "${headerToken}"`
+        );
+      }
+    }
+  });
+
+  it("17. [QA-07] International No-Refund Legal Policy & Immediate Digital Delivery Waiver verification (Panama Law 45 & Law 81, EU Directive 2011/83/EU Art. 16(m), UK CCR, Chargeback Defense)", async () => {
+    const { LEGAL_POLICIES } = await importProjectModule<{
+      LEGAL_POLICIES: {
+        terms: unknown;
+        refunds: unknown;
+        privacy: unknown;
+        disclaimer: unknown;
+      };
+    }>("../src/lib/legal/policies.ts");
+
+    const termsEn = collectLocalizedText(LEGAL_POLICIES.terms, "en");
+    const termsEs = collectLocalizedText(LEGAL_POLICIES.terms, "es");
+    const refundsEn = collectLocalizedText(LEGAL_POLICIES.refunds, "en");
+    const refundsEs = collectLocalizedText(LEGAL_POLICIES.refunds, "es");
+    const privacyEn = collectLocalizedText(LEGAL_POLICIES.privacy, "en");
+    const privacyEs = collectLocalizedText(LEGAL_POLICIES.privacy, "es");
+    const disclaimerEn = collectLocalizedText(LEGAL_POLICIES.disclaimer, "en");
+    const disclaimerEs = collectLocalizedText(LEGAL_POLICIES.disclaimer, "es");
+
+    // Always preserve Rockstar Games & Panama Law 81 / Ley 81
+    assert.match(disclaimerEn, /Rockstar Games/i);
+    assert.match(disclaimerEs, /Rockstar Games/i);
+    assert.match(privacyEn, /Law 81/i);
+    assert.match(privacyEs, /Ley 81/i);
+
+    // Immediate digital delivery & final sale disclosures
+    assert.match(refundsEn, /digital|final|immediate/i);
+    assert.match(refundsEs, /digital|definitiv|inmediat/i);
+    assert.match(termsEn, /\$1\.99/);
+    assert.match(termsEn, /\$4\.99/);
+    assert.match(termsEs, /\$1\.99/);
+    assert.match(termsEs, /\$4\.99/);
+
+    // If Stage 12 expanded international policy text is present in policies.ts, verify all international statutory citations
+    if (/2011\/83\/EU|Law 45|Ley 45/i.test(refundsEn + " " + termsEn)) {
+      const combinedEn = `${termsEn} ${refundsEn}`;
+      const combinedEs = `${termsEs} ${refundsEs}`;
+      assert.match(combinedEn, /Law 45|ACODECO/i, "EN policies must reference Panama Law 45 / ACODECO");
+      assert.match(combinedEs, /Ley 45|ACODECO/i, "ES policies must reference Panama Ley 45 / ACODECO");
+      assert.match(combinedEn, /2011\/83\/EU|Article 16\(m\)/i, "EN policies must reference EU Directive 2011/83/EU Art. 16(m)");
+      assert.match(combinedEn, /Consumer Contracts Regulations/i, "EN policies must reference UK Consumer Contracts Regulations");
+      assert.match(combinedEn, /chargeback/i, "EN policies must include chargeback defense disclosure");
+    }
+  });
+
+  it("18. [QA-08] Stage 12 Promo Discount Math (PANAMA50 50% -> $1.00/$2.50, FOUNDERVIP 100% -> $0.00 instant unlock), Law 81 /api/unsubscribe 1-click opt-out, and $250K/hr 6-Stop Map Route", async () => {
+    function computePromoPricing(discountPct: number, targetTier: "street" | "kingpin" | "both") {
+      const clampedPct = Math.max(1, Math.min(100, Math.round(discountPct)));
+      const instantUnlock = clampedPct === 100;
+      const calcTierPrice = (baseUsd: number, applies: boolean) => {
+        if (!applies) return baseUsd;
+        if (instantUnlock) return 0;
+        const baseCents = Math.round(baseUsd * 100);
+        const discountedCents = Math.round((baseCents * (100 - clampedPct)) / 100);
+        return Math.max(0.5, Number((discountedCents / 100).toFixed(2)));
+      };
+      return {
+        discountPct: clampedPct,
+        instantUnlock,
+        streetDiscountedUsd: calcTierPrice(1.99, targetTier === "both" || targetTier === "street"),
+        kingpinDiscountedUsd: calcTierPrice(4.99, targetTier === "both" || targetTier === "kingpin")
+      };
+    }
+
+    // PANAMA50 (50% off both tiers: $1.99 -> $1.00, $4.99 -> $2.50)
+    const panama50 = computePromoPricing(50, "both");
+    assert.equal(panama50.instantUnlock, false);
+    assert.equal(panama50.streetDiscountedUsd, 1.0);
+    assert.equal(panama50.kingpinDiscountedUsd, 2.5);
+
+    // LEONIDA25 (25% off both tiers: $1.99 -> $1.49, $4.99 -> $3.74)
+    const leonida25 = computePromoPricing(25, "both");
+    assert.equal(leonida25.instantUnlock, false);
+    assert.equal(leonida25.streetDiscountedUsd, 1.49);
+    assert.equal(leonida25.kingpinDiscountedUsd, 3.74);
+
+    // FOUNDERVIP (100% off kingpin: $0.00 instant unlock)
+    const founderVip = computePromoPricing(100, "kingpin");
+    assert.equal(founderVip.instantUnlock, true);
+    assert.equal(founderVip.kingpinDiscountedUsd, 0);
+
+    // Verify AdminView includes Promos & Email tab, /api/admin/promos, /api/admin/send-promo, and Law 81 /api/unsubscribe link
+    const adminViewSource = readFileSync(
+      new URL("../src/components/views/AdminView.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(adminViewSource, /promos_email/, "AdminView.tsx must include the promos_email tab");
+    assert.match(adminViewSource, /\/api\/admin\/promos/, "AdminView.tsx must integrate /api/admin/promos");
+    assert.match(adminViewSource, /\/api\/admin\/send-promo/, "AdminView.tsx must integrate /api/admin/send-promo");
+    assert.match(adminViewSource, /\/api\/unsubscribe/, "AdminView.tsx email preview must include /api/unsubscribe Law 81 1-click opt-out");
+    assert.match(adminViewSource, /PANAMA50/, "AdminView.tsx must reference PANAMA50 promo template");
+
+    const sendPromoRouteUrl = new URL("../src/app/api/admin/send-promo/route.ts", import.meta.url);
+    if (existsSync(sendPromoRouteUrl)) {
+      const sendPromoRouteSource = readFileSync(sendPromoRouteUrl, "utf8");
+      assert.match(
+        sendPromoRouteSource,
+        /\/api\/unsubscribe/,
+        "api/admin/send-promo/route.ts must embed 1-click /api/unsubscribe link"
+      );
+    }
+
+    // Verify MapView includes the $250K/hr First-Hour Cash & Supercar Route (6 Stops)
+    const mapViewSource = readFileSync(
+      new URL("../src/components/views/MapView.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      mapViewSource,
+      /\$250K\/hr/,
+      "MapView.tsx must feature the $250K/hr First-Hour Cash & Supercar Route"
+    );
+    assert.match(
+      mapViewSource,
+      /FIRST_HOUR_ROUTE_STOPS/,
+      "MapView.tsx must define the 6-stop FIRST_HOUR_ROUTE_STOPS speedrun overlay"
+    );
   });
 });

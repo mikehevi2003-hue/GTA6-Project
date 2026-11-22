@@ -16,12 +16,15 @@ import type {
   CheatItem,
   CommunitySubmission,
   DirectionKey,
+  EmailCampaignAudience,
+  EmailCampaignItem,
   GlitchCategory,
   GlitchItem,
   Language,
   MapPin,
   PaymentProvider,
   PinType,
+  PromoCodeItem,
   SiteSettingsPayload,
   SubmissionStatus,
   UserTier
@@ -40,7 +43,13 @@ export type AdminViewProps = {
   onToast?: (kind: "success" | "info" | "error", text: string) => void;
 };
 
-type AdminTab = "telemetry_flags" | "glitches_cheats" | "pins" | "users" | "submissions";
+type AdminTab =
+  | "telemetry_flags"
+  | "glitches_cheats"
+  | "pins"
+  | "users"
+  | "submissions"
+  | "promos_email";
 
 const DEFAULT_TELEMETRY: AdminKpiTelemetry = {
   grossRevenueUsd: 0,
@@ -67,6 +76,42 @@ const DEFAULT_SITE_SETTINGS: SiteSettingsPayload = {
   glitchesTabEnabled: true
 };
 
+const DEFAULT_PROMO_CODES: PromoCodeItem[] = [
+  {
+    code: "PANAMA50",
+    discountPct: 50,
+    targetTier: "both",
+    maxUses: 500,
+    usesCount: 0,
+    expiresAt: null,
+    active: true,
+    createdBy: "system",
+    createdAt: "2026-11-21T00:00:00.000Z"
+  },
+  {
+    code: "LEONIDA25",
+    discountPct: 25,
+    targetTier: "both",
+    maxUses: 1000,
+    usesCount: 0,
+    expiresAt: null,
+    active: true,
+    createdBy: "system",
+    createdAt: "2026-11-21T00:00:00.000Z"
+  },
+  {
+    code: "FOUNDERVIP",
+    discountPct: 100,
+    targetTier: "kingpin",
+    maxUses: 25,
+    usesCount: 0,
+    expiresAt: null,
+    active: true,
+    createdBy: "system",
+    createdAt: "2026-11-21T00:00:00.000Z"
+  }
+];
+
 type OverviewPayload = {
   telemetry: AdminKpiTelemetry;
   siteSettings: SiteSettingsPayload;
@@ -76,6 +121,8 @@ type OverviewPayload = {
   glitches: GlitchItem[];
   dynamicPins: MapPin[];
   submissions: CommunitySubmission[];
+  promoCodes?: PromoCodeItem[];
+  emailCampaigns?: EmailCampaignItem[];
 };
 
 const CO_FOUNDER_EMAILS = ["mikehevi2003@gmail.com", "felipedleon@gmail.com"];
@@ -160,7 +207,9 @@ export function AdminView({
     cheats: [],
     glitches: [],
     dynamicPins: [],
-    submissions: []
+    submissions: [],
+    promoCodes: DEFAULT_PROMO_CODES,
+    emailCampaigns: []
   });
 
   // Co-founder & Inline TOTP AAL2 Verification State
@@ -234,6 +283,30 @@ export function AdminView({
   const [grantReference, setGrantReference] = useState("");
   const [grantingPass, setGrantingPass] = useState(false);
   const [banningUserId, setBanningUserId] = useState<string | null>(null);
+
+  // Tab 5: Stage 12 Promo Code Generator & Bilingual Promotional Email Broadcast state
+  const [newPromoCode, setNewPromoCode] = useState("");
+  const [newPromoDiscountPct, setNewPromoDiscountPct] = useState<number>(50);
+  const [newPromoTargetTier, setNewPromoTargetTier] = useState<"both" | "street" | "kingpin">("both");
+  const [newPromoMaxUses, setNewPromoMaxUses] = useState<number>(250);
+  const [savingPromo, setSavingPromo] = useState(false);
+  const [togglingPromoCode, setTogglingPromoCode] = useState<string | null>(null);
+
+  const [campaignAudience, setCampaignAudience] = useState<EmailCampaignAudience>("all_opted_in");
+  const [testEmailOnly, setTestEmailOnly] = useState("");
+  const [campaignPromoCode, setCampaignPromoCode] = useState("PANAMA50");
+  const [campaignSubjectEn, setCampaignSubjectEn] = useState("");
+  const [campaignSubjectEs, setCampaignSubjectEs] = useState("");
+  const [campaignBodyEn, setCampaignBodyEn] = useState("");
+  const [campaignBodyEs, setCampaignBodyEs] = useState("");
+  const [sendingCampaign, setSendingCampaign] = useState(false);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
+  const [lastDeliverySummary, setLastDeliverySummary] = useState<{
+    recipientsCount: number;
+    deliveredCount: number;
+    deliveryMode: "resend_live" | "dry_run_logged";
+    samplePreviewHtml?: string;
+  } | null>(null);
 
   const normalizedEmail = (userEmail || "").trim().toLowerCase();
   const isCoFounder = CO_FOUNDER_EMAILS.includes(normalizedEmail);
@@ -331,6 +404,13 @@ export function AdminView({
         dynamicPins: Array.isArray(data.dynamicPins) ? (data.dynamicPins as MapPin[]) : [],
         submissions: Array.isArray(data.submissions)
           ? (data.submissions as CommunitySubmission[])
+          : [],
+        promoCodes:
+          Array.isArray(data.promoCodes) && data.promoCodes.length > 0
+            ? (data.promoCodes as PromoCodeItem[])
+            : DEFAULT_PROMO_CODES,
+        emailCampaigns: Array.isArray(data.emailCampaigns)
+          ? (data.emailCampaigns as EmailCampaignItem[])
           : []
       };
 
@@ -1031,6 +1111,316 @@ export function AdminView({
     }
   };
 
+  // --- Tab 5 Handlers: Stage 12 Promo Code Generator & Bilingual Promotional Email Broadcast ---
+  const handleCreatePromoCode = async (e: FormEvent) => {
+    e.preventDefault();
+    const cleanedCode = newPromoCode
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_-]/g, "");
+    if (!/^[A-Z0-9_-]{3,24}$/.test(cleanedCode)) {
+      showBanner(
+        "error",
+        isEs
+          ? "El código promo debe tener entre 3 y 24 caracteres (A-Z, 0-9, _ o -)."
+          : "Promo code must be 3–24 uppercase characters (A-Z, 0-9, _ or -)."
+      );
+      return;
+    }
+
+    const clampedDiscount = Math.max(1, Math.min(100, Math.round(Number(newPromoDiscountPct) || 50)));
+    const clampedMaxUses = Math.max(1, Math.round(Number(newPromoMaxUses) || 100));
+
+    setSavingPromo(true);
+    setBanner(null);
+    try {
+      const res = await fetch("/api/admin/promos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: cleanedCode,
+          discountPct: clampedDiscount,
+          targetTier: newPromoTargetTier,
+          maxUses: clampedMaxUses,
+          active: true
+        })
+      });
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isEs ? "No se pudo guardar el código promocional." : "Could not save promo code.")
+        );
+      }
+
+      setNewPromoCode("");
+      setCampaignPromoCode(cleanedCode);
+      showBanner(
+        "success",
+        isEs
+          ? `✓ Código promocional ${cleanedCode} (${clampedDiscount}% OFF) guardado en vivo.`
+          : `✓ Promo code ${cleanedCode} (${clampedDiscount}% OFF) saved live.`
+      );
+      await loadOverview();
+      await onAdminDataChanged();
+    } catch (err) {
+      showBanner(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Error al crear código promocional."
+            : "Failed to create promo code."
+      );
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+
+  const handleTogglePromoActive = async (promo: PromoCodeItem) => {
+    const nextActive = !promo.active;
+    setTogglingPromoCode(promo.code);
+    setBanner(null);
+    try {
+      const res = await fetch("/api/admin/promos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: promo.code,
+          active: nextActive
+        })
+      });
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isEs ? "No se pudo actualizar el código promocional." : "Could not toggle promo code.")
+        );
+      }
+      showBanner(
+        "success",
+        nextActive
+          ? isEs
+            ? `🟢 Código ${promo.code} activado.`
+            : `🟢 Promo code ${promo.code} enabled.`
+          : isEs
+            ? `🔴 Código ${promo.code} desactivado.`
+            : `🔴 Promo code ${promo.code} disabled.`
+      );
+      await loadOverview();
+    } catch (err) {
+      showBanner(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Error al cambiar estado del código."
+            : "Failed to update promo status."
+      );
+    } finally {
+      setTogglingPromoCode(null);
+    }
+  };
+
+  const handleLoadWeekendPromoTemplate = () => {
+    setCampaignPromoCode("PANAMA50");
+    setCampaignSubjectEn(
+      "⚡ 50% OFF Weekend Flash: Unlock the $250K/hr GTA VI First-Hour Cash Route ($1.00 USD)"
+    );
+    setCampaignSubjectEs(
+      "⚡ 50% OFF Fin de Semana: Desbloquea la Ruta GTA VI de $250K/hr en tu Primera Hora ($1.00 USD)"
+    );
+    setCampaignBodyEn(
+      [
+        "Ready to dominate Leonida from minute one?",
+        "",
+        "Unlock ViceLink Street Pass ($1.99 -> $1.00 USD) or Kingpin VIP ($4.99 -> $2.50 USD) with promo code PANAMA50 (50% OFF — one-time payment, zero subscriptions):",
+        "• 💸 6-Stop First-Hour Cash & Supercar Route ($250K+/hr + 2 Free Cars: Paul Walker's Eclipse & '67 Off-Road Buggy)",
+        "• ⚡ All Working Patch 01.002.001 Money Glitches & Duplication Steps",
+        "• 🗺️ All 32 Tactical Map Coordinates, Hackable ATMs & Fence Keypad Codes (7700)",
+        "• 🏆 All 55 Platinum Trophy Guides & Unlimited Leonida AI Mission Advisor",
+        "",
+        "Enter code PANAMA50 inside the ViceLink Pricing Modal and pay securely with Yappy (Banco General) or Visa/Mastercard."
+      ].join("\n")
+    );
+    setCampaignBodyEs(
+      [
+        "¿Listo para dominar Leonida desde el primer minuto?",
+        "",
+        "Desbloquea ViceLink Street Pass ($1.99 -> $1.00 USD) o Kingpin VIP ($4.99 -> $2.50 USD) con el código PANAMA50 (50% de descuento — pago único de por vida, sin suscripciones):",
+        "• 💸 Ruta Táctica de 6 Paradas en la Primera Hora ($250K+/hr + 2 Autos Gratis: Eclipse de Paul Walker y Buggy 4x4 '67)",
+        "• ⚡ Todos los Glitches de Dinero Activos en el Parche 01.002.001",
+        "• 🗺️ Las 32 Coordenadas del Mapa Táctico, Cajeros ATM y Fences (Código 7700)",
+        "• 🏆 Guía completa de los 55 Trofeos de Platino y Asesor IA Ilimitado",
+        "",
+        "Ingresa el código PANAMA50 en el modal de pases de ViceLink y paga al instante con Yappy (Banco General) o Visa/Mastercard."
+      ].join("\n")
+    );
+    setShowEmailPreview(true);
+    showBanner(
+      "success",
+      isEs
+        ? "⚡ Plantilla bilingüe de 50% OFF (PANAMA50) cargada y lista para enviar."
+        : "⚡ 50% Weekend Promo Template (PANAMA50) loaded and ready to broadcast."
+    );
+  };
+
+  const handleSendPromoBroadcast = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!campaignSubjectEn.trim() || !campaignBodyEn.trim()) {
+      showBanner(
+        "error",
+        isEs
+          ? "Completa el Asunto (EN) y el Mensaje (EN) o usa el botón 'Cargar Plantilla 50%'."
+          : "Subject (EN) and Body (EN) are required — or click 'Load 50% Weekend Promo Template'."
+      );
+      return;
+    }
+
+    setSendingCampaign(true);
+    setBanner(null);
+    try {
+      const res = await fetch("/api/admin/send-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audience: campaignAudience,
+          testEmailOnly: testEmailOnly.trim() || undefined,
+          promoCode: campaignPromoCode.trim().toUpperCase(),
+          subjectEn: campaignSubjectEn.trim(),
+          subjectEs: campaignSubjectEs.trim() || campaignSubjectEn.trim(),
+          bodyEn: campaignBodyEn.trim(),
+          bodyEs: campaignBodyEs.trim() || campaignBodyEn.trim()
+        })
+      });
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isEs
+              ? "No se pudo enviar la campaña promocional."
+              : "Failed to send promotional email broadcast.")
+        );
+      }
+
+      const mode: "resend_live" | "dry_run_logged" =
+        data?.deliveryMode === "resend_live" ? "resend_live" : "dry_run_logged";
+      const recipientsCount = Number(data?.recipientsCount ?? 0);
+      const deliveredCount = Number(data?.deliveredCount ?? recipientsCount);
+
+      setLastDeliverySummary({
+        recipientsCount,
+        deliveredCount,
+        deliveryMode: mode,
+        samplePreviewHtml:
+          typeof data?.samplePreviewHtml === "string" ? data.samplePreviewHtml : undefined
+      });
+      setShowEmailPreview(true);
+
+      showBanner(
+        "success",
+        mode === "resend_live"
+          ? isEs
+            ? `🚀 Campaña enviada en vivo vía Resend SMTP a ${deliveredCount}/${recipientsCount} destinatarios.`
+            : `🚀 Broadcast delivered live via Resend SMTP to ${deliveredCount}/${recipientsCount} recipients.`
+          : isEs
+            ? `🧪 Campaña registrada en modo Dry-Run (${deliveredCount}/${recipientsCount} destinatarios). Configura RESEND_API_KEY para envío SMTP en vivo.`
+            : `🧪 Broadcast logged in Dry-Run mode (${deliveredCount}/${recipientsCount} recipients). Configure RESEND_API_KEY for live SMTP delivery.`
+      );
+      await loadOverview();
+    } catch (err) {
+      showBanner(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Error al enviar la campaña."
+            : "Promotional broadcast failed."
+      );
+    } finally {
+      setSendingCampaign(false);
+    }
+  };
+
+  const promoCodesList = useMemo(
+    () =>
+      overview.promoCodes && overview.promoCodes.length > 0
+        ? overview.promoCodes
+        : DEFAULT_PROMO_CODES,
+    [overview.promoCodes]
+  );
+
+  const emailCampaignsList = useMemo(
+    () => overview.emailCampaigns ?? [],
+    [overview.emailCampaigns]
+  );
+
+  const computedEmailPreviewHtml = useMemo(() => {
+    if (lastDeliverySummary?.samplePreviewHtml) {
+      return lastDeliverySummary.samplePreviewHtml;
+    }
+    const subj =
+      (isEs ? campaignSubjectEs || campaignSubjectEn : campaignSubjectEn) ||
+      "⚡ 50% OFF Weekend Flash: Unlock the $250K/hr GTA VI First-Hour Cash Route ($1.00 USD)";
+    const body =
+      (isEs ? campaignBodyEs || campaignBodyEn : campaignBodyEn) ||
+      "Use code PANAMA50 at checkout for 50% off Street Pass ($1.00 USD) or Kingpin VIP ($2.50 USD) — one-time lifetime access.";
+    const code = campaignPromoCode.trim().toUpperCase() || "PANAMA50";
+    const safeBodyHtml = body
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br/>");
+
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:18px;background:#05070e;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;background:#0b1120;border:1px solid rgba(0,229,255,0.45);border-radius:16px;padding:22px;">
+    <div style="font-size:11px;font-weight:800;letter-spacing:1.4px;color:#00e5ff;text-transform:uppercase;">VICELINK // LEONIDA TACTICAL HUB</div>
+    <h2 style="margin:10px 0 12px;font-size:19px;color:#ffffff;">${subj.replace(/</g, "&lt;")}</h2>
+    <div style="font-size:13.5px;line-height:1.6;color:#cbd5e1;">${safeBodyHtml}</div>
+    ${
+      code
+        ? `<div style="margin:18px 0;padding:12px 16px;border-radius:12px;background:rgba(255,42,133,0.16);border:1px dashed #ff2a85;text-align:center;">
+            <div style="font-size:11px;color:#fda4af;font-weight:700;">PROMO / DISCOUNT CODE</div>
+            <div style="font-size:22px;font-weight:900;letter-spacing:3px;color:#facc15;margin-top:4px;">${code}</div>
+          </div>`
+        : ""
+    }
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:18px 0;"/>
+    <p style="font-size:11px;color:#94a3b8;line-height:1.5;margin:0;">
+      Panama Law 81 of 2019 (Personal Data Protection) • 1-Click Opt-Out:
+      <a href="/api/unsubscribe?uid=00000000-0000-0000-0000-000000000000&token=law81-preview" style="color:#00e5ff;text-decoration:underline;">Unsubscribe / Darse de baja (/api/unsubscribe)</a>
+    </p>
+  </div>
+</body>
+</html>`;
+  }, [
+    lastDeliverySummary,
+    isEs,
+    campaignSubjectEn,
+    campaignSubjectEs,
+    campaignBodyEn,
+    campaignBodyEs,
+    campaignPromoCode
+  ]);
+
   const pendingCheatsCount = useMemo(
     () => overview.cheats.filter((c) => c.seq.length === 0).length,
     [overview.cheats]
@@ -1370,6 +1760,15 @@ export function AdminView({
           onClick={() => setActiveTab("submissions")}
         >
           🛡️ {isEs ? "Moderación y Auditoría" : "Moderation & Audit Log"} ({submissionCounts.pending})
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "promos_email"}
+          className={`admin-tab ${activeTab === "promos_email" ? "active" : ""}`}
+          onClick={() => setActiveTab("promos_email")}
+        >
+          📧 {isEs ? "Promos y Email" : "Promos & Email"} ({promoCodesList.length})
         </button>
       </div>
 
@@ -2690,6 +3089,18 @@ export function AdminView({
                           </span>
                           {u.isAdmin && <span className="verified-badge">ADMIN</span>}
                           {u.mfaEnabled && <span className="implemented-badge">🔒 2FA</span>}
+                          {u.marketingOptIn === false ? (
+                            <span className="cat-tag" style={{ fontSize: 10 }}>
+                              Opt-Out
+                            </span>
+                          ) : (
+                            <span
+                              className="implemented-badge"
+                              style={{ fontSize: 10, padding: "2px 6px" }}
+                            >
+                              📧 Opt-In
+                            </span>
+                          )}
                           {banned && (
                             <span className="status-patched">
                               🚫 {isEs ? "BANEADO" : "BANNED"}
@@ -2863,6 +3274,598 @@ export function AdminView({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* =================================================================
+          TAB 5: STAGE 12 PROMO CODE GENERATOR & BILINGUAL EMAIL BROADCASTER
+         ================================================================= */}
+      {activeTab === "promos_email" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="admin-grid">
+            {/* CARD A: Promo & Discount Code Generator + Live Table */}
+            <div className="admin-card">
+              <span className="cat-tag">
+                🎟️ {isEs ? "MOTOR DE CÓDIGOS PROMOCIONALES" : "PROMO & DISCOUNT CODE ENGINE"}
+              </span>
+              <h3 style={{ fontSize: 17, marginTop: 4 }}>
+                {isEs
+                  ? "Generador de Descuentos (1%–100%) y Tabla en Vivo"
+                  : "Promo & Discount Code Generator (1%–100% Off)"}
+              </h3>
+              <p className="muted-sub" style={{ fontSize: 12.5 }}>
+                {isEs
+                  ? "Crea códigos de descuento (% OFF en Yappy/Tarjeta) o códigos VIP 100% gratuitos (ej. FOUNDERVIP) con límite de usos."
+                  : "Create checkout discount codes (% OFF across Yappy & Card) or 100% instant VIP unlock codes (e.g. FOUNDERVIP) with max redemption caps."}
+              </p>
+
+              {/* Quick Seed Presets */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="layer-chip"
+                  style={{ fontSize: 11, padding: "4px 9px" }}
+                  onClick={() => {
+                    setNewPromoCode("PANAMA50");
+                    setNewPromoDiscountPct(50);
+                    setNewPromoTargetTier("both");
+                    setNewPromoMaxUses(500);
+                  }}
+                >
+                  ⚡ PANAMA50 (50% • Both)
+                </button>
+                <button
+                  type="button"
+                  className="layer-chip"
+                  style={{ fontSize: 11, padding: "4px 9px" }}
+                  onClick={() => {
+                    setNewPromoCode("LEONIDA25");
+                    setNewPromoDiscountPct(25);
+                    setNewPromoTargetTier("both");
+                    setNewPromoMaxUses(1000);
+                  }}
+                >
+                  🌴 LEONIDA25 (25% • Both)
+                </button>
+                <button
+                  type="button"
+                  className="layer-chip"
+                  style={{ fontSize: 11, padding: "4px 9px" }}
+                  onClick={() => {
+                    setNewPromoCode("FOUNDERVIP");
+                    setNewPromoDiscountPct(100);
+                    setNewPromoTargetTier("kingpin");
+                    setNewPromoMaxUses(25);
+                  }}
+                >
+                  👑 FOUNDERVIP (100% • Kingpin)
+                </button>
+              </div>
+
+              <form
+                onSubmit={handleCreatePromoCode}
+                style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}
+              >
+                <div className="composer-row">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                      {isEs ? "Código ([A-Z0-9_-]{3,24})" : "Promo Code ([A-Z0-9_-]{3,24})"}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={24}
+                      value={newPromoCode}
+                      onChange={(e) =>
+                        setNewPromoCode(
+                          e.target.value
+                            .toUpperCase()
+                            .replace(/[^A-Z0-9_-]/g, "")
+                            .slice(0, 24)
+                        )
+                      }
+                      placeholder="e.g. PANAMA50"
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 120 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                      {isEs ? "Descuento %" : "Discount %"}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      required
+                      value={newPromoDiscountPct}
+                      onChange={(e) =>
+                        setNewPromoDiscountPct(
+                          Math.max(1, Math.min(100, Number(e.target.value) || 50))
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="composer-row">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                      {isEs ? "Pase Aplicable" : "Target Pass Tier"}
+                    </label>
+                    <select
+                      value={newPromoTargetTier}
+                      onChange={(e) =>
+                        setNewPromoTargetTier(
+                          e.target.value as "both" | "street" | "kingpin"
+                        )
+                      }
+                    >
+                      <option value="both">
+                        {isEs
+                          ? "Ambos Pases (Street $1.99 + Kingpin $4.99)"
+                          : "Both Passes (Street $1.99 + Kingpin $4.99)"}
+                      </option>
+                      <option value="street">Street Pass Only ($1.99)</option>
+                      <option value="kingpin">Kingpin VIP Only ($4.99)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 130 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                      {isEs ? "Límite de Usos" : "Max Redemptions"}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100000}
+                      required
+                      value={newPromoMaxUses}
+                      onChange={(e) =>
+                        setNewPromoMaxUses(Math.max(1, Number(e.target.value) || 100))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="composer-actions">
+                  <button
+                    type="submit"
+                    className="btn-pro"
+                    style={{ width: "auto" }}
+                    disabled={savingPromo}
+                  >
+                    {savingPromo
+                      ? isEs
+                        ? "Guardando Código..."
+                        : "Saving Code..."
+                      : isEs
+                        ? "➕ Crear / Actualizar Código Promo"
+                        : "➕ Create / Upsert Promo Code"}
+                  </button>
+                </div>
+              </form>
+
+              {/* Live Promo Codes Table */}
+              <div
+                className="fence-table-wrap"
+                style={{ marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 12 }}
+              >
+                <table className="receipt-table">
+                  <thead>
+                    <tr>
+                      <th>{isEs ? "Código" : "Code"}</th>
+                      <th>{isEs ? "Descuento" : "Discount"}</th>
+                      <th>{isEs ? "Nivel" : "Target"}</th>
+                      <th>{isEs ? "Usos" : "Redemptions"}</th>
+                      <th>{isEs ? "Acciones" : "Actions"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promoCodesList.map((p) => (
+                      <tr key={p.code}>
+                        <td>
+                          <strong style={{ color: "#facc15", letterSpacing: 1 }}>{p.code}</strong>
+                        </td>
+                        <td>
+                          <span
+                            className={
+                              p.discountPct === 100 ? "kingpin-badge" : "implemented-badge"
+                            }
+                          >
+                            {p.discountPct}% OFF
+                          </span>
+                        </td>
+                        <td>
+                          <span className="cat-tag">{p.targetTier.toUpperCase()}</span>
+                        </td>
+                        <td style={{ fontVariantNumeric: "tabular-nums" }}>
+                          {p.usesCount} / {p.maxUses}
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              disabled={togglingPromoCode === p.code}
+                              style={{
+                                fontSize: 11,
+                                padding: "4px 8px",
+                                borderColor: p.active ? "#22c55e" : "#f43f5e",
+                                color: p.active ? "#4ade80" : "#fda4af"
+                              }}
+                              onClick={() => void handleTogglePromoActive(p)}
+                            >
+                              {togglingPromoCode === p.code
+                                ? "..."
+                                : p.active
+                                  ? isEs
+                                    ? "🟢 Activo (Desactivar)"
+                                    : "🟢 Active (Disable)"
+                                  : isEs
+                                    ? "🔴 Inactivo (Activar)"
+                                    : "🔴 Disabled (Enable)"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ fontSize: 11, padding: "4px 8px" }}
+                              onClick={() => setCampaignPromoCode(p.code)}
+                            >
+                              📎 {isEs ? "Adjuntar" : "Attach"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* CARD B: Bilingual Promotional Email Broadcast Composer */}
+            <form
+              className="admin-card theory-composer"
+              style={{ marginBottom: 0 }}
+              onSubmit={handleSendPromoBroadcast}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8
+                }}
+              >
+                <div>
+                  <span className="cat-tag">
+                    📧 {isEs ? "DIFUSIÓN PROMOCIONAL BILINGÜE (LEY 81)" : "BILINGUAL PROMOTIONAL EMAIL BROADCASTER"}
+                  </span>
+                  <h3 style={{ fontSize: 17, marginTop: 4 }}>
+                    {isEs
+                      ? "Enviar Ofertas y Códigos a Jugadores Opt-In (Gmail / iCloud)"
+                      : "Broadcast Promo Codes to Opted-In Players (Gmail / Apple iCloud)"}
+                  </h3>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{
+                    fontSize: 11.5,
+                    padding: "6px 10px",
+                    borderColor: "var(--accent-cyan)",
+                    color: "var(--accent-cyan)"
+                  }}
+                  onClick={handleLoadWeekendPromoTemplate}
+                >
+                  ⚡{" "}
+                  {isEs
+                    ? "Cargar Plantilla 50% Fin de Semana"
+                    : "Load 50% Weekend Promo Template"}
+                </button>
+              </div>
+
+              <div className="composer-row">
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                    {isEs ? "Audiencia Objetivo (Solo Opt-In)" : "Target Audience (Opted-In Only)"}
+                  </label>
+                  <select
+                    value={campaignAudience}
+                    onChange={(e) =>
+                      setCampaignAudience(e.target.value as EmailCampaignAudience)
+                    }
+                  >
+                    <option value="all_opted_in">
+                      {isEs
+                        ? "Todos los Usuarios con Opt-In (all_opted_in)"
+                        : "All Opted-In Members (all_opted_in)"}
+                    </option>
+                    <option value="free_only">
+                      {isEs
+                        ? "Solo Reclutas Gratis — Conversión a Street/VIP (free_only)"
+                        : "Free Recruits Only — High-Conversion Upgrade (free_only)"}
+                    </option>
+                    <option value="street_only">
+                      {isEs
+                        ? "Solo Street Pass — Upsell a Kingpin VIP (street_only)"
+                        : "Street Pass Owners Only — Kingpin VIP Upsell (street_only)"}
+                    </option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, width: 175 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                    {isEs ? "Código Promo Adjunto" : "Attach Promo Code"}
+                  </label>
+                  <select
+                    value={campaignPromoCode}
+                    onChange={(e) => setCampaignPromoCode(e.target.value)}
+                  >
+                    {promoCodesList.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.code} ({p.discountPct}% OFF)
+                      </option>
+                    ))}
+                    <option value="">{isEs ? "Sin código" : "No Promo Code"}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1" }}>
+                  🧪{" "}
+                  {isEs
+                    ? "Correo de Prueba Opcional (Gmail / Apple iCloud / Outlook — vacío para enviar a toda la audiencia)"
+                    : "Optional Test Email Only (Gmail / Apple iCloud / Outlook — leave blank for full broadcast)"}
+                </label>
+                <input
+                  type="email"
+                  value={testEmailOnly}
+                  onChange={(e) => setTestEmailOnly(e.target.value)}
+                  placeholder="e.g. mikehevi2003@gmail.com or founder@icloud.com"
+                />
+              </div>
+
+              <div className="composer-row">
+                <input
+                  type="text"
+                  required
+                  value={campaignSubjectEn}
+                  onChange={(e) => setCampaignSubjectEn(e.target.value)}
+                  placeholder="Subject (English - EN)"
+                />
+                <input
+                  type="text"
+                  value={campaignSubjectEs}
+                  onChange={(e) => setCampaignSubjectEs(e.target.value)}
+                  placeholder="Asunto (Español - ES)"
+                />
+              </div>
+
+              <div className="composer-row">
+                <textarea
+                  rows={4}
+                  required
+                  value={campaignBodyEn}
+                  onChange={(e) => setCampaignBodyEn(e.target.value)}
+                  placeholder="Promotional Email Body (English - EN)"
+                />
+                <textarea
+                  rows={4}
+                  value={campaignBodyEs}
+                  onChange={(e) => setCampaignBodyEs(e.target.value)}
+                  placeholder="Cuerpo del Correo Promocional (Español - ES)"
+                />
+              </div>
+
+              <div className="composer-actions" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowEmailPreview((prev) => !prev)}
+                >
+                  👁️{" "}
+                  {showEmailPreview
+                    ? isEs
+                      ? "Ocultar Vista Previa HTML (Ley 81)"
+                      : "Hide HTML Email Preview (Law 81)"
+                    : isEs
+                      ? "Ver Vista Previa HTML + Enlace /api/unsubscribe"
+                      : "Preview HTML Email + /api/unsubscribe Link"}
+                </button>
+
+                <button
+                  type="submit"
+                  className="btn-pro"
+                  style={{ width: "auto" }}
+                  disabled={sendingCampaign}
+                >
+                  {sendingCampaign
+                    ? isEs
+                      ? "Enviando Difusión..."
+                      : "Sending Broadcast..."
+                    : isEs
+                      ? "🚀 Enviar Difusión Promocional"
+                      : "🚀 Send Promotional Broadcast"}
+                </button>
+              </div>
+
+              {/* Live Delivery Summary Card */}
+              {lastDeliverySummary && (
+                <div
+                  className="unlock-pill"
+                  style={{
+                    marginTop: 10,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 10
+                  }}
+                >
+                  <div>
+                    <strong>
+                      {isEs ? "Resumen de Entrega:" : "Delivery Summary:"}{" "}
+                    </strong>
+                    {lastDeliverySummary.deliveredCount} / {lastDeliverySummary.recipientsCount}{" "}
+                    {isEs ? "entregados" : "delivered"}
+                  </div>
+                  <span
+                    className={
+                      lastDeliverySummary.deliveryMode === "resend_live"
+                        ? "implemented-badge"
+                        : "verified-badge"
+                    }
+                  >
+                    {lastDeliverySummary.deliveryMode === "resend_live"
+                      ? "🟢 resend_live (Resend SMTP)"
+                      : "🧪 dry_run_logged"}
+                  </span>
+                </div>
+              )}
+
+              {/* Collapsible HTML Email Preview showing 1-click /api/unsubscribe link */}
+              {showEmailPreview && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    background: "#060a14",
+                    border: "1px solid rgba(0, 229, 255, 0.38)"
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 8
+                    }}
+                  >
+                    <span className="cat-tag">
+                      🇵🇦{" "}
+                      {isEs
+                        ? "VISTA PREVIA HTML + BAJA EN 1 CLIC (/api/unsubscribe)"
+                        : "NEO-GLASS HTML PREVIEW + 1-CLICK LAW 81 OPT-OUT (/api/unsubscribe)"}
+                    </span>
+                    <code style={{ fontSize: 11, color: "var(--accent-cyan)" }}>
+                      List-Unsubscribe: &lt;/api/unsubscribe?uid=...&amp;token=...&gt;
+                    </code>
+                  </div>
+                  <iframe
+                    title="ViceLink Promotional Email HTML Preview"
+                    sandbox=""
+                    srcDoc={computedEmailPreviewHtml}
+                    style={{
+                      width: "100%",
+                      height: 290,
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: 10,
+                      background: "#05070e"
+                    }}
+                  />
+                </div>
+              )}
+            </form>
+          </div>
+
+          {/* Recent Campaigns Log Table */}
+          <div className="admin-card">
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8
+              }}
+            >
+              <div>
+                <span className="cat-tag">
+                  📬 {isEs ? "HISTORIAL DE CAMPAÑAS DE CORREO" : "RECENT PROMOTIONAL CAMPAIGNS LOG"}
+                </span>
+                <h3 style={{ fontSize: 17, marginTop: 4 }}>
+                  {isEs
+                    ? "Bitácora de Difusiones (vicelink_email_campaigns)"
+                    : "Email Broadcast Audit Trail (vicelink_email_campaigns)"}
+                </h3>
+              </div>
+              <span className="verified-badge">{emailCampaignsList.length} campaigns</span>
+            </div>
+
+            <div className="fence-table-wrap">
+              <table className="receipt-table">
+                <thead>
+                  <tr>
+                    <th>{isEs ? "Fecha / Hora" : "Timestamp"}</th>
+                    <th>{isEs ? "Admin" : "Admin Email"}</th>
+                    <th>{isEs ? "Audiencia" : "Audience"}</th>
+                    <th>{isEs ? "Código" : "Promo Code"}</th>
+                    <th>{isEs ? "Asunto" : "Subject"}</th>
+                    <th>{isEs ? "Entregados" : "Delivered"}</th>
+                    <th>{isEs ? "Modo" : "Delivery Mode"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailCampaignsList.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        style={{ color: "var(--text-muted)", textAlign: "center", padding: 16 }}
+                      >
+                        {isEs
+                          ? "Aún no se han enviado campañas promocionales."
+                          : "No promotional email campaigns sent yet."}
+                      </td>
+                    </tr>
+                  ) : (
+                    emailCampaignsList.map((camp) => (
+                      <tr key={camp.id}>
+                        <td style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                          {formatAuditTimestamp(camp.createdAt, isEs)}
+                        </td>
+                        <td>
+                          <strong style={{ color: "var(--accent-cyan)" }}>{camp.adminEmail}</strong>
+                        </td>
+                        <td>
+                          <span className="cat-tag">{camp.audience}</span>
+                        </td>
+                        <td>
+                          {camp.promoCode ? (
+                            <strong style={{ color: "#facc15" }}>{camp.promoCode}</strong>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td style={{ maxWidth: 260 }}>
+                          {isEs ? camp.subjectEs || camp.subjectEn : camp.subjectEn}
+                        </td>
+                        <td style={{ fontVariantNumeric: "tabular-nums" }}>
+                          {camp.deliveredCount} / {camp.recipientsCount}
+                        </td>
+                        <td>
+                          <span
+                            className={
+                              camp.deliveryMode === "resend_live"
+                                ? "implemented-badge"
+                                : "submission-badge"
+                            }
+                          >
+                            {camp.deliveryMode}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </section>

@@ -239,4 +239,82 @@ Stages 9–11 upgrade ViceLink to the **2026 Neo-Glass HUD UI System**, adding s
 - **Live Global Alert Ticker & Feature Flags (`public.vicelink_site_settings`):**
   - Co-founders can update `global_banner` (bilingual EN/ES alert ticker above the hub workspace), `glitches_tab_enabled` (live toggle for the Glitches & Exploits tab), `maintenance_mode` (Neo-Glass Maintenance Shield for non-admin users), and `free_ai_daily_limit` (dynamic daily free AI quota enforced inside `public.vicelink_consume_ai_quota()`) in real time from **`🛡️ Admin Panel → Telemetry & Feature Flags`** without redeploying.
 
+---
+
+## 7. Stage 12: Production Resend SMTP (Gmail & Apple iCloud), Google OAuth, Promo Engine, International No-Refund Waiver & QA-01..QA-08 Matrix
+
+Stage 12 hardens ViceLink for immediate Vercel production launch: eliminating orphaned TOTP 2FA lockout on first-time Co-Founder logins, adding **Resend (`resend.com`)** transactional & promotional email delivery with Panama **Law 81** 1-click unsubscribe (`/api/unsubscribe`), enabling **Google OAuth**, launching the **Promo & Discount Code Engine** (`PANAMA50`, `LEONIDA25`, `FOUNDERVIP`) and the **`$250K/hr First-Hour Cash & Supercar Route (6 Stops)`** map overlay, and enforcing an **International Pre-Checkout No-Refund Waiver** across Yappy and Card checkouts.
+
+### 7.1 Apply the Stage 12 Database Migration (`20261121000004_vicelink_stage12_auth_email_security.sql`)
+1. Open **Supabase Dashboard → SQL Editor** (or apply via the Supabase MCP migration runner).
+2. Execute the idempotent, additive migration file (contains zero destructive `DROP` or `DELETE` keywords):
+   ```
+   supabase/migrations/20261121000004_vicelink_stage12_auth_email_security.sql
+   ```
+3. Verify the migration configured:
+   - **Orphaned MFA Factor Demotion & Reset RPC:** Demotes any pre-existing unlinked `auth.mfa_factors` rows where `public.vicelink_profiles.mfa_enabled = false` to `unverified` and exposes `public.vicelink_prepare_totp_enrollment()` (`POST /api/account/mfa-reset`) so Co-Founders (`mikehevi2003@gmail.com` and `felipedleon@gmail.com`) are never locked out before scanning their QR code.
+   - **Safe `@handle` Backfill & Co-Founder Trigger:** Ensures every existing and newly registered Gmail, Apple iCloud, or Google OAuth user in `auth.users` has a valid `@handle` (`^@[A-Za-z0-9_]{2,24}$`) in `public.vicelink_profiles` and `public.vicelink_progress`, with automatic `is_admin = true` and `access_tier = 'kingpin'` elevation for both Co-Founders.
+   - **Promo Codes & Email Campaigns Tables:** Creates `public.vicelink_promo_codes` (seeded with `PANAMA50` 50% off, `LEONIDA25` 25% off, and `FOUNDERVIP` 100% Kingpin VIP unlock), `public.vicelink_promo_redemptions`, and `public.vicelink_email_campaigns`, plus `marketing_opt_in` and `unsubscribe_token` on `public.vicelink_profiles`.
+
+### 7.2 Connecting Resend (`resend.com`) Custom SMTP + SPF/DKIM/DMARC for Gmail & Apple iCloud
+Supabase's built-in demo mailer is rate-limited (~2 emails/hour) and frequently blocked by **Apple iCloud (`@icloud.com`, `@me.com`)** and **Gmail (`@gmail.com`)** spam filters. Connect **Resend** for both Supabase Auth emails (password reset & signup confirmation) and Admin promotional broadcasts (`POST /api/admin/send-promo`):
+
+1. **Verify Your Domain & DNS Records in Resend (`resend.com/domains`):**
+   - Add your domain (e.g. `vicelink.app`) in Resend and publish the required DNS records at your registrar / Cloudflare:
+     - **SPF (`TXT`):** `v=spf1 include:amazonses.com ~all`
+     - **DKIM (`TXT`):** `resend._domainkey.vicelink.app` (paste the RSA public key provided by Resend)
+     - **DMARC (`TXT` at `_dmarc.vicelink.app`):** `v=DMARC1; p=quarantine; rua=mailto:security@vicelink.app; pct=100`
+   - Wait until Resend shows status **`Verified`** (required by Apple iCloud Mail and Gmail 2024–2026 bulk sender authentication rules).
+2. **Configure Supabase Custom SMTP (`Supabase Dashboard → Project Settings → Authentication → SMTP Settings`):**
+   - Enable **Custom SMTP** with the following credentials:
+     - **Sender Email:** `intel@vicelink.app` (or `no-reply@vicelink.app`)
+     - **Sender Name:** `ViceLink // Leonida Tactical Hub`
+     - **Host:** `smtp.resend.com`
+     - **Port:** `465` (SSL/TLS) or `587` (STARTTLS)
+     - **Username:** `resend`
+     - **Password:** Your Resend API Key (`re_...`)
+3. **Configure Vercel Environment Variables for Admin Broadcasts (`POST /api/admin/send-promo`):**
+   - Add the following server-only variables in `.env.local` and **Vercel → Project Settings → Environment Variables**:
+     - `RESEND_API_KEY`: `re_xxxxxxxxxxxxxxxxxxxxxxxx`
+     - `RESEND_FROM_EMAIL`: `ViceLink Leonida Hub <intel@vicelink.app>`
+   - When `RESEND_API_KEY` is configured, **`🛡️ Admin Panel → 📧 Promos & Email`** sends live bilingual HTML broadcasts (`deliveryMode: "resend_live"`) with `List-Unsubscribe` headers and a 1-click Panama Law 81 opt-out link (`/api/unsubscribe?uid=...&token=...`). When unset locally, broadcasts execute a verified dry-run (`deliveryMode: "dry_run_logged"`) and render the full HTML preview inside the Admin Panel.
+
+### 7.3 Enabling Google OAuth in Supabase & Google Cloud Console
+1. In **[Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)**:
+   - Configure the OAuth Consent Screen (`External`, App Name: `ViceLink // Leonida Companion Hub`).
+   - Create an **OAuth 2.0 Client ID** (`Web application`):
+     - **Authorized JavaScript Origins:**
+       - `https://vicelink.app`
+       - `http://localhost:3000`
+       - `http://127.0.0.1:3000`
+     - **Authorized Redirect URI:**
+       - `https://bdtewmmtnfnbjwajmvdg.supabase.co/auth/v1/callback` *(or your project's `https://<project-ref>.supabase.co/auth/v1/callback`)*
+2. In **Supabase Dashboard → Authentication → Providers → Google**:
+   - Toggle **Enable Sign in with Google** to **ON**.
+   - Paste the **Client ID** and **Client Secret** from Google Cloud Console and click **Save**.
+3. The **`Continue with Google`** button on `/login` (`AuthGate.tsx`) will redirect through `/api/auth/callback`, auto-create the player's `vicelink_profiles` row (and auto-elevate Co-Founders to `kingpin` + `is_admin = true`), and land them directly in the Hub.
+
+### 7.4 International No-Refund Digital Waiver & Chargeback Protection
+- **Statutory Compliance:** `src/lib/legal/policies.ts` (`/terms` and `/refunds`) discloses that **Street Pass (`$1.99` USD)** and **Kingpin VIP (`$4.99` USD)** are one-time, immediately delivered digital licenses with **All Sales Final / No Cooling-Off Refunds** once tactical coordinates, glitches, or AI tools are unlocked, citing:
+  - **Republic of Panama:** Ley 45 de 2007 (ACODECO Consumer Protection) & Ley 81 de 2019 (Personal Data Protection).
+  - **European Union & United Kingdom:** EU Consumer Rights Directive 2011/83/EU Article 16(m) & UK Consumer Contracts Regulations 2013 Regulation 37 (express prior consent to immediate digital delivery waives the 14-day withdrawal period).
+  - **United States & LATAM:** FTC Digital Goods disclosure standards + Colombia Ley 1480 Art. 47 / Mexico PROFECO immediate digital performance exemptions.
+- **Pre-Checkout Waiver Enforcement:** Both `PricingModal.tsx` and the server endpoints (`POST /api/checkout/yappy` and `POST /api/checkout/card`) require `waiverAccepted: true` (returning `400 WAIVER_REQUIRED` if omitted) and record `waiverAcceptedAt` and `waiverPolicyVersion: "2026-11-21-NO-REFUND-INTL"` in `vicelink_transactions.raw_payload` and Stripe `metadata` for **Visa/Mastercard Compelling Evidence 3.0** chargeback defense.
+
+### 7.5 Pre-Vercel Verification Matrix (`QA-01` .. `QA-08`)
+
+Run `npm run typecheck` and `npm test` (executing all **18 automated test suites** in `tests/security-and-logic.test.ts`) to verify every pre-launch requirement:
+
+| QA ID | Verification Domain | What Is Verified | Automated / Manual Verification |
+| :--- | :--- | :--- | :--- |
+| **`QA-01`** | **Co-Founder Auto-Elevation & First-Time 2FA Routing** | `mikehevi2003@gmail.com` and `felipedleon@gmail.com` auto-receive `is_admin = true`, `access_tier = 'kingpin'`, `is_banned = false`; first login without 2FA redirects to `/?setup2fa=1` -> `👤 Account & 2FA` QR setup instead of locking out. | `Test 11` & `Test 15` (`tests/security-and-logic.test.ts`) |
+| **`QA-02`** | **Orphaned MFA Factor Reset & Clean TOTP Enrollment** | `POST /api/account/mfa-reset` (`vicelink_prepare_totp_enrollment`) demotes orphaned factors when `mfa_enabled = false`; `AccountView.tsx` unenrolls unverified factors before `mfa.enroll` with timestamped `friendlyName`. | `Test 15` (`tests/security-and-logic.test.ts`) |
+| **`QA-03`** | **Universal Gmail, Apple iCloud & OAuth Signup** | `private.vicelink_handle_new_user()` derives a collision-safe `@handle` matching `^@[A-Za-z0-9_]{2,24}$` for all Gmail, iCloud (`@icloud.com`, `@me.com`), and Apple Private Relay addresses; Password Strength meter enforces 4 criteria. | `Test 13` & `Test 15` (`tests/security-and-logic.test.ts`) |
+| **`QA-04`** | **Bilingual Data Integrity & Map Coordinate Spacing** | 100% EN/ES key parity in `TRANSLATIONS`, 19 cheats, 32 map pins with pairwise Euclidean distance `>= 3.8`, 25 radio stations, 55 trophies, 30+ hidden controls, and Spoiler Shield on AI Advisor. | `Tests 1, 3, 4, 5, 7, 8, 9, 10, 14` |
+| **`QA-05`** | **Paywall Bypass & Privilege Escalation Prevention** | `PATCH /api/me` blocks `access_tier`, `is_admin`, `is_banned`, and `stripe_customer_id`; `private.vicelink_guard_profile_tier()` enforces server-only tier mutations; Yappy IPN verifies HMAC-SHA256. | `Test 6` & `Test 16` (`tests/security-and-logic.test.ts`) |
+| **`QA-06`** | **Production Security Headers & Pre-Checkout Waiver** | `next.config.ts` and `vercel.json` enforce `X-Frame-Options: DENY`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, and `Content-Security-Policy`; `/api/checkout/{yappy,card}` enforce `waiverAccepted: true`. | `Test 16` (`tests/security-and-logic.test.ts`) |
+| **`QA-07`** | **International No-Refund Policy & Statutory Citations** | `LEGAL_POLICIES.refunds` and `LEGAL_POLICIES.terms` disclose immediate digital delivery & final sale under Panama Law 45 & Law 81, EU Directive 2011/83/EU Art. 16(m), UK CCR, and chargeback protection while preserving `Rockstar Games`. | `Test 2` & `Test 17` (`tests/security-and-logic.test.ts`) |
+| **`QA-08`** | **Promo Code Math, Law 81 Unsubscribe & `$250K/hr` Map Route** | `PANAMA50` (50% off -> `$1.00` Street / `$2.50` Kingpin), `LEONIDA25` (25% off -> `$1.49` / `$3.74`), `FOUNDERVIP` (100% -> `$0.00` instant unlock); `/api/unsubscribe` 1-click opt-out in Admin Email Broadcaster; 6-stop `$250K/hr` route in `MapView.tsx`. | `Test 18` (`tests/security-and-logic.test.ts`) |
+
+
 

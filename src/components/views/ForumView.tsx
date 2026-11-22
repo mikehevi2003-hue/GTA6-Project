@@ -546,7 +546,7 @@ export default function ForumView({
                       <span className="kingpin-badge">👑 KINGPIN</span>
                     )}
                   </span>
-                  <span>Leonida Lore Board</span>
+                  <span>{isEs ? "Tablero de Lore de Leonida" : "Leonida Lore Board"}</span>
                 </div>
               </div>
             </article>

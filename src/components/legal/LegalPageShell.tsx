@@ -98,22 +98,32 @@ export default function LegalPageShell({ active }: LegalPageShellProps) {
         </nav>
 
         <article className="legal-body">
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 14, color: "var(--text-main)" }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6, color: "var(--text-main)" }}>
             {tField(policy.title, lang)}
           </h2>
+          <p style={{ fontSize: 13.5, color: "var(--text-muted)", marginBottom: 16 }}>
+            {tField(policy.summary, lang)} • {isEs ? "Actualizado:" : "Updated:"} {policy.updatedAt}
+          </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {policy.body.map((paragraph, idx) => (
-              <p
-                key={idx}
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.65,
-                  color: "#cbd5e1"
-                }}
-              >
-                {tField(paragraph, lang)}
-              </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {policy.sections.map((section, sIdx) => (
+              <section key={sIdx} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <h3 style={{ fontSize: 15.5, fontWeight: 700, color: "var(--accent-cyan)" }}>
+                  {tField(section.heading, lang)}
+                </h3>
+                {section.paragraphs.map((paragraph, pIdx) => (
+                  <p
+                    key={pIdx}
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.65,
+                      color: "#cbd5e1"
+                    }}
+                  >
+                    {tField(paragraph, lang)}
+                  </p>
+                ))}
+              </section>
             ))}
           </div>
 

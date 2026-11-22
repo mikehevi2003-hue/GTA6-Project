@@ -540,7 +540,8 @@ set search_path = ''
 as $$
   select p.user_id, p.handle, p.access_tier
   from public.vicelink_profiles p
-  where p.user_id = any (p_user_ids)
+  where (select auth.uid()) is not null
+    and p.user_id = any (p_user_ids)
   limit 500;
 $$;
 

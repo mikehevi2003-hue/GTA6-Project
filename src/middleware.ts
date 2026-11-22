@@ -38,6 +38,18 @@ function withCookies(target: NextResponse, source: NextResponse): NextResponse {
   return target;
 }
 
+function buildOriginUrl(pathname: string, request: NextRequest): URL {
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (host) {
+    const proto = request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", "") || "http";
+    return new URL(pathname, `${proto}://${host}`);
+  }
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return url;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = isPublicPath(pathname);
@@ -80,7 +92,7 @@ export async function middleware(request: NextRequest) {
   // Webhooks / auth callback / legal pages / static: always pass through.
   if (isPublic) {
     if (userId && (pathname === "/login" || pathname.startsWith("/login/"))) {
-      return withCookies(NextResponse.redirect(new URL("/", request.url)), response);
+      return withCookies(NextResponse.redirect(buildOriginUrl("/", request)), response);
     }
     if (isApi) {
       response.headers.set("Cache-Control", "no-store");
@@ -98,7 +110,7 @@ export async function middleware(request: NextRequest) {
         response
       );
     }
-    return withCookies(NextResponse.redirect(new URL("/login", request.url)), response);
+    return withCookies(NextResponse.redirect(buildOriginUrl("/login", request)), response);
   }
 
   if (isApi) {

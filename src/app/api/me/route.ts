@@ -36,6 +36,7 @@ const patchMeSchema = z.object({
   xboxGamertag: z.string().max(40).optional(),
   socialClubHandle: z.string().max(40).optional(),
   mfaEnabled: z.boolean().optional(),
+  marketingOptIn: z.boolean().optional(),
   progress: z
     .object({
       favorites: idArraySchema.optional(),
@@ -63,7 +64,9 @@ const FORBIDDEN_PROFILE_KEYS = [
   "xbox_verified",
   "xboxVerified",
   "stripe_customer_id",
-  "stripeCustomerId"
+  "stripeCustomerId",
+  "unsubscribe_token",
+  "unsubscribeToken"
 ] as const;
 
 export async function GET() {
@@ -137,6 +140,7 @@ export async function PATCH(request: NextRequest) {
       xbox_verified?: boolean;
       social_club_handle?: string;
       mfa_enabled?: boolean;
+      marketing_opt_in?: boolean;
     } = {};
 
     if (input.handle !== undefined) {
@@ -210,6 +214,10 @@ export async function PATCH(request: NextRequest) {
 
     if (input.mfaEnabled !== undefined) {
       profilePatch.mfa_enabled = input.mfaEnabled;
+    }
+
+    if (input.marketingOptIn !== undefined) {
+      profilePatch.marketing_opt_in = input.marketingOptIn;
     }
 
     if (Object.keys(profilePatch).length > 0) {

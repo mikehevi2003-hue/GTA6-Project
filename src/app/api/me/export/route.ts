@@ -92,6 +92,7 @@ export async function GET() {
         "Personal data portability export issued under Panama Law 81 of 2019 (Protección de Datos Personales).",
       account: {
         ...me.profile,
+        marketingOptIn: Boolean(ensured.profile.marketing_opt_in ?? true),
         updatedAt: ensured.profile.updated_at
       },
       progress: {

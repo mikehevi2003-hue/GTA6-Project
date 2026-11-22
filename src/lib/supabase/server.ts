@@ -12,11 +12,13 @@ import type {
   CheatItem,
   CommunitySubmission,
   DirectionKey,
+  EmailCampaignItem,
   GlitchItem,
   LocalizedText,
   MapPin,
   MePayload,
   PaymentReceipt,
+  PromoCodeItem,
   SiteSettingsPayload,
   TheoryComment,
   TheoryPost,
@@ -32,10 +34,14 @@ import type {
   VicelinkDynamicCheatRow,
   VicelinkDynamicGlitchRow,
   VicelinkDynamicMapPinRow,
+  VicelinkEmailCampaignRow,
   VicelinkProfileRow,
   VicelinkProgressRow,
+  VicelinkPromoCodeRow,
   VicelinkSupabaseClient
 } from "./client";
+
+export type { VicelinkSupabaseClient };
 
 const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" } as const;
 
@@ -142,9 +148,11 @@ export function deriveFallbackHandle(user: User): string {
   const prefix = (user.email ?? "")
     .split("@")[0]!
     .replace(/[^A-Za-z0-9_]/g, "")
-    .slice(0, 18);
+    .slice(0, 14);
+  const suffix = user.id.replace(/-/g, "").slice(0, 4);
+  if (prefix.length >= 2 && suffix.length === 4) return `@${prefix}_${suffix}`;
   if (prefix.length >= 2) return `@${prefix}`;
-  return `@agent_${user.id.replace(/-/g, "").slice(0, 6)}`;
+  return `@agent_${user.id.replace(/-/g, "").slice(0, 6) || "0001"}`;
 }
 
 /**
@@ -242,6 +250,7 @@ export function mapProfileRow(row: VicelinkProfileRow, aal?: "aal1" | "aal2"): U
       `VL-${row.user_id.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
     mfaEnabled: Boolean(row.mfa_enabled),
     isBanned: isCofounder ? false : Boolean(row.is_banned),
+    marketingOptIn: row.marketing_opt_in ?? true,
     ...(aal ? { aal } : {})
   };
 }
@@ -496,6 +505,34 @@ export async function loadAdminUsersV2(
   supabase: VicelinkSupabaseClient,
   query = ""
 ): Promise<AdminUserRecord[]> {
+  const v3Res = await supabase.rpc("vicelink_admin_list_users_v3", {
+    p_query: query
+  });
+
+  if (!v3Res.error && v3Res.data) {
+    return v3Res.data.map((row) => ({
+      userId: row.user_id,
+      email: row.email,
+      handle: row.handle,
+      displayName: row.display_name,
+      tier: isCoFounderEmail(row.email) ? "kingpin" : row.access_tier,
+      isAdmin: isCoFounderEmail(row.email) || Boolean(row.is_admin),
+      createdAt: row.created_at,
+      avatarPreset: row.avatar_preset || "neon_vice",
+      psnId: row.psn_id ?? "",
+      psnVerified: Boolean(row.psn_verified),
+      xboxGamertag: row.xbox_gamertag ?? "",
+      xboxVerified: Boolean(row.xbox_verified),
+      mfaEnabled: Boolean(row.mfa_enabled),
+      isBanned: isCoFounderEmail(row.email) ? false : Boolean(row.is_banned),
+      marketingOptIn: row.marketing_opt_in ?? true
+    }));
+  }
+
+  if (v3Res.error?.code === "42501") {
+    throw v3Res.error;
+  }
+
   const v2Res = await supabase.rpc("vicelink_admin_list_users_v2", {
     p_query: query
   });
@@ -515,7 +552,8 @@ export async function loadAdminUsersV2(
       xboxGamertag: row.xbox_gamertag ?? "",
       xboxVerified: Boolean(row.xbox_verified),
       mfaEnabled: Boolean(row.mfa_enabled),
-      isBanned: isCoFounderEmail(row.email) ? false : Boolean(row.is_banned)
+      isBanned: isCoFounderEmail(row.email) ? false : Boolean(row.is_banned),
+      marketingOptIn: true
     }));
   }
 
@@ -542,8 +580,119 @@ export async function loadAdminUsersV2(
     xboxGamertag: "",
     xboxVerified: false,
     mfaEnabled: false,
-    isBanned: false
+    isBanned: false,
+    marketingOptIn: true
   }));
+}
+
+export function computePromoPriceUsd(baseUsd: number, discountPct: number): number {
+  const pct = Math.min(100, Math.max(0, Math.round(discountPct)));
+  if (pct >= 100) return 0;
+  if (pct <= 0) return baseUsd;
+  const baseCents = Math.round(baseUsd * 100);
+  const discountedCents = Math.max(50, Math.round((baseCents * (100 - pct)) / 100));
+  return Number((discountedCents / 100).toFixed(2));
+}
+
+export const DEFAULT_PROMO_CODES: PromoCodeItem[] = [
+  {
+    code: "PANAMA50",
+    discountPct: 50,
+    targetTier: "both",
+    maxUses: 500,
+    usesCount: 0,
+    expiresAt: null,
+    active: true,
+    createdBy: "system",
+    createdAt: "2026-11-21T00:00:00.000Z"
+  },
+  {
+    code: "LEONIDA25",
+    discountPct: 25,
+    targetTier: "both",
+    maxUses: 1000,
+    usesCount: 0,
+    expiresAt: null,
+    active: true,
+    createdBy: "system",
+    createdAt: "2026-11-21T00:00:00.000Z"
+  },
+  {
+    code: "FOUNDERVIP",
+    discountPct: 100,
+    targetTier: "kingpin",
+    maxUses: 25,
+    usesCount: 0,
+    expiresAt: null,
+    active: true,
+    createdBy: "system",
+    createdAt: "2026-11-21T00:00:00.000Z"
+  }
+];
+
+export function mapPromoCodeRow(row: VicelinkPromoCodeRow): PromoCodeItem {
+  return {
+    code: row.code,
+    discountPct: Number(row.discount_pct),
+    targetTier: row.target_tier,
+    maxUses: Number(row.max_uses),
+    usesCount: Number(row.uses_count),
+    expiresAt: row.expires_at ?? null,
+    active: Boolean(row.active),
+    createdBy: row.created_by,
+    createdAt: row.created_at
+  };
+}
+
+export async function loadPromoCodes(
+  supabase: VicelinkSupabaseClient
+): Promise<PromoCodeItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from("vicelink_promo_codes")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error || !data || data.length === 0) {
+      return DEFAULT_PROMO_CODES.map((item) => ({ ...item }));
+    }
+    return data.map(mapPromoCodeRow);
+  } catch {
+    return DEFAULT_PROMO_CODES.map((item) => ({ ...item }));
+  }
+}
+
+export function mapEmailCampaignRow(row: VicelinkEmailCampaignRow): EmailCampaignItem {
+  return {
+    id: row.id,
+    adminEmail: row.admin_email,
+    audience: row.audience,
+    subjectEn: row.subject_en,
+    subjectEs: row.subject_es,
+    bodyEn: row.body_en,
+    bodyEs: row.body_es,
+    promoCode: row.promo_code ?? "",
+    recipientsCount: Number(row.recipients_count ?? 0),
+    deliveredCount: Number(row.delivered_count ?? 0),
+    deliveryMode: row.delivery_mode,
+    createdAt: row.created_at
+  };
+}
+
+export async function loadEmailCampaigns(
+  supabase: VicelinkSupabaseClient,
+  limit = 30
+): Promise<EmailCampaignItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from("vicelink_email_campaigns")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return data.map(mapEmailCampaignRow);
+  } catch {
+    return [];
+  }
 }
 
 function toDirectionSeq(value: unknown): DirectionKey[] {

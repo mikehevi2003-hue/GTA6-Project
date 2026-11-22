@@ -8,14 +8,58 @@ import { getSupabaseAdmin, isAdminConfigured } from "@/lib/supabase/admin";
 import {
   apiError,
   apiJson,
+  computePromoPriceUsd,
   createClient,
+  DEFAULT_PROMO_CODES,
   ensureProfileAndProgress,
-  getAuthedUser
+  getAuthedUser,
+  type VicelinkSupabaseClient
 } from "@/lib/supabase/server";
 
+const WAIVER_POLICY_VERSION = "2026-11-21-NO-REFUND-INTL";
+
 const checkoutSchema = z.object({
-  targetTier: z.enum(["street", "kingpin"])
+  targetTier: z.enum(["street", "kingpin"]),
+  waiverAccepted: z.literal(true),
+  promoCode: z.string().trim().max(32).optional()
 });
+
+async function resolveValidPromoDiscount(
+  supabase: VicelinkSupabaseClient,
+  rawPromoCode: string | undefined,
+  targetTier: "street" | "kingpin"
+): Promise<{ code: string; discountPct: number } | null> {
+  if (!rawPromoCode) return null;
+  const code = rawPromoCode.trim().toUpperCase();
+  if (!/^[A-Z0-9_-]{3,24}$/.test(code)) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from("vicelink_promo_codes")
+      .select("*")
+      .eq("code", code)
+      .maybeSingle();
+
+    if (!error && data) {
+      const expired = data.expires_at ? new Date(data.expires_at).getTime() < Date.now() : false;
+      const tierMatches = data.target_tier === "both" || data.target_tier === targetTier;
+      if (data.active && !expired && data.uses_count < data.max_uses && tierMatches) {
+        return { code: data.code, discountPct: Number(data.discount_pct) };
+      }
+      return null;
+    }
+  } catch {
+    // Fall back to default seeded promos
+  }
+
+  const fallback = DEFAULT_PROMO_CODES.find(
+    (p) =>
+      p.code === code &&
+      p.active &&
+      (p.targetTier === "both" || p.targetTier === targetTier)
+  );
+  return fallback ? { code: fallback.code, discountPct: fallback.discountPct } : null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,13 +79,29 @@ export async function POST(request: NextRequest) {
       return apiError("INVALID_JSON", 400, "Request body must be valid JSON.");
     }
 
-    const parsed = checkoutSchema.safeParse(rawBody);
-    if (!parsed.success) {
-      return apiError("INVALID_INPUT", 400, "targetTier must be 'street' or 'kingpin'.");
+    if (
+      typeof rawBody !== "object" ||
+      rawBody === null ||
+      (rawBody as Record<string, unknown>).waiverAccepted !== true
+    ) {
+      return apiError(
+        "WAIVER_REQUIRED",
+        400,
+        "You must accept the All-Sales-Final / Immediate Digital Access No-Refund Waiver before checkout."
+      );
     }
 
-    const { targetTier } = parsed.data;
+    const parsed = checkoutSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return apiError("INVALID_INPUT", 400, "targetTier must be 'street' or 'kingpin' and waiverAccepted must be true.");
+    }
+
+    const { targetTier, promoCode } = parsed.data;
     const { profile } = await ensureProfileAndProgress(supabase, user);
+
+    if (profile.is_banned) {
+      return apiError("ACCOUNT_BANNED", 403, "Your ViceLink account has been suspended.");
+    }
 
     if (hasAccess(profile.access_tier, targetTier)) {
       return apiError(
@@ -65,10 +125,30 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = PLANS[targetTier];
+    const promo = await resolveValidPromoDiscount(supabase, promoCode, targetTier);
+    const finalAmountUsd =
+      promo && promo.discountPct < 100
+        ? computePromoPriceUsd(plan.amountUsd, promo.discountPct)
+        : plan.amountUsd;
+    const finalAmountCents = Math.round(finalAmountUsd * 100);
+    const waiverAcceptedAt = new Date().toISOString();
+
     const stripe = getStripe();
 
     const useConfiguredPrice =
-      Boolean(plan.stripePriceId) && !plan.stripePriceId!.startsWith("price_optional_");
+      !promo &&
+      Boolean(plan.stripePriceId) &&
+      !plan.stripePriceId!.startsWith("price_optional_");
+
+    const metadata = {
+      userId: user.id,
+      targetTier,
+      waiverAccepted: "true",
+      waiverAcceptedAt,
+      waiverPolicyVersion: WAIVER_POLICY_VERSION,
+      promoCode: promo?.code ?? "",
+      discountPct: String(promo?.discountPct ?? 0)
+    };
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -76,15 +156,9 @@ export async function POST(request: NextRequest) {
       ...(profile.stripe_customer_id
         ? { customer: profile.stripe_customer_id }
         : { customer_email: profile.email || user.email || undefined }),
-      metadata: {
-        userId: user.id,
-        targetTier
-      },
+      metadata,
       payment_intent_data: {
-        metadata: {
-          userId: user.id,
-          targetTier
-        }
+        metadata
       },
       line_items: [
         useConfiguredPrice
@@ -92,9 +166,9 @@ export async function POST(request: NextRequest) {
           : {
               price_data: {
                 currency: plan.currency,
-                unit_amount: plan.amountCents,
+                unit_amount: finalAmountCents,
                 product_data: {
-                  name: plan.name,
+                  name: promo ? `${plan.name} (Promo ${promo.code} -${promo.discountPct}%)` : plan.name,
                   description: plan.description
                 }
               },
@@ -117,16 +191,23 @@ export async function POST(request: NextRequest) {
           provider: "stripe",
           provider_order_id: session.id,
           target_tier: targetTier,
-          amount_usd: plan.amountUsd,
+          amount_usd: finalAmountUsd,
           currency: "USD",
           status: "pending",
-          raw_payload: { sessionId: session.id }
+          raw_payload: {
+            sessionId: session.id,
+            waiverAccepted: true,
+            waiverAcceptedAt,
+            waiverPolicyVersion: WAIVER_POLICY_VERSION,
+            promoCode: promo?.code ?? null,
+            discountPct: promo?.discountPct ?? 0
+          }
         },
         { onConflict: "provider_order_id", ignoreDuplicates: true }
       );
     }
 
-    return apiJson({ url: session.url });
+    return apiJson({ url: session.url, amountUsd: finalAmountUsd });
   } catch (err) {
     return apiError(
       "CARD_CHECKOUT_FAILED",

@@ -43,6 +43,8 @@ export type VicelinkProfileRow = {
   verification_code: string;
   mfa_enabled: boolean;
   is_banned: boolean;
+  marketing_opt_in?: boolean;
+  unsubscribe_token?: string;
 };
 
 export type VicelinkTransactionRow = {
@@ -173,6 +175,43 @@ export type VicelinkSiteSettingRow = {
   updated_at: string;
 };
 
+export type VicelinkPromoCodeRow = {
+  code: string;
+  discount_pct: number;
+  target_tier: "street" | "kingpin" | "both";
+  max_uses: number;
+  uses_count: number;
+  expires_at: string | null;
+  active: boolean;
+  created_by: string;
+  created_at: string;
+};
+
+export type VicelinkPromoRedemptionRow = {
+  id: string;
+  code: string;
+  user_id: string;
+  applied_tier: PaidTierText;
+  discount_pct: number;
+  created_at: string;
+};
+
+export type VicelinkEmailCampaignRow = {
+  id: string;
+  admin_id: string | null;
+  admin_email: string;
+  audience: "all_opted_in" | "free_only" | "street_only";
+  subject_en: string;
+  subject_es: string;
+  body_en: string;
+  body_es: string;
+  promo_code: string;
+  recipients_count: number;
+  delivered_count: number;
+  delivery_mode: "resend_live" | "dry_run_logged";
+  created_at: string;
+};
+
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -205,6 +244,8 @@ export type Database = {
           verification_code?: string;
           mfa_enabled?: boolean;
           is_banned?: boolean;
+          marketing_opt_in?: boolean;
+          unsubscribe_token?: string;
         }
       >;
       vicelink_transactions: Table<
@@ -352,6 +393,49 @@ export type Database = {
           updated_at?: string;
         }
       >;
+      vicelink_promo_codes: Table<
+        VicelinkPromoCodeRow,
+        {
+          code: string;
+          discount_pct: number;
+          target_tier?: "street" | "kingpin" | "both";
+          max_uses?: number;
+          uses_count?: number;
+          expires_at?: string | null;
+          active?: boolean;
+          created_by?: string;
+          created_at?: string;
+        }
+      >;
+      vicelink_promo_redemptions: Table<
+        VicelinkPromoRedemptionRow,
+        {
+          id?: string;
+          code: string;
+          user_id: string;
+          applied_tier: PaidTierText;
+          discount_pct: number;
+          created_at?: string;
+        }
+      >;
+      vicelink_email_campaigns: Table<
+        VicelinkEmailCampaignRow,
+        {
+          id?: string;
+          admin_id?: string | null;
+          admin_email: string;
+          audience: "all_opted_in" | "free_only" | "street_only";
+          subject_en: string;
+          subject_es: string;
+          body_en: string;
+          body_es: string;
+          promo_code?: string;
+          recipients_count?: number;
+          delivered_count?: number;
+          delivery_mode?: "resend_live" | "dry_run_logged";
+          created_at?: string;
+        }
+      >;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -457,6 +541,66 @@ export type Database = {
           p_reference?: string;
         };
         Returns: TierText;
+      };
+      vicelink_prepare_totp_enrollment: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      vicelink_redeem_promo_code: {
+        Args: {
+          p_code: string;
+          p_target_tier?: string;
+        };
+        Returns: {
+          valid: boolean;
+          code: string;
+          discount_pct: number;
+          target_tier: "street" | "kingpin" | "both";
+          instant_unlock: boolean;
+          unlocked_tier: TierText | null;
+          error_code: string;
+        }[];
+      };
+      vicelink_unsubscribe_email: {
+        Args: {
+          p_uid: string;
+          p_token?: string;
+        };
+        Returns: boolean;
+      };
+      vicelink_admin_campaign_recipients: {
+        Args: {
+          p_audience: string;
+          p_test_email?: string;
+        };
+        Returns: {
+          user_id: string;
+          email: string;
+          handle: string;
+          preferred_lang: "en" | "es";
+          unsubscribe_token: string;
+          access_tier: TierText;
+        }[];
+      };
+      vicelink_admin_list_users_v3: {
+        Args: { p_query?: string };
+        Returns: {
+          user_id: string;
+          email: string;
+          handle: string;
+          display_name: string;
+          access_tier: TierText;
+          is_admin: boolean;
+          created_at: string;
+          avatar_preset: string;
+          psn_id: string;
+          psn_verified: boolean;
+          xbox_gamertag: string;
+          xbox_verified: boolean;
+          mfa_enabled: boolean;
+          is_banned: boolean;
+          marketing_opt_in: boolean;
+        }[];
       };
     };
     Enums: { [_ in never]: never };

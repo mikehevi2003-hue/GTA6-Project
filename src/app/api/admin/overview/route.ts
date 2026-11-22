@@ -8,7 +8,9 @@ import {
   loadAdminAuditLogs,
   loadAdminTelemetry,
   loadAdminUsersV2,
+  loadEmailCampaigns,
   loadGlitchVotes,
+  loadPromoCodes,
   loadSiteSettings,
   mapDynamicPinRow,
   mergeDynamicCheats,
@@ -37,7 +39,9 @@ export async function GET() {
       pinsRes,
       votesData,
       submissions,
-      users
+      users,
+      promoCodes,
+      emailCampaigns
     ] = await Promise.all([
       loadAdminTelemetry(supabase),
       loadSiteSettings(supabase),
@@ -57,7 +61,9 @@ export async function GET() {
         .order("created_at", { ascending: false }),
       loadGlitchVotes(supabase, user.id),
       buildCommunitySubmissions(supabase, user.id),
-      loadAdminUsersV2(supabase, "")
+      loadAdminUsersV2(supabase, ""),
+      loadPromoCodes(supabase),
+      loadEmailCampaigns(supabase, 30)
     ]);
 
     if (cheatsRes.error) throw cheatsRes.error;
@@ -82,7 +88,9 @@ export async function GET() {
       glitches,
       dynamicPins,
       submissions,
-      users
+      users,
+      promoCodes,
+      emailCampaigns
     });
   } catch (err) {
     return apiError(

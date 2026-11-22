@@ -291,7 +291,7 @@ export function TrophiesView({
                   </h3>
                   <p>
                     {isEs
-                      ? "Tus decisiones en asaltos y tiroteos mueven tu Perfil Criminal. El nivel 5 ('Irredimible') es PERMANente para el resto de la partida."
+                      ? "Tus decisiones en asaltos y tiroteos mueven tu Perfil Criminal. El nivel 5 ('Irredimible') es PERMANENTE para el resto de la partida."
                       : "Your combat choices during robberies and police chases shift your Criminal Profile. Tier 5 ('Irredeemable') is PERMANENT for the rest of your playthrough."}
                   </p>
                 </div>

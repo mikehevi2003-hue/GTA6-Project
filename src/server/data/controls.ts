@@ -163,7 +163,7 @@ export const HIDDEN_CONTROLS_DATA: HiddenControlItem[] = [
     category: "Driving & Cars",
     title: {
       en: "Cruise Control & Traffic Speed Match",
-      es: "Control de Crucero yVelocidad de Tráfico"
+      es: "Control de Crucero y Velocidad de Tráfico"
     },
     ps5: {
       en: "Hold R2 at your desired speed and Press X + L3 to lock cruise speed",
@@ -477,7 +477,7 @@ export const HIDDEN_CONTROLS_DATA: HiddenControlItem[] = [
     category: "Combat & Weapons",
     title: {
       en: "Choke Out Enemies in Silent Melee Grapple",
-      es: "Estrangular yDormir Enemigos en Agarre Silencioso"
+      es: "Estrangular y Dormir Enemigos en Agarre Silencioso"
     },
     ps5: {
       en: "Approach from behind or grapple with Triangle, then Hold Circle to apply non-lethal sleeper hold",

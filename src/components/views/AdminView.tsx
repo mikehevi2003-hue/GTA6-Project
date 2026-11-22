@@ -20,8 +20,10 @@ import type {
   EmailCampaignItem,
   GlitchCategory,
   GlitchItem,
+  KeywordAnalyticsSummary,
   Language,
   MapPin,
+  PatchReportItem,
   PaymentProvider,
   PinType,
   PromoCodeItem,
@@ -32,6 +34,7 @@ import type {
 import { ARROW_MAP, REGIONS } from "@/lib/constants/forum";
 import { tField } from "@/lib/i18n/helpers";
 import { createClient } from "@/lib/supabase/client";
+import AdminPatchAiPanel from "./AdminPatchAiPanel";
 
 export type AdminViewProps = {
   lang: Language;
@@ -47,6 +50,7 @@ export type AdminViewProps = {
 
 type AdminTab =
   | "telemetry_flags"
+  | "patch_ai"
   | "glitches_cheats"
   | "pins"
   | "users"
@@ -317,6 +321,16 @@ export function AdminView({
     samplePreviewHtml?: string;
   } | null>(null);
 
+  // Tab 6: Stage 17 AI Patch & Update Intelligence + Keyword Analytics
+  const [patchReports, setPatchReports] = useState<PatchReportItem[]>([]);
+  const [keywordAnalytics, setKeywordAnalytics] = useState<KeywordAnalyticsSummary>({
+    totalSearches: 0,
+    topKeywords: [],
+    areaBreakdown: [],
+    zeroResultGaps: []
+  });
+  const [loadingPatchAi, setLoadingPatchAi] = useState(false);
+
   const normalizedEmail = (userEmail || "").trim().toLowerCase();
   const isCoFounder = CO_FOUNDER_EMAILS.includes(normalizedEmail);
 
@@ -520,6 +534,35 @@ export function AdminView({
     [isAdmin, isEs, showBanner, handle403Response]
   );
 
+  const loadPatchAi = useCallback(async () => {
+    if (!isAdmin) return;
+    setLoadingPatchAi(true);
+    try {
+      const res = await fetch("/api/admin/patch-ai", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        handle403Response(data);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || "Failed to load AI patch analytics.");
+      }
+      if (Array.isArray(data.reports)) {
+        setPatchReports(data.reports as PatchReportItem[]);
+      }
+      if (data.keywordAnalytics) {
+        setKeywordAnalytics(data.keywordAnalytics as KeywordAnalyticsSummary);
+      }
+    } catch (err) {
+      showBanner(
+        "error",
+        err instanceof Error ? err.message : "Could not load Patch AI reports."
+      );
+    } finally {
+      setLoadingPatchAi(false);
+    }
+  }, [isAdmin, showBanner, handle403Response]);
+
   useEffect(() => {
     void loadOverview();
     void checkMfaStatus();
@@ -529,7 +572,10 @@ export function AdminView({
     if (activeTab === "users" && !forbidden && !aal2Required && isAdmin && users.length === 0) {
       void searchUsers("");
     }
-  }, [activeTab, forbidden, aal2Required, isAdmin, users.length, searchUsers]);
+    if (activeTab === "patch_ai" && !forbidden && !aal2Required && isAdmin) {
+      void loadPatchAi();
+    }
+  }, [activeTab, forbidden, aal2Required, isAdmin, users.length, searchUsers, loadPatchAi]);
 
   // --- Inline 6-Digit OTP Verification Handler ---
   const handleVerifyInlineOtp = async (e: FormEvent) => {
@@ -2002,6 +2048,15 @@ export function AdminView({
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "patch_ai"}
+          className={`admin-tab ${activeTab === "patch_ai" ? "active" : ""}`}
+          onClick={() => setActiveTab("patch_ai")}
+        >
+          🤖 {isEs ? "IA Parches y Keywords" : "AI Patch Agent & Keywords"} ({patchReports.length})
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "glitches_cheats"}
           className={`admin-tab ${activeTab === "glitches_cheats" ? "active" : ""}`}
           onClick={() => setActiveTab("glitches_cheats")}
@@ -2045,6 +2100,24 @@ export function AdminView({
           📧 {isEs ? "Promos y Email" : "Promos & Email"} ({promoCodesList.length})
         </button>
       </div>
+
+      {/* =================================================================
+          TAB: STAGE 17 AI PATCH AGENT & PLAYER KEYWORD SEARCH ANALYTICS
+         ================================================================= */}
+      {activeTab === "patch_ai" && (
+        <AdminPatchAiPanel
+          lang={lang}
+          reports={patchReports}
+          keywordAnalytics={keywordAnalytics}
+          loading={loadingPatchAi}
+          onRefresh={loadPatchAi}
+          onPatchChanged={async () => {
+            await loadOverview();
+            if (onAdminDataChanged) await onAdminDataChanged();
+          }}
+          onBanner={showBanner}
+        />
+      )}
 
       {/* =================================================================
           TAB 0: TELEMETRY, FEATURE FLAGS & LIVE GLOBAL TICKER

@@ -424,3 +424,88 @@ export type ContentPayload = {
   criminalProfileTiers: CriminalProfileTier[];
   siteSettings: SiteSettingsPayload;
 };
+
+export type PatchChangeTarget = "glitch" | "cheat" | "pin" | "global_banner";
+
+export type PatchProposedChange = {
+  id: string;
+  target: PatchChangeTarget;
+  action: "upsert" | "mark_patched" | "mark_active" | "update_banner";
+  targetId: string;
+  titleEn: string;
+  titleEs: string;
+  summaryEn: string;
+  summaryEs: string;
+  payload: Record<string, unknown>;
+};
+
+export type PatchRollbackEntry = {
+  table:
+    | "vicelink_dynamic_glitches"
+    | "vicelink_dynamic_cheats"
+    | "vicelink_dynamic_map_pins"
+    | "vicelink_site_settings";
+  rowKey: string;
+  existed: boolean;
+  previousRow: Record<string, unknown> | null;
+};
+
+export type PatchReportStatus =
+  | "draft"
+  | "auto_published"
+  | "published"
+  | "rolled_back"
+  | "rejected";
+
+export type PatchReportItem = {
+  id: string;
+  patchVersion: string;
+  sourceUrl: string;
+  sourceType: string;
+  rawNotes: string;
+  aiSummaryEn: string;
+  aiSummaryEs: string;
+  confidenceScore: number;
+  status: PatchReportStatus;
+  proposedChanges: PatchProposedChange[];
+  rollbackSnapshot: PatchRollbackEntry[];
+  appliedCount: number;
+  createdBy: string;
+  createdAt: string;
+  appliedAt: string | null;
+  rolledBackAt: string | null;
+};
+
+export type KeywordArea =
+  | "all"
+  | "cheats"
+  | "map"
+  | "glitches"
+  | "forum"
+  | "database"
+  | "mechanics"
+  | "controls"
+  | "radio"
+  | "trophies"
+  | "legal";
+
+export type KeywordAnalyticsSummary = {
+  totalSearches: number;
+  topKeywords: {
+    keyword: string;
+    area: string;
+    searches: number;
+    avgResults: number;
+    lastSearchedAt: string;
+  }[];
+  areaBreakdown: {
+    area: string;
+    searches: number;
+  }[];
+  zeroResultGaps: {
+    keyword: string;
+    area: string;
+    searches: number;
+    lastSearchedAt: string;
+  }[];
+};

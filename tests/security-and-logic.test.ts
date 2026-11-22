@@ -1542,4 +1542,171 @@ describe("ViceLink Stage E — Automated Security, Data & Bilingual Logic Suite"
     assert.match(hubSource, /DailyBriefingCard/, "ViceLinkHub must render DailyBriefingCard");
     assert.match(hubSource, /\/dmca/, "ViceLinkHub sidebar footer must link to /dmca");
   });
+
+  it("26. [Stage 17 Keyword Tracker] searchSiteKeywords scopes by area, enforces glitchesAllowed, masks locked pins, and indexes legal/dmca entries", async () => {
+    const [{ searchSiteKeywords, KEYWORD_AREAS }, { CHEATS_DATA }, { LEONIDA_PINS }, { GLITCHES_DATA }] =
+      await Promise.all([
+        importProjectModule<typeof import("../src/lib/search/keyword-tracker")>(
+          "../src/lib/search/keyword-tracker.ts"
+        ),
+        importProjectModule<typeof import("../src/server/data/cheats")>("../src/server/data/cheats.ts"),
+        importProjectModule<typeof import("../src/server/data/pins")>("../src/server/data/pins.ts"),
+        importProjectModule<typeof import("../src/server/data/glitches")>("../src/server/data/glitches.ts")
+      ]);
+
+    assert.equal(KEYWORD_AREAS.some((a) => a.id === "legal"), true);
+
+    const mockContent = {
+      tier: "free" as const,
+      cheats: CHEATS_DATA,
+      pins: LEONIDA_PINS.map((pin) =>
+        pin.tier === "free"
+          ? { ...pin, locked: false }
+          : {
+              ...pin,
+              name: { en: "Locked Location (Street Pass)", es: "Ubicación Bloqueada" },
+              note: { en: "Unlock Street Pass to reveal intel.", es: "Desbloquea Street Pass." },
+              locked: true
+            }
+      ),
+      glitches: GLITCHES_DATA,
+      glitchesLocked: false,
+      vehicles: [],
+      vehiclesLocked: false,
+      totalVehiclesCount: 0,
+      properties: [],
+      propertiesLocked: false,
+      socialStudioLocked: false,
+      mechanics: [],
+      aiQuota: { used: 0, limit: 3, unlimited: false },
+      controls: [],
+      radioStations: [],
+      trophies: [],
+      trophiesLocked: true,
+      totalTrophiesCount: 55,
+      criminalProfileTiers: [],
+      siteSettings: {
+        globalBanner: { active: false, textEn: "", textEs: "" },
+        freeAiDailyLimit: 3,
+        maintenanceMode: false,
+        glitchesTabEnabled: true
+      }
+    };
+
+    const hiddenGlitchRes = searchSiteKeywords({
+      query: "Apollo Aggregates",
+      area: "all",
+      lang: "en",
+      content: mockContent,
+      theories: [],
+      glitchesAllowed: false
+    });
+    assert.equal(hiddenGlitchRes.areaCounts.glitches, 0, "Disabled glitches must not appear in results");
+
+    const allowedGlitchRes = searchSiteKeywords({
+      query: "Apollo Aggregates",
+      area: "glitches",
+      lang: "en",
+      content: mockContent,
+      theories: [],
+      glitchesAllowed: true
+    });
+    assert.ok(allowedGlitchRes.results.length >= 1, "Enabled glitches should match Apollo Aggregates");
+    assert.equal(allowedGlitchRes.results[0]?.targetView, "glitches");
+
+    const dmcaRes = searchSiteKeywords({
+      query: "DMCA",
+      area: "legal",
+      lang: "en",
+      content: mockContent,
+      theories: [],
+      glitchesAllowed: false
+    });
+    assert.ok(dmcaRes.results.some((r) => r.routePath === "/dmca"), "Legal area must index /dmca");
+  });
+
+  it("27. [Stage 17 AI Patch Agent & SSRF] validateRockstarSourceUrl rejects SSRF and deterministic parser extracts patched items + high confidence", async () => {
+    const [{ validateRockstarSourceUrl, runDeterministicPatchAnalysis }, { CHEATS_DATA }, { GLITCHES_DATA }] =
+      await Promise.all([
+        importProjectModule<typeof import("../src/lib/admin/patch-ai")>(
+          "../src/lib/admin/patch-ai.ts"
+        ),
+        importProjectModule<typeof import("../src/server/data/cheats")>("../src/server/data/cheats.ts"),
+        importProjectModule<typeof import("../src/server/data/glitches")>("../src/server/data/glitches.ts")
+      ]);
+
+    assert.equal(
+      validateRockstarSourceUrl("https://support.rockstargames.com/articles/gta6-patch-1003").valid,
+      true
+    );
+    assert.equal(validateRockstarSourceUrl("http://127.0.0.1:3000/admin").valid, false);
+    assert.equal(validateRockstarSourceUrl("https://169.254.169.254/latest/meta-data").valid, false);
+    assert.equal(validateRockstarSourceUrl("https://evil.example.com/notes").valid, false);
+
+    const parsed = runDeterministicPatchAnalysis({
+      patchVersion: "v1.003",
+      rawNotes: [
+        "- Fixed an exploit in the Apollo Aggregates Red Barn loop when switching characters.",
+        "- Patched True First-Person Camera glitch triggered via Touchpad / View button swap.",
+        "- New cheat unlockable added: Spawn Sanchez Enduro Dirt Bike (UP DOWN LEFT RIGHT UP DOWN)."
+      ].join("\n"),
+      existingGlitches: GLITCHES_DATA,
+      existingCheats: CHEATS_DATA
+    });
+
+    assert.ok(parsed.confidenceScore >= 85, `Expected confidence >= 85, got ${parsed.confidenceScore}`);
+    assert.ok(
+      parsed.proposedChanges.some((c) => c.target === "glitch" && c.targetId === "g1" && c.action === "mark_patched")
+    );
+    assert.ok(
+      parsed.proposedChanges.some((c) => c.target === "glitch" && c.targetId === "g2" && c.action === "mark_patched")
+    );
+    assert.ok(parsed.proposedChanges.some((c) => c.target === "cheat"));
+    assert.ok(parsed.proposedChanges.some((c) => c.target === "global_banner"));
+  });
+
+  it("28. [Stage 17 Cyber-Vice UI, APIs & Schema] New components, routes, AAL2 security, and migration SQL exist and align", () => {
+    for (const rel of [
+      "../src/components/hub/SidebarNavigator.tsx",
+      "../src/components/hub/CyberViceHero.tsx",
+      "../src/components/views/AdminPatchAiPanel.tsx",
+      "../src/app/api/admin/patch-ai/route.ts",
+      "../src/app/api/search/track/route.ts",
+      "../supabase/migrations/20261122000001_vicelink_stage17_patch_ai_and_keyword_tracker.sql"
+    ]) {
+      assert.equal(existsSync(new URL(rel, import.meta.url)), true, `${rel} must exist`);
+    }
+
+    const patchAiRoute = readFileSync(
+      new URL("../src/app/api/admin/patch-ai/route.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(patchAiRoute, /requireAdminAal2/, "Admin Patch AI route must enforce requireAdminAal2");
+    assert.match(patchAiRoute, /recordAdminAuditLog/, "Admin Patch AI route must record audit logs");
+    assert.match(patchAiRoute, /rollbackPatchChanges/, "Admin Patch AI route must support 1-click rollback");
+
+    const hubSource = readFileSync(
+      new URL("../src/components/hub/ViceLinkHub.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(hubSource, /SidebarNavigator/);
+    assert.match(hubSource, /CyberViceHero/);
+
+    const adminViewSource = readFileSync(
+      new URL("../src/components/views/AdminView.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(adminViewSource, /patch_ai/);
+    assert.match(adminViewSource, /AdminPatchAiPanel/);
+
+    const migrationSql = readFileSync(
+      new URL(
+        "../supabase/migrations/20261122000001_vicelink_stage17_patch_ai_and_keyword_tracker.sql",
+        import.meta.url
+      ),
+      "utf8"
+    );
+    assert.match(migrationSql, /vicelink_patch_reports/);
+    assert.match(migrationSql, /vicelink_keyword_searches/);
+  });
 });

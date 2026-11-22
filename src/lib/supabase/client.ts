@@ -212,6 +212,35 @@ export type VicelinkEmailCampaignRow = {
   created_at: string;
 };
 
+export type VicelinkPatchReportRow = {
+  id: string;
+  patch_version: string;
+  source_url: string;
+  source_type: string;
+  raw_notes: string;
+  ai_summary_en: string;
+  ai_summary_es: string;
+  confidence_score: number;
+  status: "draft" | "auto_published" | "published" | "rolled_back" | "rejected";
+  proposed_changes: Json;
+  rollback_snapshot: Json;
+  applied_count: number;
+  created_by: string;
+  created_at: string;
+  applied_at: string | null;
+  rolled_back_at: string | null;
+};
+
+export type VicelinkKeywordSearchRow = {
+  id: string;
+  user_id: string | null;
+  area: string;
+  keyword: string;
+  result_count: number;
+  lang: "en" | "es";
+  created_at: string;
+};
+
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -433,6 +462,39 @@ export type Database = {
           recipients_count?: number;
           delivered_count?: number;
           delivery_mode?: "resend_live" | "dry_run_logged";
+          created_at?: string;
+        }
+      >;
+      vicelink_patch_reports: Table<
+        VicelinkPatchReportRow,
+        {
+          id?: string;
+          patch_version: string;
+          source_url?: string;
+          source_type?: string;
+          raw_notes: string;
+          ai_summary_en: string;
+          ai_summary_es: string;
+          confidence_score: number;
+          status?: "draft" | "auto_published" | "published" | "rolled_back" | "rejected";
+          proposed_changes?: Json;
+          rollback_snapshot?: Json;
+          applied_count?: number;
+          created_by: string;
+          created_at?: string;
+          applied_at?: string | null;
+          rolled_back_at?: string | null;
+        }
+      >;
+      vicelink_keyword_searches: Table<
+        VicelinkKeywordSearchRow,
+        {
+          id?: string;
+          user_id?: string | null;
+          area: string;
+          keyword: string;
+          result_count?: number;
+          lang?: "en" | "es";
           created_at?: string;
         }
       >;

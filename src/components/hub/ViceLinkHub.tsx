@@ -13,9 +13,6 @@ import type {
   UserProfile,
   UserProgress
 } from "@/types/vicelink";
-import { LEGAL_POLICIES } from "@/lib/legal/policies";
-import { tField } from "@/lib/i18n/helpers";
-import { t } from "@/lib/i18n/translations";
 import CheatsView from "@/components/views/CheatsView";
 import MapView from "@/components/views/MapView";
 import GlitchesView from "@/components/views/GlitchesView";
@@ -30,7 +27,9 @@ import FeedbackView from "@/components/views/FeedbackView";
 import AccountView from "@/components/views/AccountView";
 import AdminView from "@/components/views/AdminView";
 import CommandPaletteModal from "@/components/hub/CommandPaletteModal";
+import CyberViceHero from "@/components/hub/CyberViceHero";
 import DailyBriefingCard from "@/components/hub/DailyBriefingCard";
+import SidebarNavigator from "@/components/hub/SidebarNavigator";
 import ViewErrorBoundary from "@/components/hub/ViewErrorBoundary";
 import PricingModal from "@/components/modals/PricingModal";
 import SocialStudioModal from "@/components/modals/SocialStudioModal";
@@ -105,6 +104,8 @@ export default function ViceLinkHub() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [tickerDismissed, setTickerDismissed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeKeywordBanner, setActiveKeywordBanner] = useState<string | null>(null);
 
   const [toast, setToast] = useState<{ kind: "success" | "info" | "error"; text: string } | null>(
     null
@@ -569,295 +570,30 @@ export default function ViceLinkHub() {
 
   return (
     <div className="app-layout app-shell">
-      {/* Verified Neon Sidebar (Zero Tier Simulator!) */}
-      <aside className="sidebar">
-        <div>
-          <div className="sidebar-top-row">
-            <span className="brand-badge">
-              {t(lang, "badge", isEs ? "HUB NO OFICIAL DE FANS" : "UNOFFICIAL FAN HUB")}
-            </span>
-            <div className="lang-switch" title="Select Language / Seleccionar Idioma">
-              <button
-                type="button"
-                className={`lang-btn ${lang === "en" ? "active" : ""}`}
-                onClick={() => void handleLanguageChange("en")}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                className={`lang-btn ${lang === "es" ? "active" : ""}`}
-                onClick={() => void handleLanguageChange("es")}
-              >
-                ES
-              </button>
-            </div>
-          </div>
-
-          <div className="brand">
-            <h1>
-              VICE<span>LINK</span>
-            </h1>
-            <p>
-              {t(
-                lang,
-                "subtitle",
-                isEs ? "Guía Táctica de Leonida y Secretos" : "Leonida Tactical Hub & Lore Intel"
-              )}
-            </p>
-          </div>
-
-          {/* Authenticated Account Card */}
-          <div className="user-account-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => setActiveView("account")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  color: "var(--accent-cyan)",
-                  fontSize: 13.5,
-                  fontWeight: 800
-                }}
-              >
-                {me.profile.handle}
-              </button>
-              <span className={`tier-chip tier-${me.profile.tier}`}>{tierBadgeLabel}</span>
-            </div>
-
-            {(me.profile.psnVerified || me.profile.xboxVerified || me.profile.mfaEnabled) && (
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 2 }}>
-                {me.profile.psnVerified && (
-                  <span className="console-verified-pill">PSN ✓</span>
-                )}
-                {me.profile.xboxVerified && (
-                  <span className="console-verified-pill">XBOX ✓</span>
-                )}
-                {me.profile.mfaEnabled && (
-                  <span className="implemented-badge" style={{ fontSize: 9.5, padding: "2px 6px" }}>
-                    🔒 2FA
-                  </span>
-                )}
-              </div>
-            )}
-
-            <p
-              style={{
-                fontSize: 11.5,
-                color: "var(--text-muted)",
-                marginTop: 4,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap"
-              }}
-              title={me.profile.email}
-            >
-              {me.profile.email}
-            </p>
-            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ flex: 1, padding: "6px 8px", fontSize: 11.5 }}
-                onClick={() => setActiveView("account")}
-              >
-                👤 {isEs ? "Cuenta" : "Account"}
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                style={{ flex: 1, padding: "6px 8px", fontSize: 11.5 }}
-                onClick={() => void handleSignOut()}
-              >
-                {isEs ? "Salir" : "Sign Out"}
-              </button>
-            </div>
-          </div>
-
-          <nav className="nav-menu" aria-label="Main navigation">
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "cheats" ? "active" : ""}`}
-              onClick={() => setActiveView("cheats")}
-            >
-              <span className="nav-icon">🎮</span>
-              <span>{t(lang, "navCheats", isEs ? "Trucos y Desbloqueos" : "Cheats & Unlocks")}</span>
-              <small className="badge-live">{content.cheats.length}</small>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "map" ? "active" : ""}`}
-              onClick={() => setActiveView("map")}
-            >
-              <span className="nav-icon">🗺️</span>
-              <span>{t(lang, "navMap", isEs ? "Mapa Táctico de Leonida" : "Leonida Tactical Map")}</span>
-              <small className="badge-live">{content.pins.length}</small>
-            </button>
-
-            {glitchesAllowed && (
-              <button
-                type="button"
-                className={`nav-btn ${activeView === "glitches" ? "active" : ""}`}
-                onClick={() => setActiveView("glitches")}
-              >
-                <span className="nav-icon">⚡</span>
-                <span>{t(lang, "navGlitches", isEs ? "Glitches y Trucos" : "Glitches & Exploits")}</span>
-                <small className="badge-new">
-                  {siteSettings.glitchesTabEnabled === false ? "OFF" : "v1.002"}
-                </small>
-              </button>
-            )}
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "forum" ? "active" : ""}`}
-              onClick={() => setActiveView("forum")}
-            >
-              <span className="nav-icon">👁️</span>
-              <span>{t(lang, "navForum", isEs ? "Easter Eggs y Teorías" : "Easter Eggs & Theories")}</span>
-              <small className="badge-live">{theories.length}</small>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "database" ? "active" : ""}`}
-              onClick={() => setActiveView("database")}
-            >
-              <span className="nav-icon">🏎️</span>
-              <span>{t(lang, "navDb", isEs ? "Vehículos y Economía" : "Vehicles & Economy")}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "mechanics" ? "active" : ""}`}
-              onClick={() => setActiveView("mechanics")}
-            >
-              <span className="nav-icon">📘</span>
-              <span>{t(lang, "navMech", isEs ? "Nuevas Mecánicas" : "New Mechanics Guide")}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "controls" ? "active" : ""}`}
-              onClick={() => setActiveView("controls")}
-            >
-              <span className="nav-icon">🕹️</span>
-              <span>{t(lang, "nav.controls", isEs ? "Controles Ocultos" : "Hidden Controls")}</span>
-              <small className="badge-live">{content.controls.length}</small>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "radio" ? "active" : ""}`}
-              onClick={() => setActiveView("radio")}
-            >
-              <span className="nav-icon">📻</span>
-              <span>{t(lang, "nav.radio", isEs ? "Radio de Leonida" : "Leonida Radio")}</span>
-              <small className="badge-live">{content.radioStations.length}</small>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "trophies" ? "active" : ""}`}
-              onClick={() => setActiveView("trophies")}
-            >
-              <span className="nav-icon">🏆</span>
-              <span>{t(lang, "nav.trophies", isEs ? "Platino y Trofeos" : "Platinum & Trophies")}</span>
-              <small className="badge-live">{content.totalTrophiesCount}</small>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "ai" ? "active" : ""}`}
-              onClick={() => setActiveView("ai")}
-            >
-              <span className="nav-icon">🤖</span>
-              <span>{t(lang, "navAi", isEs ? "Guía IA de Misiones" : "AI Mission Guide")}</span>
-              <small className="badge-live">LIVE</small>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "feedback" ? "active" : ""}`}
-              onClick={() => setActiveView("feedback")}
-            >
-              <span className="nav-icon">💡</span>
-              <span>
-                {t(
-                  lang,
-                  "nav.feedback",
-                  isEs ? "Enviar Intel y Feedback" : "Submit Intel & Feedback"
-                )}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "account" ? "active" : ""}`}
-              onClick={() => setActiveView("account")}
-            >
-              <span className="nav-icon">👤</span>
-              <span>
-                {t(lang, "nav.account", isEs ? "Cuenta y 2FA" : "Account & 2FA")}
-              </span>
-              {me.profile.mfaEnabled && <small className="badge-live">2FA</small>}
-            </button>
-
-            {me.profile.isAdmin === true && (
-              <button
-                type="button"
-                className={`nav-btn ${activeView === "admin" ? "active" : ""}`}
-                onClick={() => setActiveView("admin")}
-              >
-                <span className="nav-icon">🛡️</span>
-                <span>{t(lang, "nav.admin", isEs ? "Panel Admin" : "Admin Panel")}</span>
-                <small className="badge-new">ADMIN</small>
-              </button>
-            )}
-          </nav>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="pro-card">
-            <div className="pro-header">
-              <h4>{tierBadgeLabel}</h4>
-              <span>$1.99 / $4.99</span>
-            </div>
-            <p>
-              {t(
-                lang,
-                "proDesc",
-                isEs
-                  ? "Pago único para Mapa Completo, Glitches, Sin Anuncios y Guía IA."
-                  : "One-time unlock for Full Money Map, Glitches Hub, Ad-Free & AI Advisor."
-              )}
-            </p>
-            <button
-              type="button"
-              className="btn-pro"
-              onClick={() => setPricingOpen(true)}
-            >
-              {t(lang, "proBtn", isEs ? "Ver Pases de Pago Único" : "View One-Time Passes")}
-            </button>
-          </div>
-
-          <div className="sidebar-compliance-links" style={{ marginTop: 12 }}>
-            <Link href="/terms">{isEs ? "Términos" : "Terms"}</Link>
-            <span>•</span>
-            <Link href="/privacy">{isEs ? "Privacidad" : "Privacy"}</Link>
-            <span>•</span>
-            <Link href="/refunds">{isEs ? "Reembolsos" : "Refunds"}</Link>
-            <span>•</span>
-            <Link href="/dmca">DMCA</Link>
-          </div>
-
-          <p className="legal-note">{tField(LEGAL_POLICIES.disclaimer, lang)}</p>
-        </div>
-      </aside>
+      <SidebarNavigator
+        lang={lang}
+        me={me}
+        content={content}
+        theories={theories}
+        activeView={activeView}
+        glitchesAllowed={glitchesAllowed}
+        siteSettings={siteSettings}
+        tierBadgeLabel={tierBadgeLabel}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
+        onLanguageChange={(nextLang) => void handleLanguageChange(nextLang)}
+        onSelectView={(nextView) => {
+          setActiveKeywordBanner(null);
+          setActiveView(nextView);
+        }}
+        onJumpFromKeyword={(targetView, keyword, pinId) => {
+          setActiveKeywordBanner(keyword);
+          setActiveView(targetView);
+          if (pinId) setDeepLinkPinId(pinId);
+        }}
+        onOpenPricing={() => setPricingOpen(true)}
+        onSignOut={() => void handleSignOut()}
+      />
 
       {/* Main Workspace */}
       <main className="main-content main-panel">
@@ -1078,6 +814,36 @@ export default function ViceLinkHub() {
             lang={lang}
             onFallbackView={() => setActiveView("cheats")}
           >
+            <CyberViceHero
+              lang={lang}
+              activeView={activeView}
+              tier={me.profile.tier}
+              content={content}
+              progress={progress}
+              onNavigateView={(nextView) => {
+                setActiveKeywordBanner(null);
+                setActiveView(nextView);
+              }}
+              onOpenCmdk={() => setCmdkOpen(true)}
+            />
+            {activeKeywordBanner && (
+              <div className="keyword-highlight" role="status">
+                <span>
+                  🔎{" "}
+                  {isEs
+                    ? `Saltaste aquí desde el Rastreador Interno por: "${activeKeywordBanner}"`
+                    : `Jumped here via Internal Keyword Tracker: "${activeKeywordBanner}"`}
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ padding: "4px 9px", fontSize: 11.5 }}
+                  onClick={() => setActiveKeywordBanner(null)}
+                >
+                  ✕ {isEs ? "Ocultar" : "Clear"}
+                </button>
+              </div>
+            )}
             <DailyBriefingCard
               lang={lang}
               content={content}
@@ -1259,6 +1025,16 @@ export default function ViceLinkHub() {
             )}
           </ViewErrorBoundary>
         )}
+
+        <footer className="sidebar-compliance-links" style={{ marginTop: 22 }}>
+          <Link href="/terms">{isEs ? "Términos" : "Terms"}</Link>
+          <span>•</span>
+          <Link href="/privacy">{isEs ? "Privacidad" : "Privacy"}</Link>
+          <span>•</span>
+          <Link href="/refunds">{isEs ? "Reembolsos" : "Refunds"}</Link>
+          <span>•</span>
+          <Link href="/dmca">DMCA</Link>
+        </footer>
       </main>
 
       {/* Stage 11 Mobile-First Floating Glass Bottom Dock (<768px) */}
@@ -1300,7 +1076,7 @@ export default function ViceLinkHub() {
           }}
         >
           <span aria-hidden="true">⚡</span>
-          <span>Glitches</span>
+          <span>Sandbox</span>
         </button>
 
         <button

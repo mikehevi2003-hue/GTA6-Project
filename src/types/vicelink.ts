@@ -25,6 +25,7 @@ export type UserProfile = {
   verificationCode: string;
   mfaEnabled: boolean;
   isBanned: boolean;
+  marketingOptIn?: boolean;
   aal?: "aal1" | "aal2";
 };
 
@@ -356,6 +357,49 @@ export type AdminUserRecord = {
   xboxVerified?: boolean;
   mfaEnabled?: boolean;
   isBanned?: boolean;
+  marketingOptIn?: boolean;
+};
+
+export type PromoCodeItem = {
+  code: string;
+  discountPct: number;
+  targetTier: "street" | "kingpin" | "both";
+  maxUses: number;
+  usesCount: number;
+  expiresAt: string | null;
+  active: boolean;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type EmailCampaignAudience = "all_opted_in" | "free_only" | "street_only";
+
+export type EmailCampaignItem = {
+  id: string;
+  adminEmail: string;
+  audience: EmailCampaignAudience;
+  subjectEn: string;
+  subjectEs: string;
+  bodyEn: string;
+  bodyEs: string;
+  promoCode: string;
+  recipientsCount: number;
+  deliveredCount: number;
+  deliveryMode: "resend_live" | "dry_run_logged";
+  createdAt: string;
+};
+
+export type PromoValidationResult = {
+  valid: boolean;
+  code: string;
+  discountPct: number;
+  targetTier: "street" | "kingpin" | "both";
+  streetDiscountedUsd: number;
+  kingpinDiscountedUsd: number;
+  instantUnlock: boolean;
+  unlockedTier?: UserTier;
+  messageEn: string;
+  messageEs: string;
 };
 
 export type ContentPayload = {

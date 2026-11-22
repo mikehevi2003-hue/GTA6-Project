@@ -126,12 +126,22 @@ export default function GlitchesView({
             const stepsList = g.steps[lang] || g.steps.en;
             const catMeta = GLITCH_CATEGORIES.find((c) => c.value === g.category);
             const catLabel = catMeta ? tField(catMeta.label, lang) : g.category;
+            const isPatched = g.isPatched === true;
+            const statusText = isPatched
+              ? isEs
+                ? "PARCHEADO"
+                : "PATCHED"
+              : tField(g.status, lang);
 
             return (
-              <div key={g.id} className="cheat-card">
+              <div
+                key={g.id}
+                className="cheat-card"
+                style={isPatched ? { opacity: 0.86, borderColor: "rgba(244, 63, 94, 0.38)" } : undefined}
+              >
                 <div className="card-top" style={{ flexWrap: "wrap", gap: 8 }}>
-                  <span className="status-working">
-                    ● {tField(g.status, lang)} • {catLabel}
+                  <span className={isPatched ? "status-patched" : "status-working"}>
+                    ● {statusText} • {catLabel}
                   </span>
                   <button
                     type="button"
@@ -139,7 +149,13 @@ export default function GlitchesView({
                     className={`unlock-toggle-btn ${g.voted ? "done" : ""}`}
                     onClick={() => handleVote(g.id)}
                   >
-                    👍 {isEs ? "Sigue Funcionando" : "Still Working"} ({g.votes})
+                    {isPatched
+                      ? isEs
+                        ? `⚠️ Reportado Parcheado (${g.votes})`
+                        : `⚠️ Reported Patched (${g.votes})`
+                      : isEs
+                        ? `👍 Sigue Funcionando (${g.votes})`
+                        : `👍 Still Working (${g.votes})`}
                   </button>
                 </div>
 
@@ -151,7 +167,14 @@ export default function GlitchesView({
                   ))}
                 </ol>
 
-                <div className="unlock-pill">⚠️ {tField(g.warning, lang)}</div>
+                <div className="unlock-pill">
+                  ⚠️{" "}
+                  {isPatched
+                    ? isEs
+                      ? `Parcheado por Rockstar — ${tField(g.warning, lang)}`
+                      : `Patched by Rockstar — ${tField(g.warning, lang)}`
+                    : tField(g.warning, lang)}
+                </div>
               </div>
             );
           })}

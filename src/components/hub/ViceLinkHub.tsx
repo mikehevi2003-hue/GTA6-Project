@@ -21,18 +21,36 @@ import ForumView, { type ForumActionPayload } from "@/components/views/ForumView
 import DatabaseView from "@/components/views/DatabaseView";
 import MechanicsView from "@/components/views/MechanicsView";
 import AiAdvisorView from "@/components/views/AiAdvisorView";
+import ControlsView from "@/components/views/ControlsView";
+import RadioView from "@/components/views/RadioView";
+import TrophiesView from "@/components/views/TrophiesView";
+import FeedbackView from "@/components/views/FeedbackView";
+import AdminView from "@/components/views/AdminView";
 import PricingModal from "@/components/modals/PricingModal";
 import SocialStudioModal from "@/components/modals/SocialStudioModal";
 import AccountModal from "@/components/modals/AccountModal";
 
-type ActiveView = "cheats" | "map" | "glitches" | "forum" | "database" | "mechanics" | "ai";
+type ActiveView =
+  | "cheats"
+  | "map"
+  | "glitches"
+  | "forum"
+  | "database"
+  | "mechanics"
+  | "controls"
+  | "radio"
+  | "trophies"
+  | "ai"
+  | "feedback"
+  | "admin";
 
 const EMPTY_PROGRESS: UserProgress = {
   favorites: [],
   unlockedCheats: [],
   foundPins: [],
   plannedVehicles: [],
-  plannedProps: []
+  plannedProps: [],
+  unlockedTrophies: []
 };
 
 export default function ViceLinkHub() {
@@ -240,6 +258,13 @@ export default function ViceLinkHub() {
       ...p,
       plannedVehicles: [],
       plannedProps: []
+    }));
+  };
+
+  const handleToggleTrophy = (trophyId: string) => {
+    void updateProgressOptimistic((p) => ({
+      ...p,
+      unlockedTrophies: toggleId(p.unlockedTrophies ?? [], trophyId)
     }));
   };
 
@@ -557,6 +582,36 @@ export default function ViceLinkHub() {
 
             <button
               type="button"
+              className={`nav-btn ${activeView === "controls" ? "active" : ""}`}
+              onClick={() => setActiveView("controls")}
+            >
+              <span className="nav-icon">🕹️</span>
+              <span>{t(lang, "nav.controls", isEs ? "Controles Ocultos" : "Hidden Controls")}</span>
+              <small className="badge-live">{content.controls.length}</small>
+            </button>
+
+            <button
+              type="button"
+              className={`nav-btn ${activeView === "radio" ? "active" : ""}`}
+              onClick={() => setActiveView("radio")}
+            >
+              <span className="nav-icon">📻</span>
+              <span>{t(lang, "nav.radio", isEs ? "Radio de Leonida" : "Leonida Radio")}</span>
+              <small className="badge-live">{content.radioStations.length}</small>
+            </button>
+
+            <button
+              type="button"
+              className={`nav-btn ${activeView === "trophies" ? "active" : ""}`}
+              onClick={() => setActiveView("trophies")}
+            >
+              <span className="nav-icon">🏆</span>
+              <span>{t(lang, "nav.trophies", isEs ? "Platino y Trofeos" : "Platinum & Trophies")}</span>
+              <small className="badge-live">{content.totalTrophiesCount}</small>
+            </button>
+
+            <button
+              type="button"
               className={`nav-btn ${activeView === "ai" ? "active" : ""}`}
               onClick={() => setActiveView("ai")}
             >
@@ -564,6 +619,33 @@ export default function ViceLinkHub() {
               <span>{t(lang, "navAi", isEs ? "Guía IA de Misiones" : "AI Mission Guide")}</span>
               <small className="badge-live">LIVE</small>
             </button>
+
+            <button
+              type="button"
+              className={`nav-btn ${activeView === "feedback" ? "active" : ""}`}
+              onClick={() => setActiveView("feedback")}
+            >
+              <span className="nav-icon">💡</span>
+              <span>
+                {t(
+                  lang,
+                  "nav.feedback",
+                  isEs ? "Enviar Intel y Feedback" : "Submit Intel & Feedback"
+                )}
+              </span>
+            </button>
+
+            {me.profile.isAdmin === true && (
+              <button
+                type="button"
+                className={`nav-btn ${activeView === "admin" ? "active" : ""}`}
+                onClick={() => setActiveView("admin")}
+              >
+                <span className="nav-icon">🛡️</span>
+                <span>{t(lang, "nav.admin", isEs ? "Panel Admin" : "Admin Panel")}</span>
+                <small className="badge-new">ADMIN</small>
+              </button>
+            )}
           </nav>
         </div>
 
@@ -685,6 +767,27 @@ export default function ViceLinkHub() {
           <MechanicsView lang={lang} mechanics={content.mechanics} />
         )}
 
+        {activeView === "controls" && (
+          <ControlsView lang={lang} controls={content.controls} />
+        )}
+
+        {activeView === "radio" && (
+          <RadioView lang={lang} stations={content.radioStations} />
+        )}
+
+        {activeView === "trophies" && (
+          <TrophiesView
+            lang={lang}
+            trophies={content.trophies}
+            trophiesLocked={content.trophiesLocked}
+            totalTrophiesCount={content.totalTrophiesCount}
+            criminalProfileTiers={content.criminalProfileTiers}
+            unlockedTrophies={progress.unlockedTrophies ?? []}
+            onToggleTrophy={handleToggleTrophy}
+            onOpenPricing={() => setPricingOpen(true)}
+          />
+        )}
+
         {activeView === "ai" && (
           <AiAdvisorView
             lang={lang}
@@ -693,6 +796,22 @@ export default function ViceLinkHub() {
             onUpdateQuota={handleUpdateQuota}
             onOpenPricing={() => setPricingOpen(true)}
             onOpenSocialStudio={() => setSocialOpen(true)}
+          />
+        )}
+
+        {activeView === "feedback" && (
+          <FeedbackView
+            lang={lang}
+            userHandle={me.profile.handle}
+            userTier={me.profile.tier}
+          />
+        )}
+
+        {activeView === "admin" && me.profile.isAdmin === true && (
+          <AdminView
+            lang={lang}
+            isAdmin={me.profile.isAdmin}
+            onAdminDataChanged={loadAll}
           />
         )}
       </main>

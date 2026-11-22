@@ -13,6 +13,7 @@ export type UserProfile = {
   handle: string;
   displayName: string;
   tier: UserTier;
+  isAdmin: boolean;
   preferredLang: Language;
   createdAt: string;
 };
@@ -23,6 +24,7 @@ export type UserProgress = {
   foundPins: string[];
   plannedVehicles: string[];
   plannedProps: string[];
+  unlockedTrophies: string[];
 };
 
 export type PaymentProvider = "yappy" | "tilopay" | "paguelofacil" | "stripe";
@@ -95,6 +97,7 @@ export type GlitchItem = {
   id: string;
   category: GlitchCategory;
   status: LocalizedText;
+  isPatched?: boolean;
   title: LocalizedText;
   votes: number;
   voted?: boolean;
@@ -184,6 +187,114 @@ export type AiQuotaInfo = {
   unlimited: boolean;
 };
 
+export type ControlCategory =
+  | "On-Foot"
+  | "Combat & Weapons"
+  | "Driving & Cars"
+  | "Boats & Trailers"
+  | "Planes & Parachuting";
+
+export type HiddenControlItem = {
+  id: string;
+  category: ControlCategory;
+  title: LocalizedText;
+  ps5: LocalizedText;
+  xbox: LocalizedText;
+  ps5Keys: string[];
+  xboxKeys: string[];
+  tip: LocalizedText;
+};
+
+export type RadioGenre =
+  | "Urbano / Reggaeton"
+  | "Hip-Hop / Dirty South"
+  | "World / Jazz"
+  | "Afrobeats"
+  | "Rock / Metal"
+  | "Country"
+  | "80s Pop"
+  | "Electronic / Club"
+  | "Talk & News"
+  | "Unlockable";
+
+export type RadioTrack = {
+  id: string;
+  title: string;
+  artist: string;
+  year?: string;
+  featured?: boolean;
+};
+
+export type RadioStation = {
+  id: string;
+  name: string;
+  genre: RadioGenre;
+  hosts: string;
+  vibe: LocalizedText;
+  unlockNote?: LocalizedText;
+  tracks: RadioTrack[];
+};
+
+export type TrophyGrade = "platinum" | "gold" | "silver" | "bronze";
+
+export type TrophyItem = {
+  id: string;
+  grade: TrophyGrade;
+  secret: boolean;
+  missable: boolean;
+  chapter?: string;
+  title: LocalizedText;
+  desc: LocalizedText;
+  guide: LocalizedText;
+};
+
+export type CriminalProfileTier = {
+  id: "professional" | "hardened" | "violent" | "psycho" | "irredeemable";
+  rank: number;
+  name: LocalizedText;
+  badgeColor: string;
+  icon: string;
+  permanent?: boolean;
+  behavior: LocalizedText;
+  focusPerk: LocalizedText;
+  policeResponse: LocalizedText;
+};
+
+export type SubmissionType =
+  | "money_spot"
+  | "glitch_report"
+  | "easter_egg"
+  | "cheat_combo"
+  | "site_feedback";
+
+export type SubmissionStatus = "pending" | "approved" | "implemented" | "rejected";
+
+export type CommunitySubmission = {
+  id: string;
+  authorHandle: string;
+  authorTier?: UserTier;
+  submissionType: SubmissionType;
+  regionOrCategory: string;
+  title: string;
+  details: string;
+  status: SubmissionStatus;
+  adminNotes: string;
+  votes: number;
+  upvoted?: boolean;
+  isMine?: boolean;
+  createdAt: string;
+};
+
+export type AdminUserRecord = {
+  userId: string;
+  email: string;
+  handle: string;
+  displayName: string;
+  tier: UserTier;
+  isAdmin: boolean;
+  createdAt: string;
+};
+
 export type ContentPayload = {
   tier: UserTier;
   cheats: CheatItem[];
@@ -198,4 +309,10 @@ export type ContentPayload = {
   socialStudioLocked: boolean;
   mechanics: MechanicItem[];
   aiQuota: AiQuotaInfo;
+  controls: HiddenControlItem[];
+  radioStations: RadioStation[];
+  trophies: TrophyItem[];
+  trophiesLocked: boolean;
+  totalTrophiesCount: number;
+  criminalProfileTiers: CriminalProfileTier[];
 };

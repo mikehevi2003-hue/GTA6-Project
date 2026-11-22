@@ -5,6 +5,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AI_DAILY_LIMIT_FREE } from "@/lib/security/tier";
 import type {
+  AdminAuditLogItem,
+  AdminKpiTelemetry,
+  AdminUserRecord,
   AiQuotaInfo,
   CheatItem,
   CommunitySubmission,
@@ -14,6 +17,7 @@ import type {
   MapPin,
   MePayload,
   PaymentReceipt,
+  SiteSettingsPayload,
   TheoryComment,
   TheoryPost,
   UserProfile,
@@ -22,6 +26,8 @@ import type {
 } from "@/types/vicelink";
 import type {
   Database,
+  Json,
+  VicelinkAdminAuditLogRow,
   VicelinkCommunitySubmissionRow,
   VicelinkDynamicCheatRow,
   VicelinkDynamicGlitchRow,
@@ -32,6 +38,24 @@ import type {
 } from "./client";
 
 const NO_STORE_HEADERS = { "Cache-Control": "private, no-store" } as const;
+
+const COFOUNDER_EMAILS = new Set(["mikehevi2003@gmail.com", "felipedleon@gmail.com"]);
+
+export function isCoFounderEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return COFOUNDER_EMAILS.has(email.trim().toLowerCase());
+}
+
+export const DEFAULT_SITE_SETTINGS: SiteSettingsPayload = {
+  globalBanner: {
+    active: true,
+    textEn: "ViceLink v2.5 Patch Live — 19 Verified Cheats & 32 Tactical Pins Active",
+    textEs: "ViceLink v2.5 en Vivo — 19 Trucos Verificados y 32 Pines Tácticos Activos"
+  },
+  freeAiDailyLimit: AI_DAILY_LIMIT_FREE,
+  maintenanceMode: false,
+  glitchesTabEnabled: true
+};
 
 export function apiJson<T>(data: T, status = 200): NextResponse<T> {
   return NextResponse.json(data, { status, headers: NO_STORE_HEADERS });
@@ -90,6 +114,18 @@ export async function getAuthedUser(supabase: VicelinkSupabaseClient): Promise<U
   }
 }
 
+export async function getAuthenticatorAssuranceLevel(
+  supabase: VicelinkSupabaseClient
+): Promise<"aal1" | "aal2"> {
+  try {
+    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error || !data) return "aal1";
+    return data.currentLevel === "aal2" ? "aal2" : "aal1";
+  } catch {
+    return "aal1";
+  }
+}
+
 export async function requireAdminUser(
   supabase: VicelinkSupabaseClient,
   authedUser?: User
@@ -97,7 +133,8 @@ export async function requireAdminUser(
   const user = authedUser ?? (await getAuthedUser(supabase));
   if (!user) return null;
   const { profile } = await ensureProfileAndProgress(supabase, user);
-  if (!profile.is_admin) return null;
+  if (!profile.is_admin && !isCoFounderEmail(profile.email)) return null;
+  if (profile.is_banned && !isCoFounderEmail(profile.email)) return null;
   return { user, profile };
 }
 
@@ -113,7 +150,6 @@ export function deriveFallbackHandle(user: User): string {
 /**
  * Loads the user's profile and progress rows, creating missing defaults via
  * RLS-scoped self-insert if the auth signup trigger hasn't populated them.
- * Access tier is always enforced to 'free' and is_admin to false on insert.
  */
 export async function ensureProfileAndProgress(
   supabase: VicelinkSupabaseClient,
@@ -149,6 +185,15 @@ export async function ensureProfileAndProgress(
     profile = reloaded.data;
   }
 
+  if (isCoFounderEmail(profile.email) || isCoFounderEmail(user.email)) {
+    profile = {
+      ...profile,
+      is_admin: true,
+      access_tier: "kingpin",
+      is_banned: false
+    };
+  }
+
   let { data: progress, error: progressErr } = await supabase
     .from("vicelink_progress")
     .select("*")
@@ -175,16 +220,29 @@ export async function ensureProfileAndProgress(
   return { profile, progress };
 }
 
-export function mapProfileRow(row: VicelinkProfileRow): UserProfile {
+export function mapProfileRow(row: VicelinkProfileRow, aal?: "aal1" | "aal2"): UserProfile {
+  const isCofounder = isCoFounderEmail(row.email);
   return {
     id: row.user_id,
     email: row.email,
     handle: row.handle,
     displayName: row.display_name,
-    tier: row.access_tier,
-    isAdmin: Boolean(row.is_admin),
+    tier: isCofounder ? "kingpin" : row.access_tier,
+    isAdmin: isCofounder || Boolean(row.is_admin),
     preferredLang: row.preferred_lang,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    avatarPreset: row.avatar_preset || "neon_vice",
+    psnId: row.psn_id ?? "",
+    psnVerified: Boolean(row.psn_verified),
+    xboxGamertag: row.xbox_gamertag ?? "",
+    xboxVerified: Boolean(row.xbox_verified),
+    socialClubHandle: row.social_club_handle ?? "",
+    verificationCode:
+      row.verification_code ||
+      `VL-${row.user_id.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+    mfaEnabled: Boolean(row.mfa_enabled),
+    isBanned: isCofounder ? false : Boolean(row.is_banned),
+    ...(aal ? { aal } : {})
   };
 }
 
@@ -204,18 +262,20 @@ export async function buildMePayload(
   user: User,
   preloaded?: { profile: VicelinkProfileRow; progress: VicelinkProgressRow }
 ): Promise<MePayload> {
-  const { profile, progress } = preloaded ?? (await ensureProfileAndProgress(supabase, user));
+  const [{ profile, progress }, aal, txRes] = await Promise.all([
+    preloaded ? Promise.resolve(preloaded) : ensureProfileAndProgress(supabase, user),
+    getAuthenticatorAssuranceLevel(supabase),
+    supabase
+      .from("vicelink_transactions")
+      .select("id, provider, provider_order_id, target_tier, amount_usd, currency, status, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+  ]);
 
-  const { data: txRows, error: txErr } = await supabase
-    .from("vicelink_transactions")
-    .select("id, provider, provider_order_id, target_tier, amount_usd, currency, status, created_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  if (txRes.error) throw txRes.error;
 
-  if (txErr) throw txErr;
-
-  const payments: PaymentReceipt[] = (txRows ?? []).map((tx) => ({
+  const payments: PaymentReceipt[] = (txRes.data ?? []).map((tx) => ({
     id: tx.id,
     provider: tx.provider,
     providerOrderId: tx.provider_order_id,
@@ -227,7 +287,7 @@ export async function buildMePayload(
   }));
 
   return {
-    profile: mapProfileRow(profile),
+    profile: mapProfileRow(profile, aal),
     progress: mapProgressRow(progress),
     payments
   };
@@ -240,7 +300,8 @@ export function todayUtcDate(): string {
 export async function getAiQuotaInfo(
   supabase: VicelinkSupabaseClient,
   userId: string,
-  tier: UserTier
+  tier: UserTier,
+  freeLimitOverride?: number
 ): Promise<AiQuotaInfo> {
   const unlimited = tier === "kingpin";
   const { data, error } = await supabase
@@ -252,11 +313,237 @@ export async function getAiQuotaInfo(
 
   if (error) throw error;
 
+  const effectiveLimit =
+    typeof freeLimitOverride === "number" && Number.isFinite(freeLimitOverride)
+      ? Math.min(50, Math.max(1, Math.round(freeLimitOverride)))
+      : AI_DAILY_LIMIT_FREE;
+
   return {
     used: data?.count ?? 0,
-    limit: unlimited ? null : AI_DAILY_LIMIT_FREE,
+    limit: unlimited ? null : effectiveLimit,
     unlimited
   };
+}
+
+export async function loadSiteSettings(
+  supabase: VicelinkSupabaseClient
+): Promise<SiteSettingsPayload> {
+  try {
+    const { data, error } = await supabase
+      .from("vicelink_site_settings")
+      .select("key, value");
+
+    if (error || !data) {
+      return {
+        globalBanner: { ...DEFAULT_SITE_SETTINGS.globalBanner },
+        freeAiDailyLimit: DEFAULT_SITE_SETTINGS.freeAiDailyLimit,
+        maintenanceMode: DEFAULT_SITE_SETTINGS.maintenanceMode,
+        glitchesTabEnabled: DEFAULT_SITE_SETTINGS.glitchesTabEnabled
+      };
+    }
+
+    const settings: SiteSettingsPayload = {
+      globalBanner: { ...DEFAULT_SITE_SETTINGS.globalBanner },
+      freeAiDailyLimit: DEFAULT_SITE_SETTINGS.freeAiDailyLimit,
+      maintenanceMode: DEFAULT_SITE_SETTINGS.maintenanceMode,
+      glitchesTabEnabled: DEFAULT_SITE_SETTINGS.glitchesTabEnabled
+    };
+
+    for (const row of data) {
+      const val =
+        typeof row.value === "object" && row.value !== null && !Array.isArray(row.value)
+          ? (row.value as Record<string, unknown>)
+          : {};
+
+      if (row.key === "global_banner") {
+        settings.globalBanner = {
+          active:
+            typeof val.active === "boolean"
+              ? val.active
+              : DEFAULT_SITE_SETTINGS.globalBanner.active,
+          textEn:
+            typeof val.textEn === "string" && val.textEn.trim().length > 0
+              ? val.textEn.trim()
+              : DEFAULT_SITE_SETTINGS.globalBanner.textEn,
+          textEs:
+            typeof val.textEs === "string" && val.textEs.trim().length > 0
+              ? val.textEs.trim()
+              : DEFAULT_SITE_SETTINGS.globalBanner.textEs
+        };
+      } else if (row.key === "free_ai_daily_limit") {
+        const parsed = Number(val.limit);
+        if (Number.isFinite(parsed) && parsed >= 1) {
+          settings.freeAiDailyLimit = Math.min(50, Math.max(1, Math.round(parsed)));
+        }
+      } else if (row.key === "maintenance_mode") {
+        if (typeof val.enabled === "boolean") {
+          settings.maintenanceMode = val.enabled;
+        }
+      } else if (row.key === "glitches_tab_enabled") {
+        if (typeof val.enabled === "boolean") {
+          settings.glitchesTabEnabled = val.enabled;
+        }
+      }
+    }
+
+    return settings;
+  } catch {
+    return {
+      globalBanner: { ...DEFAULT_SITE_SETTINGS.globalBanner },
+      freeAiDailyLimit: DEFAULT_SITE_SETTINGS.freeAiDailyLimit,
+      maintenanceMode: DEFAULT_SITE_SETTINGS.maintenanceMode,
+      glitchesTabEnabled: DEFAULT_SITE_SETTINGS.glitchesTabEnabled
+    };
+  }
+}
+
+export function mapAuditLogRow(row: VicelinkAdminAuditLogRow): AdminAuditLogItem {
+  const detailsObj =
+    typeof row.details === "object" && row.details !== null && !Array.isArray(row.details)
+      ? (row.details as Record<string, unknown>)
+      : {};
+  return {
+    id: row.id,
+    adminId: row.admin_id ?? "",
+    adminEmail: row.admin_email,
+    actionType: row.action_type,
+    targetId: row.target_id,
+    details: detailsObj,
+    createdAt: row.created_at
+  };
+}
+
+export async function recordAdminAuditLog(
+  supabase: VicelinkSupabaseClient,
+  params: {
+    adminId: string;
+    adminEmail: string;
+    actionType: string;
+    targetId?: string;
+    details?: Record<string, unknown>;
+  }
+): Promise<void> {
+  try {
+    await supabase.from("vicelink_admin_audit_logs").insert({
+      admin_id: params.adminId,
+      admin_email: params.adminEmail,
+      action_type: params.actionType,
+      target_id: params.targetId ?? "",
+      details: (params.details ?? {}) as Json
+    });
+  } catch {
+    // Non-fatal: audit log write failure should not block primary admin mutation.
+  }
+}
+
+export async function loadAdminAuditLogs(
+  supabase: VicelinkSupabaseClient,
+  limit = 50
+): Promise<AdminAuditLogItem[]> {
+  try {
+    const { data, error } = await supabase
+      .from("vicelink_admin_audit_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return data.map(mapAuditLogRow);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadAdminTelemetry(
+  supabase: VicelinkSupabaseClient
+): Promise<AdminKpiTelemetry> {
+  const fallback: AdminKpiTelemetry = {
+    grossRevenueUsd: 0,
+    yappyRevenueUsd: 0,
+    cardRevenueUsd: 0,
+    totalUsers: 0,
+    freeUsers: 0,
+    streetUsers: 0,
+    kingpinUsers: 0,
+    conversionRatePct: 0,
+    linkedConsoleUsers: 0,
+    aiCallsToday: 0,
+    mfaEnabledUsers: 0
+  };
+
+  try {
+    const { data, error } = await supabase.rpc("vicelink_admin_telemetry");
+    if (error || !data || data.length === 0) return fallback;
+    const row = data[0]!;
+    return {
+      grossRevenueUsd: Number(row.gross_revenue_usd ?? 0),
+      yappyRevenueUsd: Number(row.yappy_revenue_usd ?? 0),
+      cardRevenueUsd: Number(row.card_revenue_usd ?? 0),
+      totalUsers: Number(row.total_users ?? 0),
+      freeUsers: Number(row.free_users ?? 0),
+      streetUsers: Number(row.street_users ?? 0),
+      kingpinUsers: Number(row.kingpin_users ?? 0),
+      conversionRatePct: Number(row.conversion_rate_pct ?? 0),
+      linkedConsoleUsers: Number(row.linked_console_users ?? 0),
+      aiCallsToday: Number(row.ai_calls_today ?? 0),
+      mfaEnabledUsers: Number(row.mfa_enabled_users ?? 0)
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+export async function loadAdminUsersV2(
+  supabase: VicelinkSupabaseClient,
+  query = ""
+): Promise<AdminUserRecord[]> {
+  const v2Res = await supabase.rpc("vicelink_admin_list_users_v2", {
+    p_query: query
+  });
+
+  if (!v2Res.error && v2Res.data) {
+    return v2Res.data.map((row) => ({
+      userId: row.user_id,
+      email: row.email,
+      handle: row.handle,
+      displayName: row.display_name,
+      tier: isCoFounderEmail(row.email) ? "kingpin" : row.access_tier,
+      isAdmin: isCoFounderEmail(row.email) || Boolean(row.is_admin),
+      createdAt: row.created_at,
+      avatarPreset: row.avatar_preset || "neon_vice",
+      psnId: row.psn_id ?? "",
+      psnVerified: Boolean(row.psn_verified),
+      xboxGamertag: row.xbox_gamertag ?? "",
+      xboxVerified: Boolean(row.xbox_verified),
+      mfaEnabled: Boolean(row.mfa_enabled),
+      isBanned: isCoFounderEmail(row.email) ? false : Boolean(row.is_banned)
+    }));
+  }
+
+  if (v2Res.error?.code === "42501") {
+    throw v2Res.error;
+  }
+
+  const v1Res = await supabase.rpc("vicelink_admin_search_users", {
+    p_query: query
+  });
+  if (v1Res.error) throw v1Res.error;
+
+  return (v1Res.data ?? []).map((row) => ({
+    userId: row.user_id,
+    email: row.email,
+    handle: row.handle,
+    displayName: row.display_name,
+    tier: isCoFounderEmail(row.email) ? "kingpin" : row.access_tier,
+    isAdmin: isCoFounderEmail(row.email) || Boolean(row.is_admin),
+    createdAt: row.created_at,
+    avatarPreset: "neon_vice",
+    psnId: "",
+    psnVerified: false,
+    xboxGamertag: "",
+    xboxVerified: false,
+    mfaEnabled: false,
+    isBanned: false
+  }));
 }
 
 function toDirectionSeq(value: unknown): DirectionKey[] {
@@ -422,6 +709,54 @@ export async function loadGlitchVotes(
   return { voteCounts, userVoted };
 }
 
+type AuthorBadgeMeta = {
+  handle: string;
+  tier: UserTier;
+  avatarPreset: string;
+  psnVerified: boolean;
+  xboxVerified: boolean;
+};
+
+async function loadAuthorBadgesMap(
+  supabase: VicelinkSupabaseClient,
+  userIds: string[]
+): Promise<Map<string, AuthorBadgeMeta>> {
+  const map = new Map<string, AuthorBadgeMeta>();
+  if (userIds.length === 0) return map;
+
+  const badgesRes = await supabase.rpc("vicelink_author_badges", {
+    p_user_ids: userIds
+  });
+
+  if (!badgesRes.error && badgesRes.data) {
+    for (const row of badgesRes.data) {
+      map.set(row.user_id, {
+        handle: row.handle,
+        tier: row.access_tier,
+        avatarPreset: row.avatar_preset || "neon_vice",
+        psnVerified: Boolean(row.psn_verified),
+        xboxVerified: Boolean(row.xbox_verified)
+      });
+    }
+    return map;
+  }
+
+  const tiersRes = await supabase.rpc("vicelink_author_tiers", {
+    p_user_ids: userIds
+  });
+  if (tiersRes.error) throw tiersRes.error;
+  for (const row of tiersRes.data ?? []) {
+    map.set(row.user_id, {
+      handle: row.handle,
+      tier: row.access_tier,
+      avatarPreset: "neon_vice",
+      psnVerified: false,
+      xboxVerified: false
+    });
+  }
+  return map;
+}
+
 export async function buildCommunitySubmissions(
   supabase: VicelinkSupabaseClient,
   currentUserId: string,
@@ -455,16 +790,7 @@ export async function buildCommunitySubmissions(
   const userIds = Array.from(
     new Set(submissions.map((s) => s.user_id).filter((id): id is string => Boolean(id)))
   );
-  const authorMeta = new Map<string, { handle: string; tier: UserTier }>();
-  if (userIds.length > 0) {
-    const { data: tiersData, error: tiersErr } = await supabase.rpc("vicelink_author_tiers", {
-      p_user_ids: userIds
-    });
-    if (tiersErr) throw tiersErr;
-    for (const row of tiersData ?? []) {
-      authorMeta.set(row.user_id, { handle: row.handle, tier: row.access_tier });
-    }
-  }
+  const authorMeta = await loadAuthorBadgesMap(supabase, userIds);
 
   const voteCounts = new Map<string, number>();
   const userVoted = new Set<string>();
@@ -479,6 +805,9 @@ export async function buildCommunitySubmissions(
       id: row.id,
       authorHandle: meta?.handle ?? row.author_handle,
       authorTier: meta?.tier ?? "free",
+      authorPsnVerified: meta?.psnVerified ?? false,
+      authorXboxVerified: meta?.xboxVerified ?? false,
+      authorAvatarPreset: meta?.avatarPreset ?? "neon_vice",
       submissionType: row.submission_type,
       regionOrCategory: row.region_or_category,
       title: row.title,
@@ -496,7 +825,7 @@ export async function buildCommunitySubmissions(
 /**
  * Merges static seed theories (`defaultTheories`) with DB-persisted user
  * theories, votes, emoji reactions, comments, comment likes and verified author
- * tiers. Pass `onlyTheoryId` to rebuild a single post after an action.
+ * tiers + console badges. Pass `onlyTheoryId` to rebuild a single post after an action.
  */
 export async function buildMergedTheoryPosts(
   supabase: VicelinkSupabaseClient,
@@ -565,20 +894,11 @@ export async function buildMergedTheoryPosts(
   if (likesRes.error) throw likesRes.error;
   const dbCommentLikes = likesRes.data ?? [];
 
-  // Verified author tiers + handles via SECURITY DEFINER RPC (only exposes handle + access_tier).
+  // Verified author tiers + console badges via SECURITY DEFINER RPC.
   const userIds = Array.from(
     new Set([...dbTheories.map((t) => t.user_id), ...dbComments.map((c) => c.user_id)])
   );
-  const authorMeta = new Map<string, { handle: string; tier: UserTier }>();
-  if (userIds.length > 0) {
-    const { data: tiersData, error: tiersErr } = await supabase.rpc("vicelink_author_tiers", {
-      p_user_ids: userIds
-    });
-    if (tiersErr) throw tiersErr;
-    for (const row of tiersData ?? []) {
-      authorMeta.set(row.user_id, { handle: row.handle, tier: row.access_tier });
-    }
-  }
+  const authorMeta = await loadAuthorBadgesMap(supabase, userIds);
 
   const voteCounts = new Map<string, number>();
   const userVotedTheories = new Set<string>();
@@ -612,6 +932,9 @@ export async function buildMergedTheoryPosts(
       id: c.id,
       author: meta?.handle ?? c.author_handle,
       authorTier: meta?.tier ?? "free",
+      authorPsnVerified: meta?.psnVerified ?? false,
+      authorXboxVerified: meta?.xboxVerified ?? false,
+      authorAvatarPreset: meta?.avatarPreset ?? "neon_vice",
       text: c.body,
       gifId: c.gif_id,
       likes: commentLikeCounts.get(c.id) ?? 0,
@@ -640,6 +963,9 @@ export async function buildMergedTheoryPosts(
       tag: row.tag,
       author: meta?.handle ?? row.author_handle,
       authorTier: meta?.tier ?? "free",
+      authorPsnVerified: meta?.psnVerified ?? false,
+      authorXboxVerified: meta?.xboxVerified ?? false,
+      authorAvatarPreset: meta?.avatarPreset ?? "neon_vice",
       coords: row.coords,
       body: { en: row.body, es: row.body },
       votes: voteCounts.get(row.id) ?? 0,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { Language, PaymentReceipt, UserProfile } from "@/types/vicelink";
+import { AVATAR_PRESETS } from "@/components/views/AccountView";
 
 export interface AccountModalProps {
   open: boolean;
@@ -13,9 +14,15 @@ export interface AccountModalProps {
     handle: string;
     displayName: string;
     preferredLang: Language;
+    avatarPreset?: string;
+    psnId?: string;
+    xboxGamertag?: string;
+    socialClubHandle?: string;
+    mfaEnabled?: boolean;
   }) => Promise<void>;
   onOpenPricing: () => void;
   onSignOut: () => Promise<void>;
+  onOpenAccountView?: () => void;
 }
 
 const TIER_LABELS: Record<UserProfile["tier"], { en: string; es: string }> = {
@@ -32,12 +39,14 @@ export default function AccountModal({
   onClose,
   onSaveProfile,
   onOpenPricing,
-  onSignOut
+  onSignOut,
+  onOpenAccountView
 }: AccountModalProps) {
   const isEs = lang === "es";
   const [handle, setHandle] = useState(profile.handle);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [preferredLang, setPreferredLang] = useState<Language>(profile.preferredLang);
+  const [avatarPreset, setAvatarPreset] = useState<string>(profile.avatarPreset || "neon_vice");
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -50,6 +59,7 @@ export default function AccountModal({
     setHandle(profile.handle);
     setDisplayName(profile.displayName);
     setPreferredLang(profile.preferredLang);
+    setAvatarPreset(profile.avatarPreset || "neon_vice");
     setStatusMsg(null);
   }, [open, profile]);
 
@@ -72,7 +82,8 @@ export default function AccountModal({
       await onSaveProfile({
         handle: handle.trim(),
         displayName: displayName.trim(),
-        preferredLang
+        preferredLang,
+        avatarPreset
       });
       setStatusMsg({
         kind: "success",
@@ -145,7 +156,7 @@ export default function AccountModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-content modal-wide" style={{ maxWidth: 700 }}>
+      <div className="modal-content modal-wide" style={{ maxWidth: 720 }}>
         <div className="modal-top-bar">
           <span className="brand-badge">
             {isEs ? "CUENTA VERIFICADA • PRIVACIDAD LEY 81" : "VERIFIED ACCOUNT • LAW 81 PRIVACY"}
@@ -155,13 +166,54 @@ export default function AccountModal({
           </button>
         </div>
 
-        <h3>{isEs ? "Perfil de Miembro y Recibos" : "Member Profile & Receipts"}</h3>
-        <p className="modal-sub">
-          {profile.email} •{" "}
-          <span className={`tier-chip tier-${profile.tier}`}>
-            {isEs ? TIER_LABELS[profile.tier].es : TIER_LABELS[profile.tier].en}
-          </span>
-        </p>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 10,
+            marginBottom: 12
+          }}
+        >
+          <div>
+            <h3>{isEs ? "Perfil de Miembro y Recibos" : "Member Profile & Receipts"}</h3>
+            <p className="modal-sub" style={{ marginBottom: 0 }}>
+              {profile.email} •{" "}
+              <span className={`tier-chip tier-${profile.tier}`}>
+                {isEs ? TIER_LABELS[profile.tier].es : TIER_LABELS[profile.tier].en}
+              </span>
+              {profile.psnVerified && (
+                <span className="console-verified-pill" style={{ marginLeft: 6 }}>
+                  PSN ✓
+                </span>
+              )}
+              {profile.xboxVerified && (
+                <span className="console-verified-pill" style={{ marginLeft: 6 }}>
+                  XBOX ✓
+                </span>
+              )}
+              {profile.mfaEnabled && (
+                <span className="aal-badge verified" style={{ marginLeft: 6 }}>
+                  2FA ✓
+                </span>
+              )}
+            </p>
+          </div>
+
+          {onOpenAccountView && (
+            <button
+              type="button"
+              className="copy-combo-btn"
+              onClick={() => {
+                onClose();
+                onOpenAccountView();
+              }}
+            >
+              🔐 {isEs ? "Gestionar 2FA, Consolas y OCR" : "Manage 2FA, Consoles & OCR"}
+            </button>
+          )}
+        </div>
 
         {statusMsg && (
           <div
@@ -175,7 +227,12 @@ export default function AccountModal({
 
         <form
           onSubmit={handleSubmit}
-          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 18 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: 12,
+            marginBottom: 18
+          }}
         >
           <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "#cbd5e1" }}>
             <span>{isEs ? "@Usuario en el Foro" : "Forum @Handle"}</span>
@@ -213,6 +270,28 @@ export default function AccountModal({
                 fontSize: 13.5
               }}
             />
+          </label>
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "#cbd5e1" }}>
+            <span>{isEs ? "Avatar Táctico" : "Tactical Avatar"}</span>
+            <select
+              value={avatarPreset}
+              onChange={(e) => setAvatarPreset(e.target.value)}
+              style={{
+                background: "#090d18",
+                border: "1px solid var(--border)",
+                color: "var(--text-main)",
+                padding: "9px 11px",
+                borderRadius: 9,
+                fontSize: 13.5
+              }}
+            >
+              {AVATAR_PRESETS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.icon} {isEs ? p.labelEs : p.labelEn}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "#cbd5e1" }}>
@@ -323,7 +402,7 @@ export default function AccountModal({
             type="button"
             className="btn-secondary"
             disabled={exporting}
-            onClick={handleExportLaw81}
+            onClick={() => void handleExportLaw81()}
           >
             {exporting
               ? isEs
@@ -338,7 +417,7 @@ export default function AccountModal({
             type="button"
             className="btn-secondary"
             disabled={signingOut}
-            onClick={handleSignOutClick}
+            onClick={() => void handleSignOutClick()}
             style={{ borderColor: "rgba(244, 63, 94, 0.5)", color: "#fda4af" }}
           >
             {signingOut

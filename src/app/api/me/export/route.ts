@@ -18,6 +18,14 @@ export async function GET() {
     if (!user) return apiError("UNAUTHORIZED", 401);
 
     const ensured = await ensureProfileAndProgress(supabase, user);
+    if (ensured.profile.is_banned) {
+      return apiError(
+        "ACCOUNT_BANNED",
+        403,
+        "Your ViceLink account has been suspended by an administrator."
+      );
+    }
+
     const me = await buildMePayload(supabase, user, ensured);
 
     const [

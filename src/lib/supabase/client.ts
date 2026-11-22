@@ -2,7 +2,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
-// Typed schema for the ViceLink tables (supabase/migrations/20261121000001 + 000002).
+// Typed schema for the ViceLink tables (supabase/migrations/20261121000001..000003).
 // Only vicelink_* objects are described: the shared project's other tables
 // are intentionally unreachable through these typed clients.
 // ---------------------------------------------------------------------------
@@ -34,6 +34,15 @@ export type VicelinkProfileRow = {
   stripe_customer_id: string | null;
   created_at: string;
   updated_at: string;
+  avatar_preset: string;
+  psn_id: string;
+  psn_verified: boolean;
+  xbox_gamertag: string;
+  xbox_verified: boolean;
+  social_club_handle: string;
+  verification_code: string;
+  mfa_enabled: boolean;
+  is_banned: boolean;
 };
 
 export type VicelinkTransactionRow = {
@@ -147,6 +156,23 @@ export type VicelinkSubmissionVoteRow = {
   user_id: string;
 };
 
+export type VicelinkAdminAuditLogRow = {
+  id: string;
+  admin_id: string | null;
+  admin_email: string;
+  action_type: string;
+  target_id: string;
+  details: Json;
+  created_at: string;
+};
+
+export type VicelinkSiteSettingRow = {
+  key: string;
+  value: Json;
+  updated_by: string;
+  updated_at: string;
+};
+
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -170,6 +196,15 @@ export type Database = {
           stripe_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
+          avatar_preset?: string;
+          psn_id?: string;
+          psn_verified?: boolean;
+          xbox_gamertag?: string;
+          xbox_verified?: boolean;
+          social_club_handle?: string;
+          verification_code?: string;
+          mfa_enabled?: boolean;
+          is_banned?: boolean;
         }
       >;
       vicelink_transactions: Table<
@@ -296,6 +331,27 @@ export type Database = {
         }
       >;
       vicelink_submission_votes: Table<VicelinkSubmissionVoteRow, VicelinkSubmissionVoteRow>;
+      vicelink_admin_audit_logs: Table<
+        VicelinkAdminAuditLogRow,
+        {
+          id?: string;
+          admin_id?: string | null;
+          admin_email: string;
+          action_type: string;
+          target_id?: string;
+          details?: Json;
+          created_at?: string;
+        }
+      >;
+      vicelink_site_settings: Table<
+        VicelinkSiteSettingRow,
+        {
+          key: string;
+          value: Json;
+          updated_by?: string;
+          updated_at?: string;
+        }
+      >;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -306,6 +362,21 @@ export type Database = {
       vicelink_author_tiers: {
         Args: { p_user_ids: string[] };
         Returns: { user_id: string; handle: string; access_tier: TierText }[];
+      };
+      vicelink_author_badges: {
+        Args: { p_user_ids: string[] };
+        Returns: {
+          user_id: string;
+          handle: string;
+          access_tier: TierText;
+          avatar_preset: string;
+          psn_verified: boolean;
+          xbox_verified: boolean;
+        }[];
+      };
+      vicelink_verify_console_handle: {
+        Args: { p_platform: "psn" | "xbox" | "social_club"; p_handle: string };
+        Returns: boolean;
       };
       vicelink_complete_payment: {
         Args: {
@@ -329,6 +400,54 @@ export type Database = {
           is_admin: boolean;
           created_at: string;
         }[];
+      };
+      vicelink_admin_list_users_v2: {
+        Args: { p_query?: string };
+        Returns: {
+          user_id: string;
+          email: string;
+          handle: string;
+          display_name: string;
+          access_tier: TierText;
+          is_admin: boolean;
+          created_at: string;
+          avatar_preset: string;
+          psn_id: string;
+          psn_verified: boolean;
+          xbox_gamertag: string;
+          xbox_verified: boolean;
+          mfa_enabled: boolean;
+          is_banned: boolean;
+        }[];
+      };
+      vicelink_admin_telemetry: {
+        Args: Record<string, never>;
+        Returns: {
+          gross_revenue_usd: number;
+          yappy_revenue_usd: number;
+          card_revenue_usd: number;
+          total_users: number;
+          free_users: number;
+          street_users: number;
+          kingpin_users: number;
+          conversion_rate_pct: number;
+          linked_console_users: number;
+          ai_calls_today: number;
+          mfa_enabled_users: number;
+        }[];
+      };
+      vicelink_admin_toggle_ban: {
+        Args: {
+          p_target_user_id: string;
+          p_is_banned: boolean;
+        };
+        Returns: boolean;
+      };
+      vicelink_admin_redact_comment: {
+        Args: {
+          p_comment_id: string;
+        };
+        Returns: boolean;
       };
       vicelink_admin_grant_tier: {
         Args: {

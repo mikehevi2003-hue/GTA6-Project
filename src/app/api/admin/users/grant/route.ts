@@ -7,6 +7,7 @@ import {
   apiJson,
   createClient,
   getAuthedUser,
+  recordAdminAuditLog,
   requireAdminUser
 } from "@/lib/supabase/server";
 
@@ -70,9 +71,23 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
+    const finalTier = updatedTier ?? targetTier;
+
+    await recordAdminAuditLog(supabase, {
+      adminId: user.id,
+      adminEmail: admin.profile.email,
+      actionType: "VIP_TIER_GRANTED",
+      targetId: userId,
+      details: {
+        targetTier: finalTier,
+        provider,
+        ...(reference ? { reference } : {})
+      }
+    });
+
     return apiJson({
       userId,
-      tier: updatedTier ?? targetTier
+      tier: finalTier
     });
   } catch (err) {
     return apiError(

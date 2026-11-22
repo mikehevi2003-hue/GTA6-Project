@@ -7,6 +7,7 @@ import {
   apiJson,
   createClient,
   getAuthedUser,
+  recordAdminAuditLog,
   requireAdminUser
 } from "@/lib/supabase/server";
 
@@ -73,6 +74,17 @@ export async function PATCH(
     if (!data) {
       return apiError("SUBMISSION_NOT_FOUND", 404, "Community submission not found.");
     }
+
+    await recordAdminAuditLog(supabase, {
+      adminId: user.id,
+      adminEmail: admin.profile.email,
+      actionType: "SUBMISSION_MODERATED",
+      targetId: submissionId,
+      details: {
+        status: data.status,
+        ...(adminNotes ? { adminNotes } : {})
+      }
+    });
 
     return apiJson({
       id: data.id,

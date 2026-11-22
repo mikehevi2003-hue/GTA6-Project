@@ -16,6 +16,9 @@ export interface ForumViewProps {
   lang: Language;
   userHandle: string;
   userTier: UserTier;
+  psnVerified?: boolean;
+  xboxVerified?: boolean;
+  isAdmin?: boolean;
   theories: TheoryPost[];
   onUpdateHandle: (newHandle: string) => Promise<void>;
   onCreateTheory: (payload: {
@@ -25,16 +28,21 @@ export interface ForumViewProps {
     body: string;
   }) => Promise<void>;
   onTheoryAction: (theoryId: string, payload: ForumActionPayload) => Promise<void>;
+  onRefreshForum?: () => Promise<void> | void;
 }
 
 export default function ForumView({
   lang,
   userHandle,
   userTier,
+  psnVerified = false,
+  xboxVerified = false,
+  isAdmin = false,
   theories,
   onUpdateHandle,
   onCreateTheory,
-  onTheoryAction
+  onTheoryAction,
+  onRefreshForum
 }: ForumViewProps) {
   const isEs = lang === "es";
 
@@ -60,6 +68,8 @@ export default function ForumView({
   const [selectedGif, setSelectedGif] = useState<Record<string, string>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [busyThreadId, setBusyThreadId] = useState<string | null>(null);
+  const [redactingCommentId, setRedactingCommentId] = useState<string | null>(null);
+  const [redactedCommentIds, setRedactedCommentIds] = useState<Record<string, boolean>>({});
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   const filteredTheories = useMemo(() => {
@@ -90,7 +100,13 @@ export default function ForumView({
     try {
       await onUpdateHandle(cleaned);
     } catch (err) {
-      setFeedbackError(err instanceof Error ? err.message : isEs ? "No se pudo actualizar @usuario." : "Failed to update handle.");
+      setFeedbackError(
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "No se pudo actualizar @usuario."
+            : "Failed to update handle."
+      );
     } finally {
       setSavingHandle(false);
     }
@@ -160,6 +176,42 @@ export default function ForumView({
     setOpenGifTray((prev) => ({ ...prev, [theoryId]: false }));
   };
 
+  const handleAdminRedactComment = async (commentId: string) => {
+    if (!isAdmin) return;
+    setRedactingCommentId(commentId);
+    setFeedbackError(null);
+    try {
+      const res = await fetch("/api/admin/users/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId,
+          deleteComment: true
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isEs ? "No se pudo eliminar el comentario." : "Could not redact comment.")
+        );
+      }
+      setRedactedCommentIds((prev) => ({ ...prev, [commentId]: true }));
+      await onRefreshForum?.();
+    } catch (err) {
+      setFeedbackError(
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Error al moderar el comentario."
+            : "Comment moderation failed."
+      );
+    } finally {
+      setRedactingCommentId(null);
+    }
+  };
+
   const activeInitial = userHandle.replace(/^@/, "").charAt(0).toUpperCase() || "V";
 
   return (
@@ -177,8 +229,8 @@ export default function ForumView({
           </h2>
           <p>
             {isEs
-              ? `${theories.length} secretos y teorías • Comentarios estilo TikTok con @usuario, ❤️ likes y GIFs animados.`
-              : `${theories.length} secrets & theories • TikTok-style @username comments, ❤️ likes & animated GIF reactions.`}
+              ? `${theories.length} secretos y teorías • Comentarios estilo TikTok con @usuario, insignias PSN/Xbox verificadas y GIFs.`
+              : `${theories.length} secrets & theories • TikTok-style @username comments, verified PSN/Xbox badges & animated GIF reactions.`}
           </p>
         </div>
 
@@ -209,6 +261,8 @@ export default function ForumView({
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <strong style={{ color: "#00e5ff" }}>{userHandle}</strong>
               {userTier === "kingpin" && <span className="kingpin-badge">👑 KINGPIN</span>}
+              {psnVerified && <span className="console-verified-pill">PSN ✓</span>}
+              {xboxVerified && <span className="console-verified-pill">XBOX ✓</span>}
             </div>
           </div>
         </div>
@@ -353,6 +407,7 @@ export default function ForumView({
           const activeGifObj = ANIMATED_GIFS.find((g) => g.id === activeGifId);
           const tagMeta = THEORY_TAGS.find((tg) => tg.value === post.tag);
           const isBusy = busyThreadId === post.id;
+          const visibleComments = post.comments.filter((c) => !redactedCommentIds[c.id]);
 
           return (
             <article key={post.id} className="theory-card">
@@ -400,19 +455,20 @@ export default function ForumView({
                 {/* TikTok-Style Comment Drawer */}
                 <div className="comments-drawer">
                   <strong style={{ fontSize: 12, color: "#38bdf8" }}>
-                    💬 {isEs ? "Comentarios" : "Comments"} ({post.comments.length})
+                    💬 {isEs ? "Comentarios" : "Comments"} ({visibleComments.length})
                   </strong>
 
                   <div style={{ marginTop: 6 }}>
-                    {post.comments.length === 0 ? (
+                    {visibleComments.length === 0 ? (
                       <p style={{ fontSize: 12, color: "#94a3b8", padding: "4px 0" }}>
                         {isEs
                           ? "Sé el primero en comentar con tu @usuario o enviar un GIF."
                           : "Be the first to drop a comment or animated GIF!"}
                       </p>
                     ) : (
-                      post.comments.map((comment) => {
-                        const initial = (comment.author || "V").replace(/^@/, "").charAt(0).toUpperCase() || "V";
+                      visibleComments.map((comment) => {
+                        const initial =
+                          (comment.author || "V").replace(/^@/, "").charAt(0).toUpperCase() || "V";
                         const gifObj = ANIMATED_GIFS.find((g) => g.id === comment.gifId);
 
                         return (
@@ -427,6 +483,12 @@ export default function ForumView({
                                 {comment.authorTier === "kingpin" && (
                                   <span className="kingpin-badge">👑 KINGPIN</span>
                                 )}
+                                {comment.authorPsnVerified && (
+                                  <span className="console-verified-pill">PSN ✓</span>
+                                )}
+                                {comment.authorXboxVerified && (
+                                  <span className="console-verified-pill">XBOX ✓</span>
+                                )}
                               </div>
                               {comment.text && <div>{comment.text}</div>}
                               {gifObj && (
@@ -437,20 +499,49 @@ export default function ForumView({
                               )}
                             </div>
 
-                            <button
-                              type="button"
-                              disabled={isBusy}
-                              className={`tt-comment-like ${comment.liked ? "liked" : ""}`}
-                              onClick={() =>
-                                runAction(post.id, {
-                                  action: "likeComment",
-                                  commentId: comment.id
-                                })
-                              }
-                            >
-                              <span>{comment.liked ? "❤️" : "🤍"}</span>
-                              <span>{comment.likes || 0}</span>
-                            </button>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                className={`tt-comment-like ${comment.liked ? "liked" : ""}`}
+                                onClick={() =>
+                                  runAction(post.id, {
+                                    action: "likeComment",
+                                    commentId: comment.id
+                                  })
+                                }
+                              >
+                                <span>{comment.liked ? "❤️" : "🤍"}</span>
+                                <span>{comment.likes || 0}</span>
+                              </button>
+
+                              {isAdmin && (
+                                <button
+                                  type="button"
+                                  disabled={redactingCommentId === comment.id}
+                                  className="btn-secondary"
+                                  title={
+                                    isEs
+                                      ? "Admin: Eliminar comentario"
+                                      : "Admin: Redact comment"
+                                  }
+                                  aria-label={
+                                    isEs
+                                      ? "Eliminar comentario (Admin)"
+                                      : "Redact comment (Admin)"
+                                  }
+                                  style={{
+                                    padding: "3px 7px",
+                                    fontSize: 11,
+                                    borderColor: "rgba(244, 63, 94, 0.45)",
+                                    color: "#fda4af"
+                                  }}
+                                  onClick={() => void handleAdminRedactComment(comment.id)}
+                                >
+                                  {redactingCommentId === comment.id ? "..." : "🗑️"}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -544,6 +635,12 @@ export default function ForumView({
                     {isEs ? "Publicado por" : "Posted by"} <strong>{post.author}</strong>
                     {post.authorTier === "kingpin" && (
                       <span className="kingpin-badge">👑 KINGPIN</span>
+                    )}
+                    {post.authorPsnVerified && (
+                      <span className="console-verified-pill">PSN ✓</span>
+                    )}
+                    {post.authorXboxVerified && (
+                      <span className="console-verified-pill">XBOX ✓</span>
                     )}
                   </span>
                   <span>{isEs ? "Tablero de Lore de Leonida" : "Leonida Lore Board"}</span>

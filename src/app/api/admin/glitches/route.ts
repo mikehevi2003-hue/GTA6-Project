@@ -9,6 +9,7 @@ import {
   createClient,
   getAuthedUser,
   mapDynamicGlitchRow,
+  recordAdminAuditLog,
   requireAdminUser
 } from "@/lib/supabase/server";
 import { GLITCHES_DATA } from "@/server/data/glitches";
@@ -164,6 +165,19 @@ export async function POST(request: NextRequest) {
 
     const totalVotes = (seedMatch?.votes ?? 0) + (voteRows?.length ?? 0);
     const userVoted = Boolean(voteRows?.some((row) => row.user_id === user.id));
+
+    await recordAdminAuditLog(supabase, {
+      adminId: user.id,
+      adminEmail: admin.profile.email,
+      actionType: input.isPatched ? "GLITCH_MARKED_PATCHED" : "GLITCH_UPSERTED",
+      targetId: glitchId,
+      details: {
+        titleEn,
+        category,
+        isPatched: input.isPatched,
+        patchStatus
+      }
+    });
 
     return apiJson({
       glitch: mapDynamicGlitchRow(savedRow, totalVotes, userVoted)

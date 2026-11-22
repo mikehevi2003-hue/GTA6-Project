@@ -9,6 +9,8 @@ import {
   type MouseEvent
 } from "react";
 import type {
+  AdminAuditLogItem,
+  AdminKpiTelemetry,
   AdminUserRecord,
   CheatCategory,
   CheatItem,
@@ -20,27 +22,63 @@ import type {
   MapPin,
   PaymentProvider,
   PinType,
+  SiteSettingsPayload,
   SubmissionStatus,
   UserTier
 } from "@/types/vicelink";
 import { ARROW_MAP, REGIONS } from "@/lib/constants/forum";
 import { tField } from "@/lib/i18n/helpers";
+import { createClient } from "@/lib/supabase/client";
 
 export type AdminViewProps = {
   lang: Language;
   isAdmin: boolean;
+  userEmail?: string;
+  onNavigateToAccount?: () => void;
   onAdminDataChanged: () => Promise<void> | void;
+  onSiteSettingsChanged?: (s: SiteSettingsPayload) => void;
+  onToast?: (kind: "success" | "info" | "error", text: string) => void;
 };
 
-type AdminTab = "glitches_cheats" | "pins" | "submissions" | "users";
+type AdminTab = "telemetry_flags" | "glitches_cheats" | "pins" | "users" | "submissions";
+
+const DEFAULT_TELEMETRY: AdminKpiTelemetry = {
+  grossRevenueUsd: 0,
+  yappyRevenueUsd: 0,
+  cardRevenueUsd: 0,
+  totalUsers: 0,
+  freeUsers: 0,
+  streetUsers: 0,
+  kingpinUsers: 0,
+  conversionRatePct: 0,
+  linkedConsoleUsers: 0,
+  aiCallsToday: 0,
+  mfaEnabledUsers: 0
+};
+
+const DEFAULT_SITE_SETTINGS: SiteSettingsPayload = {
+  globalBanner: {
+    active: false,
+    textEn: "",
+    textEs: ""
+  },
+  freeAiDailyLimit: 3,
+  maintenanceMode: false,
+  glitchesTabEnabled: true
+};
 
 type OverviewPayload = {
+  telemetry: AdminKpiTelemetry;
+  siteSettings: SiteSettingsPayload;
+  auditLogs: AdminAuditLogItem[];
+  callerAal: "aal1" | "aal2";
   cheats: CheatItem[];
   glitches: GlitchItem[];
   dynamicPins: MapPin[];
   submissions: CommunitySubmission[];
 };
 
+const CO_FOUNDER_EMAILS = ["mikehevi2003@gmail.com", "felipedleon@gmail.com"];
 const GLITCH_CAT_OPTIONS: GlitchCategory[] = ["Money", "Camera", "Stealth", "Physics"];
 const CHEAT_CAT_OPTIONS: CheatCategory[] = ["Player", "Combat", "Vehicles", "World"];
 const PIN_TYPE_OPTIONS: { value: PinType; icon: string; en: string; es: string }[] = [
@@ -69,20 +107,75 @@ function formatDateTime(iso: string, isEs: boolean): string {
   });
 }
 
-export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps) {
+function formatAuditTimestamp(iso: string, isEs: boolean): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso || "";
+  return d.toLocaleString(isEs ? "es-PA" : "en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function summarizeAuditDetails(details: Record<string, unknown> | undefined): string {
+  if (!details || typeof details !== "object") return "—";
+  const entries = Object.entries(details).filter(([, val]) => val !== undefined && val !== null);
+  if (entries.length === 0) return "—";
+  return entries
+    .map(([k, v]) => {
+      if (typeof v === "object") {
+        try {
+          return `${k}: ${JSON.stringify(v)}`;
+        } catch {
+          return `${k}: [object]`;
+        }
+      }
+      return `${k}: ${String(v)}`;
+    })
+    .join(" • ");
+}
+
+export function AdminView({
+  lang,
+  isAdmin,
+  userEmail,
+  onNavigateToAccount,
+  onAdminDataChanged,
+  onSiteSettingsChanged,
+  onToast
+}: AdminViewProps) {
   const isEs = lang === "es";
 
-  const [activeTab, setActiveTab] = useState<AdminTab>("glitches_cheats");
+  const [activeTab, setActiveTab] = useState<AdminTab>("telemetry_flags");
   const [forbidden, setForbidden] = useState(!isAdmin);
   const [loading, setLoading] = useState(isAdmin);
   const [banner, setBanner] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const [overview, setOverview] = useState<OverviewPayload>({
+    telemetry: DEFAULT_TELEMETRY,
+    siteSettings: DEFAULT_SITE_SETTINGS,
+    auditLogs: [],
+    callerAal: "aal1",
     cheats: [],
     glitches: [],
     dynamicPins: [],
     submissions: []
   });
+
+  // Co-founder & Inline TOTP AAL2 Verification State
+  const [totpFactorId, setTotpFactorId] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  // Tab 0: Telemetry, Feature Flags & Live Global Ticker state
+  const [bannerActive, setBannerActive] = useState(false);
+  const [bannerTextEn, setBannerTextEn] = useState("");
+  const [bannerTextEs, setBannerTextEs] = useState("");
+  const [glitchesTabEnabled, setGlitchesTabEnabled] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [freeAiDailyLimit, setFreeAiDailyLimit] = useState<number>(3);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   // Tab 1: Glitch & Cheat manager state
   const [togglingGlitchId, setTogglingGlitchId] = useState<string | null>(null);
@@ -110,6 +203,7 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
   const [cheatDescEn, setCheatDescEn] = useState("");
   const [cheatDescEs, setCheatDescEs] = useState("");
   const [cheatSeq, setCheatSeq] = useState<DirectionKey[]>([]);
+  const [comboPendingOnly, setComboPendingOnly] = useState(false);
 
   // Tab 2: Map Pin Publisher state
   const [pinTier, setPinTier] = useState<UserTier>("street");
@@ -130,7 +224,7 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
   const [adminNotesDraft, setAdminNotesDraft] = useState<Record<string, string>>({});
   const [updatingSubId, setUpdatingSubId] = useState<string | null>(null);
 
-  // Tab 4: Manual VIP Pass Granter state
+  // Tab 4: Users, Manual VIP Pass Granter & Ban Toggle state
   const [userQuery, setUserQuery] = useState("");
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
@@ -139,10 +233,39 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
   const [grantProvider, setGrantProvider] = useState<PaymentProvider>("yappy");
   const [grantReference, setGrantReference] = useState("");
   const [grantingPass, setGrantingPass] = useState(false);
+  const [banningUserId, setBanningUserId] = useState<string | null>(null);
 
-  const showBanner = useCallback((kind: "success" | "error", text: string) => {
-    setBanner({ kind, text });
-  }, []);
+  const normalizedEmail = (userEmail || "").trim().toLowerCase();
+  const isCoFounder = CO_FOUNDER_EMAILS.includes(normalizedEmail);
+
+  const showBanner = useCallback(
+    (kind: "success" | "error", text: string) => {
+      setBanner({ kind, text });
+      if (onToast) {
+        onToast(kind, text);
+      }
+    },
+    [onToast]
+  );
+
+  // Inspect browser MFA factor status for inline 6-digit OTP step-up verification
+  const checkMfaStatus = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const supabase = createClient();
+      const [aalRes, factorsRes] = await Promise.all([
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        supabase.auth.mfa.listFactors()
+      ]);
+      if (aalRes.data?.currentLevel === "aal2") {
+        setOverview((prev) => ({ ...prev, callerAal: "aal2" }));
+      }
+      const verifiedTotp = factorsRes.data?.totp?.find((f) => f.status === "verified");
+      setTotpFactorId(verifiedTotp?.id ?? null);
+    } catch {
+      // Ignore if offline or Supabase env not configured in test
+    }
+  }, [isAdmin]);
 
   const loadOverview = useCallback(async () => {
     if (!isAdmin) {
@@ -167,7 +290,42 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
         );
       }
 
+      const rawSettings = data.siteSettings as Partial<SiteSettingsPayload> | undefined;
+      const nextSettings: SiteSettingsPayload = {
+        globalBanner: {
+          active: Boolean(rawSettings?.globalBanner?.active),
+          textEn: rawSettings?.globalBanner?.textEn ?? "",
+          textEs: rawSettings?.globalBanner?.textEs ?? ""
+        },
+        freeAiDailyLimit:
+          typeof rawSettings?.freeAiDailyLimit === "number" ? rawSettings.freeAiDailyLimit : 3,
+        maintenanceMode: Boolean(rawSettings?.maintenanceMode),
+        glitchesTabEnabled:
+          typeof rawSettings?.glitchesTabEnabled === "boolean"
+            ? rawSettings.glitchesTabEnabled
+            : true
+      };
+
+      const rawTelemetry = data.telemetry as Partial<AdminKpiTelemetry> | undefined;
+      const nextTelemetry: AdminKpiTelemetry = {
+        grossRevenueUsd: Number(rawTelemetry?.grossRevenueUsd ?? 0),
+        yappyRevenueUsd: Number(rawTelemetry?.yappyRevenueUsd ?? 0),
+        cardRevenueUsd: Number(rawTelemetry?.cardRevenueUsd ?? 0),
+        totalUsers: Number(rawTelemetry?.totalUsers ?? 0),
+        freeUsers: Number(rawTelemetry?.freeUsers ?? 0),
+        streetUsers: Number(rawTelemetry?.streetUsers ?? 0),
+        kingpinUsers: Number(rawTelemetry?.kingpinUsers ?? 0),
+        conversionRatePct: Number(rawTelemetry?.conversionRatePct ?? 0),
+        linkedConsoleUsers: Number(rawTelemetry?.linkedConsoleUsers ?? 0),
+        aiCallsToday: Number(rawTelemetry?.aiCallsToday ?? 0),
+        mfaEnabledUsers: Number(rawTelemetry?.mfaEnabledUsers ?? 0)
+      };
+
       const nextOverview: OverviewPayload = {
+        telemetry: nextTelemetry,
+        siteSettings: nextSettings,
+        auditLogs: Array.isArray(data.auditLogs) ? (data.auditLogs as AdminAuditLogItem[]) : [],
+        callerAal: data.callerAal === "aal2" ? "aal2" : "aal1",
         cheats: Array.isArray(data.cheats) ? (data.cheats as CheatItem[]) : [],
         glitches: Array.isArray(data.glitches) ? (data.glitches as GlitchItem[]) : [],
         dynamicPins: Array.isArray(data.dynamicPins) ? (data.dynamicPins as MapPin[]) : [],
@@ -175,7 +333,19 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
           ? (data.submissions as CommunitySubmission[])
           : []
       };
+
       setOverview(nextOverview);
+      setBannerActive(nextSettings.globalBanner.active);
+      setBannerTextEn(nextSettings.globalBanner.textEn);
+      setBannerTextEs(nextSettings.globalBanner.textEs);
+      setGlitchesTabEnabled(nextSettings.glitchesTabEnabled);
+      setMaintenanceMode(nextSettings.maintenanceMode);
+      setFreeAiDailyLimit(nextSettings.freeAiDailyLimit);
+
+      if (Array.isArray(data.users) && data.users.length > 0) {
+        setUsers(data.users as AdminUserRecord[]);
+      }
+
       setAdminNotesDraft((prev) => {
         const merged = { ...prev };
         for (const s of nextOverview.submissions) {
@@ -241,13 +411,121 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
 
   useEffect(() => {
     void loadOverview();
-  }, [loadOverview]);
+    void checkMfaStatus();
+  }, [loadOverview, checkMfaStatus]);
 
   useEffect(() => {
     if (activeTab === "users" && !forbidden && isAdmin && users.length === 0) {
       void searchUsers("");
     }
   }, [activeTab, forbidden, isAdmin, users.length, searchUsers]);
+
+  // --- Inline 6-Digit OTP Verification Handler ---
+  const handleVerifyInlineOtp = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!totpFactorId || otpCode.trim().length < 6) return;
+    setVerifyingOtp(true);
+    setBanner(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.mfa.challengeAndVerify({
+        factorId: totpFactorId,
+        code: otpCode.trim()
+      });
+      if (error) {
+        throw error;
+      }
+      setOtpCode("");
+      setOverview((prev) => ({ ...prev, callerAal: "aal2" }));
+      showBanner(
+        "success",
+        isEs
+          ? "🔒 Sesión de Co-Fundador elevada a AAL2 (2FA Verificado)."
+          : "🔒 Co-Founder session elevated to AAL2 (2FA Verified)."
+      );
+      await loadOverview();
+    } catch (err) {
+      showBanner(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Código 2FA inválido."
+            : "Invalid 6-digit 2FA code."
+      );
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  // --- Tab 0 Handler: Save Site Settings, Feature Flags & Live Global Ticker ---
+  const handleSaveSiteSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    setBanner(null);
+    const clampedLimit = Math.max(1, Math.min(20, Math.round(Number(freeAiDailyLimit) || 3)));
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          globalBanner: {
+            active: bannerActive,
+            textEn: bannerTextEn.trim(),
+            textEs: bannerTextEs.trim() || bannerTextEn.trim()
+          },
+          freeAiDailyLimit: clampedLimit,
+          maintenanceMode,
+          glitchesTabEnabled
+        })
+      });
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isEs ? "No se pudo guardar la configuración." : "Failed to save site settings.")
+        );
+      }
+
+      const updatedSettings: SiteSettingsPayload = data.siteSettings ?? {
+        globalBanner: {
+          active: bannerActive,
+          textEn: bannerTextEn.trim(),
+          textEs: bannerTextEs.trim() || bannerTextEn.trim()
+        },
+        freeAiDailyLimit: clampedLimit,
+        maintenanceMode,
+        glitchesTabEnabled
+      };
+
+      setOverview((prev) => ({ ...prev, siteSettings: updatedSettings }));
+      onSiteSettingsChanged?.(updatedSettings);
+      showBanner(
+        "success",
+        isEs
+          ? "✓ Ticker Global, Feature Flags y Límite de IA sincronizados en vivo."
+          : "✓ Live Global Ticker, Feature Flags & Free AI Limit synced across Hub."
+      );
+      await loadOverview();
+      await onAdminDataChanged();
+    } catch (err) {
+      showBanner(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Error al actualizar configuración global."
+            : "Could not save global settings."
+      );
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // --- Tab 1 Handlers: Glitches & Cheats ---
   const handleToggleGlitchStatus = async (glitch: GlitchItem) => {
@@ -619,6 +897,7 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
           ? `✓ Envío actualizado a "${status}".`
           : `✓ Submission updated to "${status}".`
       );
+      await loadOverview();
       await onAdminDataChanged();
     } catch (err) {
       showBanner(
@@ -630,7 +909,7 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
     }
   };
 
-  // --- Tab 4 Handlers: Manual VIP Pass Granter ---
+  // --- Tab 4 Handlers: Manual VIP Pass Granter & User Ban/Unban ---
   const handleUserSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
     void searchUsers(userQuery);
@@ -681,6 +960,7 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
       );
       setGrantReference("");
       await searchUsers(userQuery);
+      await loadOverview();
       await onAdminDataChanged();
     } catch (err) {
       showBanner(
@@ -691,6 +971,75 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
       setGrantingPass(false);
     }
   };
+
+  const handleToggleBanUser = async (userRecord: AdminUserRecord) => {
+    const nextBanned = !Boolean(userRecord.isBanned);
+    setBanningUserId(userRecord.userId);
+    setBanner(null);
+    // Optimistic update
+    setUsers((prev) =>
+      prev.map((u) => (u.userId === userRecord.userId ? { ...u, isBanned: nextBanned } : u))
+    );
+    try {
+      const res = await fetch("/api/admin/users/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userRecord.userId,
+          isBanned: nextBanned
+        })
+      });
+      if (res.status === 403) {
+        setForbidden(true);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            (isEs ? "No se pudo actualizar el estado de baneo." : "Could not update ban status.")
+        );
+      }
+      showBanner(
+        "success",
+        nextBanned
+          ? isEs
+            ? `🚫 Cuenta suspendida: ${userRecord.handle}`
+            : `🚫 Account banned: ${userRecord.handle}`
+          : isEs
+            ? `🔓 Cuenta reactivada: ${userRecord.handle}`
+            : `🔓 Account unbanned: ${userRecord.handle}`
+      );
+      await loadOverview();
+      await onAdminDataChanged();
+    } catch (err) {
+      // Revert optimistic update
+      setUsers((prev) =>
+        prev.map((u) => (u.userId === userRecord.userId ? { ...u, isBanned: !nextBanned } : u))
+      );
+      showBanner(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "Error al cambiar estado de baneo."
+            : "Failed to toggle user ban."
+      );
+    } finally {
+      setBanningUserId(null);
+    }
+  };
+
+  const pendingCheatsCount = useMemo(
+    () => overview.cheats.filter((c) => c.seq.length === 0).length,
+    [overview.cheats]
+  );
+
+  const displayedCheats = useMemo(
+    () => (comboPendingOnly ? overview.cheats.filter((c) => c.seq.length === 0) : overview.cheats),
+    [overview.cheats, comboPendingOnly]
+  );
 
   const submissionCounts = useMemo(() => {
     const counts = { all: overview.submissions.length, pending: 0, approved: 0, implemented: 0, rejected: 0 };
@@ -731,37 +1080,119 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
     );
   }
 
+  const { telemetry } = overview;
+
   return (
     <section id="view-admin" className="view active">
       <header className="view-header">
         <div>
-          <span className="brand-badge">
-            🛡️ {isEs ? "CENTRO DE COMANDO VICELINK" : "VICELINK ADMIN COMMAND CENTER"}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className="brand-badge">
+              🛡️ {isEs ? "CENTRO DE COMANDO CO-FUNDADOR" : "CO-FOUNDER & DEVELOPER COMMAND CENTER"}
+            </span>
+            {isCoFounder && (
+              <span className="kingpin-badge">
+                👑 CO-FOUNDER • {normalizedEmail}
+              </span>
+            )}
+            <span className="verified-badge">ADMIN RBAC</span>
+            {overview.callerAal === "aal2" ? (
+              <span
+                className="aal-badge verified implemented-badge"
+                style={{
+                  background: "rgba(34, 197, 94, 0.18)",
+                  border: "1px solid rgba(34, 197, 94, 0.55)",
+                  color: "#4ade80"
+                }}
+              >
+                🔒 AAL2 VERIFIED
+              </span>
+            ) : (
+              <span
+                className="aal-badge warn status-patched"
+                style={{
+                  background: "rgba(245, 158, 11, 0.16)",
+                  border: "1px solid rgba(245, 158, 11, 0.55)",
+                  color: "#fde047"
+                }}
+              >
+                ⚠️ {isEs ? "AAL1 — 2FA Recomendado" : "AAL1 — 2FA Recommended"}
+              </span>
+            )}
+          </div>
           <h2 style={{ marginTop: 6 }}>
-            {isEs ? "Panel de Administración en Vivo" : "Live CMS, Moderation & VIP Pass Manager"}
+            {isEs
+              ? "Telemetría en Vivo, Feature Flags, CMS y Auditoría"
+              : "Live Telemetry, Feature Flags, CMS & Security Audit Center"}
           </h2>
           <p>
             {isEs
-              ? "Marca glitches parcheados, publica códigos D-Pad, coloca pines en Leonida, modera intel y aprueba pagos manuales Yappy."
-              : "Toggle patched glitches, publish cracked D-Pad cheats, drop live Leonida map pins, moderate community intel, and grant manual Yappy VIP passes."}
+              ? "Controla el Ticker Global, límites de IA, glitches parcheados, combos D-Pad, pines de Leonida, pases VIP manuales y registro inmutable de auditoría."
+              : "Control the Live Global Ticker, AI rate limits, patched glitches, cracked D-Pad cheats, Leonida map pins, VIP passes, user bans, and immutable audit logs."}
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={loading}
-          onClick={() => void loadOverview()}
-        >
-          {loading
-            ? isEs
-              ? "Sincronizando..."
-              : "Syncing..."
-            : isEs
-              ? "↻ Recargar Datos"
-              : "↻ Reload Overview"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {overview.callerAal !== "aal2" && totpFactorId && (
+            <form
+              onSubmit={handleVerifyInlineOtp}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="6-digit 2FA"
+                style={{
+                  width: 108,
+                  background: "#080c16",
+                  border: "1px solid rgba(250, 204, 21, 0.5)",
+                  color: "#fff",
+                  padding: "7px 10px",
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontVariantNumeric: "tabular-nums"
+                }}
+              />
+              <button
+                type="submit"
+                className="btn-pro"
+                style={{ width: "auto", padding: "7px 12px", fontSize: 12 }}
+                disabled={verifyingOtp || otpCode.length < 6}
+              >
+                {verifyingOtp ? "..." : isEs ? "Verificar AAL2" : "Verify AAL2"}
+              </button>
+            </form>
+          )}
+
+          {onNavigateToAccount && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onNavigateToAccount}
+              style={{ fontSize: 12, padding: "8px 12px" }}
+            >
+              🔐 {isEs ? "2FA y Seguridad en Cuenta" : "2FA & Security in Account"}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={loading}
+            onClick={() => void loadOverview()}
+          >
+            {loading
+              ? isEs
+                ? "Sincronizando..."
+                : "Syncing..."
+              : isEs
+                ? "↻ Recargar Datos"
+                : "↻ Reload Overview"}
+          </button>
+        </div>
       </header>
 
       {banner && (
@@ -794,8 +1225,116 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
         </div>
       )}
 
-      {/* 4 Admin Tabs */}
-      <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+      {/* =================================================================
+          4 REAL-TIME TELEMETRY KPI CARDS (.admin-kpi-grid / .admin-kpi-card)
+         ================================================================= */}
+      <div
+        className="admin-kpi-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+          gap: 14,
+          marginBottom: 18
+        }}
+      >
+        <div className="admin-card admin-kpi-card" style={{ padding: "15px 16px", gap: 6 }}>
+          <span className="cat-tag">
+            💵 {isEs ? "INGRESOS BRUTOS (USD)" : "GROSS REVENUE (USD)"}
+          </span>
+          <strong
+            className="admin-kpi-value"
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: "#4ade80",
+              fontVariantNumeric: "tabular-nums"
+            }}
+          >
+            ${telemetry.grossRevenueUsd.toFixed(2)}
+          </strong>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+            ⚡ Yappy: <strong>${telemetry.yappyRevenueUsd.toFixed(2)}</strong> • 💳{" "}
+            {isEs ? "Tarjeta" : "Card"}: <strong>${telemetry.cardRevenueUsd.toFixed(2)}</strong>
+          </span>
+        </div>
+
+        <div className="admin-card admin-kpi-card" style={{ padding: "15px 16px", gap: 6 }}>
+          <span className="cat-tag">
+            📈 {isEs ? "TASA DE CONVERSIÓN VIP" : "CONVERSION RATE %"}
+          </span>
+          <strong
+            className="admin-kpi-value"
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: "var(--accent-cyan)",
+              fontVariantNumeric: "tabular-nums"
+            }}
+          >
+            {telemetry.conversionRatePct.toFixed(1)}%
+          </strong>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+            Free: <strong>{telemetry.freeUsers}</strong> • Street:{" "}
+            <strong>{telemetry.streetUsers}</strong> • Kingpin:{" "}
+            <strong style={{ color: "#facc15" }}>{telemetry.kingpinUsers}</strong>
+          </span>
+        </div>
+
+        <div className="admin-card admin-kpi-card" style={{ padding: "15px 16px", gap: 6 }}>
+          <span className="cat-tag">
+            🎮 {isEs ? "EXPLORADORES DE LEONIDA" : "ACTIVE LEONIDA EXPLORERS"}
+          </span>
+          <strong
+            className="admin-kpi-value"
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: "#ffffff",
+              fontVariantNumeric: "tabular-nums"
+            }}
+          >
+            {telemetry.totalUsers}
+          </strong>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+            PSN/Xbox: <strong>{telemetry.linkedConsoleUsers}</strong> • 🔒 2FA/MFA:{" "}
+            <strong style={{ color: "#4ade80" }}>{telemetry.mfaEnabledUsers}</strong>
+          </span>
+        </div>
+
+        <div className="admin-card admin-kpi-card" style={{ padding: "15px 16px", gap: 6 }}>
+          <span className="cat-tag">
+            🤖 {isEs ? "CARGA DEL ASESOR IA (HOY)" : "AI ADVISOR LOAD (TODAY)"}
+          </span>
+          <strong
+            className="admin-kpi-value"
+            style={{
+              fontSize: 26,
+              fontWeight: 900,
+              color: "var(--accent-pink)",
+              fontVariantNumeric: "tabular-nums"
+            }}
+          >
+            {telemetry.aiCallsToday}
+          </strong>
+          <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+            {isEs ? "Consultas hoy" : "Queries today"} •{" "}
+            {isEs ? "Límite Free:" : "Free Limit:"}{" "}
+            <strong>{overview.siteSettings.freeAiDailyLimit}/day</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* Admin Sub-Tabs */}
+      <div className="admin-tabs admin-subnav" role="tablist" aria-label="Admin sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "telemetry_flags"}
+          className={`admin-tab ${activeTab === "telemetry_flags" ? "active" : ""}`}
+          onClick={() => setActiveTab("telemetry_flags")}
+        >
+          🚩 {isEs ? "Flags y Ticker en Vivo" : "Flags & Live Ticker"}
+        </button>
         <button
           type="button"
           role="tab"
@@ -817,22 +1356,225 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === "submissions"}
-          className={`admin-tab ${activeTab === "submissions" ? "active" : ""}`}
-          onClick={() => setActiveTab("submissions")}
-        >
-          📥 {isEs ? "Cola de Intel" : "Intel & Feedback Queue"} ({submissionCounts.pending})
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={activeTab === "users"}
           className={`admin-tab ${activeTab === "users" ? "active" : ""}`}
           onClick={() => setActiveTab("users")}
         >
-          👑 {isEs ? "Pases VIP Manuales" : "Manual VIP Granter"}
+          👑 {isEs ? "Usuarios, VIP y Bans" : "Users, VIP & Bans"}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "submissions"}
+          className={`admin-tab ${activeTab === "submissions" ? "active" : ""}`}
+          onClick={() => setActiveTab("submissions")}
+        >
+          🛡️ {isEs ? "Moderación y Auditoría" : "Moderation & Audit Log"} ({submissionCounts.pending})
         </button>
       </div>
+
+      {/* =================================================================
+          TAB 0: TELEMETRY, FEATURE FLAGS & LIVE GLOBAL TICKER
+         ================================================================= */}
+      {activeTab === "telemetry_flags" && (
+        <form className="admin-grid" onSubmit={handleSaveSiteSettings}>
+          {/* Live Global Alert Ticker Card */}
+          <div className="admin-card">
+            <span className="cat-tag">
+              📢 {isEs ? "TICKER DE ALERTA GLOBAL EN VIVO" : "LIVE GLOBAL ALERT TICKER"}
+            </span>
+            <h3>
+              {isEs
+                ? "Mensaje Urgente en la Barra Superior del Hub"
+                : "Top-Bar Broadcast Banner (EN / ES)"}
+            </h3>
+            <p className="muted-sub" style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+              {isEs
+                ? "Publica avisos instantáneos sobre nuevos parches de Rockstar, glitches activos o mantenimiento programado."
+                : "Broadcast instant alerts across every player's screen for Rockstar patch updates, working money glitches, or events."}
+            </p>
+
+            <label
+              className="flag-toggle-row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                padding: "11px 13px",
+                borderRadius: 10,
+                background: "#080c16",
+                border: "1px solid var(--border)",
+                cursor: "pointer"
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: 13, color: "#fff", display: "block" }}>
+                  {isEs ? "Activar Ticker Global en el Hub" : "Enable Global Alert Ticker"}
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  {bannerActive
+                    ? isEs
+                      ? "🟢 Visible ahora mismo para todos los jugadores"
+                      : "🟢 Currently broadcasting live to all players"
+                    : isEs
+                      ? "⚪ Oculto"
+                      : "⚪ Hidden"}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={bannerActive}
+                onChange={(e) => setBannerActive(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: "var(--accent-cyan)" }}
+              />
+            </label>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: "#cbd5e1" }}>
+                {isEs ? "Texto del Ticker (Inglés - EN)" : "Ticker Message (English - EN)"}
+              </label>
+              <input
+                type="text"
+                maxLength={240}
+                value={bannerTextEn}
+                onChange={(e) => setBannerTextEn(e.target.value)}
+                placeholder="🚨 Patch 01.002.001 Live: Leonida Garage Duplication Glitch still WORKING!"
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: "#cbd5e1" }}>
+                {isEs ? "Texto del Ticker (Español - ES)" : "Ticker Message (Spanish - ES)"}
+              </label>
+              <input
+                type="text"
+                maxLength={240}
+                value={bannerTextEs}
+                onChange={(e) => setBannerTextEs(e.target.value)}
+                placeholder="🚨 Parche 01.002.001 Activo: ¡El Glitch de Duplicar Autos sigue ACTIVO!"
+              />
+            </div>
+          </div>
+
+          {/* Feature Flags & Dynamic Free AI Daily Limit Card */}
+          <div className="admin-card">
+            <span className="cat-tag">
+              ⚙️ {isEs ? "FEATURE FLAGS Y CUOTA DE IA" : "RUNTIME FEATURE FLAGS & AI QUOTA"}
+            </span>
+            <h3>
+              {isEs
+                ? "Interruptores Operativos en Tiempo Real"
+                : "Zero-Downtime Feature Switches & Rate Limits"}
+            </h3>
+
+            <label
+              className="flag-toggle-row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                padding: "11px 13px",
+                borderRadius: 10,
+                background: "#080c16",
+                border: "1px solid var(--border)",
+                cursor: "pointer"
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: 13, color: "#fff", display: "block" }}>
+                  ⚡ {isEs ? "Habilitar Pestaña de Glitches" : "Enable Glitches & Exploits Tab"}
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  {isEs
+                    ? "Si se desactiva, oculta la pestaña Glitches para usuarios no-admin."
+                    : "When disabled, hides the Glitches tab for non-admin players."}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={glitchesTabEnabled}
+                onChange={(e) => setGlitchesTabEnabled(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: "var(--accent-cyan)" }}
+              />
+            </label>
+
+            <label
+              className="flag-toggle-row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                padding: "11px 13px",
+                borderRadius: 10,
+                background: "#080c16",
+                border: maintenanceMode
+                  ? "1px solid rgba(245, 158, 11, 0.6)"
+                  : "1px solid var(--border)",
+                cursor: "pointer"
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: 13, color: "#fff", display: "block" }}>
+                  🛡️ {isEs ? "Escudo de Modo Mantenimiento" : "Maintenance Mode Shield"}
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  {isEs
+                    ? "Muestra una pantalla de mantenimiento a jugadores regulares (los admins tienen bypass)."
+                    : "Displays a sleek Maintenance Shield to non-admins while Admins keep full bypass access."}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={maintenanceMode}
+                onChange={(e) => setMaintenanceMode(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: "#f59e0b" }}
+              />
+            </label>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+              <label
+                htmlFor="free-ai-daily-limit"
+                style={{ fontSize: 11.5, fontWeight: 700, color: "#cbd5e1" }}
+              >
+                🤖{" "}
+                {isEs
+                  ? "Límite Diario de Consultas IA para Reclutas Gratis (1–20)"
+                  : "Dynamic Free Tier Daily AI Advisor Limit (1–20 queries/day)"}
+              </label>
+              <input
+                id="free-ai-daily-limit"
+                type="number"
+                min={1}
+                max={20}
+                value={freeAiDailyLimit}
+                onChange={(e) =>
+                  setFreeAiDailyLimit(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+                }
+              />
+            </div>
+
+            <div className="composer-actions" style={{ marginTop: "auto", paddingTop: 8 }}>
+              <button
+                type="submit"
+                className="btn-pro"
+                style={{ width: "auto" }}
+                disabled={savingSettings}
+              >
+                {savingSettings
+                  ? isEs
+                    ? "Guardando Configuración..."
+                    : "Saving Settings..."
+                  : isEs
+                    ? "💾 Guardar Ticker y Feature Flags"
+                    : "💾 Save Live Ticker & Feature Flags"}
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
 
       {/* =================================================================
           TAB 1: LIVE GLITCH & CHEAT MANAGER
@@ -1238,14 +1980,42 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
             </div>
           </form>
 
-          {/* Existing Cheats Quick-Edit List */}
+          {/* Existing Cheats Quick-Edit List with "Combo Pending Only" Toggle Filter */}
           <div className="admin-card">
-            <span className="cat-tag">
-              {isEs ? "TRUCOS PUBLICADOS" : "PUBLISHED CHEAT CODES"} ({overview.cheats.length})
-            </span>
-            <h3 style={{ fontSize: 17, marginTop: 4 }}>
-              {isEs ? "Seleccionar para Editar o Añadir Combo" : "Quick-Select to Edit or Add Cracked Combo"}
-            </h3>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8
+              }}
+            >
+              <div>
+                <span className="cat-tag">
+                  {isEs ? "TRUCOS PUBLICADOS" : "PUBLISHED CHEAT CODES"} ({displayedCheats.length} /{" "}
+                  {overview.cheats.length})
+                </span>
+                <h3 style={{ fontSize: 17, marginTop: 4 }}>
+                  {isEs
+                    ? "Seleccionar para Editar o Añadir Combo"
+                    : "Quick-Select to Edit or Add Cracked Combo"}
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                className={`layer-chip ${comboPendingOnly ? "active" : ""}`}
+                onClick={() => setComboPendingOnly((prev) => !prev)}
+                style={{ fontSize: 11.5, padding: "6px 11px" }}
+              >
+                ⏳{" "}
+                {isEs
+                  ? `Solo Combos Pendientes (${pendingCheatsCount})`
+                  : `Combo Pending Only (${pendingCheatsCount})`}
+              </button>
+            </div>
+
             <div
               style={{
                 display: "flex",
@@ -1256,29 +2026,41 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
                 overflowY: "auto"
               }}
             >
-              {overview.cheats.map((c) => (
-                <div key={c.id} className="admin-user-row">
-                  <div style={{ flex: 1, minWidth: 160 }}>
-                    <strong style={{ fontSize: 13 }}>{tField(c.title, lang)}</strong>
-                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                      {c.category} •{" "}
-                      {c.seq.length > 0
-                        ? c.seq.map((k) => ARROW_MAP[k]).join(" ")
-                        : isEs
-                          ? "Combo pendiente"
-                          : "Combo pending"}
+              {displayedCheats.length === 0 ? (
+                <p className="muted-sub">
+                  {isEs
+                    ? "No hay trucos con combo pendiente en este momento."
+                    : "No cheats match the current filter."}
+                </p>
+              ) : (
+                displayedCheats.map((c) => (
+                  <div key={c.id} className="admin-user-row">
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <strong style={{ fontSize: 13 }}>{tField(c.title, lang)}</strong>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                        {c.category} •{" "}
+                        {c.seq.length > 0 ? (
+                          <span style={{ color: "var(--accent-cyan)", fontWeight: 700 }}>
+                            {c.seq.map((k) => ARROW_MAP[k]).join(" ")}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#fde047" }}>
+                            ⏳ {isEs ? "Combo pendiente" : "Combo pending"}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: 11.5, padding: "6px 10px" }}
+                      onClick={() => populateCheatForm(c)}
+                    >
+                      ✏️ {isEs ? "Editar" : "Edit"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ fontSize: 11.5, padding: "6px 10px" }}
-                    onClick={() => populateCheatForm(c)}
-                  >
-                    ✏️ {isEs ? "Editar" : "Edit"}
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1587,164 +2369,257 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
       )}
 
       {/* =================================================================
-          TAB 3: COMMUNITY INTEL & FEEDBACK QUEUE
+          TAB 3: COMMUNITY INTEL MODERATION & IMMUTABLE CO-FOUNDER AUDIT LOG
          ================================================================= */}
       {activeTab === "submissions" && (
-        <div>
-          <div className="map-layer-chips">
-            {(
-              [
-                { id: "pending", en: `⏳ Pending (${submissionCounts.pending})`, es: `⏳ Pendientes (${submissionCounts.pending})` },
-                { id: "approved", en: `✓ Approved (${submissionCounts.approved})`, es: `✓ Aprobados (${submissionCounts.approved})` },
-                { id: "implemented", en: `🚀 Implemented (${submissionCounts.implemented})`, es: `🚀 Implementados (${submissionCounts.implemented})` },
-                { id: "rejected", en: `✕ Rejected (${submissionCounts.rejected})`, es: `✕ Rechazados (${submissionCounts.rejected})` },
-                { id: "all", en: `📋 All (${submissionCounts.all})`, es: `📋 Todos (${submissionCounts.all})` }
-              ] as const
-            ).map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                className={`layer-chip ${subFilter === chip.id ? "active" : ""}`}
-                onClick={() => setSubFilter(chip.id)}
-              >
-                {isEs ? chip.es : chip.en}
-              </button>
-            ))}
-          </div>
-
-          {filteredSubmissions.length === 0 ? (
-            <div className="paywall-box" style={{ maxWidth: 480 }}>
-              <h3>{isEs ? "Cola Limpia" : "Queue Is Clear"}</h3>
-              <p>
-                {isEs
-                  ? "No hay envíos de la comunidad en este estado."
-                  : "There are no community submissions matching this status filter."}
-              </p>
-            </div>
-          ) : (
-            <div className="forum-feed">
-              {filteredSubmissions.map((sub) => (
-                <div key={sub.id} className="admin-card">
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                      gap: 8
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span
-                        className={
-                          sub.status === "approved"
-                            ? "verified-badge"
-                            : sub.status === "implemented"
-                              ? "implemented-badge"
-                              : sub.status === "rejected"
-                                ? "status-patched"
-                                : "submission-badge"
-                        }
-                      >
-                        {sub.status.toUpperCase()}
-                      </span>
-                      <span className="submission-badge">{sub.submissionType}</span>
-                      {sub.regionOrCategory && (
-                        <span className="coord-pill">📍 {sub.regionOrCategory}</span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      <strong style={{ color: "var(--accent-cyan)" }}>{sub.authorHandle}</strong> • ▲{" "}
-                      {sub.votes} • {formatDateTime(sub.createdAt, isEs)}
-                    </span>
-                  </div>
-
-                  <h4 style={{ fontSize: 16, fontWeight: 800, marginTop: 10 }}>{sub.title}</h4>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: "#cbd5e1",
-                      lineHeight: 1.5,
-                      marginTop: 6,
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word"
-                    }}
-                  >
-                    {sub.details}
-                  </p>
-
-                  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                    <label
-                      htmlFor={`admin-note-${sub.id}`}
-                      style={{ fontSize: 11.5, fontWeight: 700, color: "#cbd5e1" }}
-                    >
-                      {isEs
-                        ? "Nota Pública del Equipo ViceLink (visible para el jugador)"
-                        : "ViceLink Admin Notes (shown on card)"}
-                    </label>
-                    <input
-                      id={`admin-note-${sub.id}`}
-                      type="text"
-                      className="auth-input"
-                      value={adminNotesDraft[sub.id] ?? sub.adminNotes ?? ""}
-                      onChange={(e) =>
-                        setAdminNotesDraft((prev) => ({ ...prev, [sub.id]: e.target.value }))
-                      }
-                      placeholder={
-                        isEs
-                          ? "ej., ¡Verificado en el parche 01.002.001 y añadido al mapa!"
-                          : "e.g., Verified on Patch 01.002.001 and added to the Tactical Map!"
-                      }
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      disabled={updatingSubId === sub.id}
-                      style={{ borderColor: "#22c55e", color: "#4ade80" }}
-                      onClick={() => void handleModerateSubmission(sub.id, "approved")}
-                    >
-                      ✓ {isEs ? "Aprobar" : "Approve"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      disabled={updatingSubId === sub.id}
-                      style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}
-                      onClick={() => void handleModerateSubmission(sub.id, "implemented")}
-                    >
-                      🚀 {isEs ? "Marcar Implementado" : "Mark Implemented"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      disabled={updatingSubId === sub.id}
-                      style={{ borderColor: "#f43f5e", color: "#fda4af" }}
-                      onClick={() => void handleModerateSubmission(sub.id, "rejected")}
-                    >
-                      ✕ {isEs ? "Rechazar" : "Reject"}
-                    </button>
-                  </div>
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+          <div>
+            <div className="map-layer-chips">
+              {(
+                [
+                  { id: "pending", en: `⏳ Pending (${submissionCounts.pending})`, es: `⏳ Pendientes (${submissionCounts.pending})` },
+                  { id: "approved", en: `✓ Approved (${submissionCounts.approved})`, es: `✓ Aprobados (${submissionCounts.approved})` },
+                  { id: "implemented", en: `🚀 Implemented (${submissionCounts.implemented})`, es: `🚀 Implementados (${submissionCounts.implemented})` },
+                  { id: "rejected", en: `✕ Rejected (${submissionCounts.rejected})`, es: `✕ Rechazados (${submissionCounts.rejected})` },
+                  { id: "all", en: `📋 All (${submissionCounts.all})`, es: `📋 Todos (${submissionCounts.all})` }
+                ] as const
+              ).map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className={`layer-chip ${subFilter === chip.id ? "active" : ""}`}
+                  onClick={() => setSubFilter(chip.id)}
+                >
+                  {isEs ? chip.es : chip.en}
+                </button>
               ))}
             </div>
-          )}
+
+            {filteredSubmissions.length === 0 ? (
+              <div className="paywall-box" style={{ maxWidth: 480 }}>
+                <h3>{isEs ? "Cola Limpia" : "Queue Is Clear"}</h3>
+                <p>
+                  {isEs
+                    ? "No hay envíos de la comunidad en este estado."
+                    : "There are no community submissions matching this status filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="forum-feed">
+                {filteredSubmissions.map((sub) => (
+                  <div key={sub.id} className="admin-card">
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 8
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span
+                          className={
+                            sub.status === "approved"
+                              ? "verified-badge"
+                              : sub.status === "implemented"
+                                ? "implemented-badge"
+                                : sub.status === "rejected"
+                                  ? "status-patched"
+                                  : "submission-badge"
+                          }
+                        >
+                          {sub.status.toUpperCase()}
+                        </span>
+                        <span className="submission-badge">{sub.submissionType}</span>
+                        {sub.regionOrCategory && (
+                          <span className="coord-pill">📍 {sub.regionOrCategory}</span>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "var(--text-muted)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          flexWrap: "wrap"
+                        }}
+                      >
+                        <strong style={{ color: "var(--accent-cyan)" }}>{sub.authorHandle}</strong>
+                        {sub.authorPsnVerified && (
+                          <span className="console-verified-pill">PSN ✓</span>
+                        )}
+                        {sub.authorXboxVerified && (
+                          <span className="console-verified-pill">XBOX ✓</span>
+                        )}
+                        • ▲ {sub.votes} • {formatDateTime(sub.createdAt, isEs)}
+                      </span>
+                    </div>
+
+                    <h4 style={{ fontSize: 16, fontWeight: 800, marginTop: 10 }}>{sub.title}</h4>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "#cbd5e1",
+                        lineHeight: 1.5,
+                        marginTop: 6,
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word"
+                      }}
+                    >
+                      {sub.details}
+                    </p>
+
+                    <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <label
+                        htmlFor={`admin-note-${sub.id}`}
+                        style={{ fontSize: 11.5, fontWeight: 700, color: "#cbd5e1" }}
+                      >
+                        {isEs
+                          ? "Nota Pública del Equipo ViceLink (visible para el jugador)"
+                          : "ViceLink Admin Notes (shown on card)"}
+                      </label>
+                      <input
+                        id={`admin-note-${sub.id}`}
+                        type="text"
+                        className="auth-input"
+                        value={adminNotesDraft[sub.id] ?? sub.adminNotes ?? ""}
+                        onChange={(e) =>
+                          setAdminNotesDraft((prev) => ({ ...prev, [sub.id]: e.target.value }))
+                        }
+                        placeholder={
+                          isEs
+                            ? "ej., ¡Verificado en el parche 01.002.001 y añadido al mapa!"
+                            : "e.g., Verified on Patch 01.002.001 and added to the Tactical Map!"
+                        }
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={updatingSubId === sub.id}
+                        style={{ borderColor: "#22c55e", color: "#4ade80" }}
+                        onClick={() => void handleModerateSubmission(sub.id, "approved")}
+                      >
+                        ✓ {isEs ? "Aprobar" : "Approve"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={updatingSubId === sub.id}
+                        style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}
+                        onClick={() => void handleModerateSubmission(sub.id, "implemented")}
+                      >
+                        🚀 {isEs ? "Marcar Implementado" : "Mark Implemented"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={updatingSubId === sub.id}
+                        style={{ borderColor: "#f43f5e", color: "#fda4af" }}
+                        onClick={() => void handleModerateSubmission(sub.id, "rejected")}
+                      >
+                        ✕ {isEs ? "Rechazar" : "Reject"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Immutable Co-Founder Audit Log Table */}
+          <div className="admin-card">
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8
+              }}
+            >
+              <div>
+                <span className="cat-tag">
+                  🔒 {isEs ? "REGISTRO INMUTABLE DE AUDITORÍA" : "IMMUTABLE CO-FOUNDER AUDIT LOG"}
+                </span>
+                <h3 style={{ fontSize: 17, marginTop: 4 }}>
+                  📜{" "}
+                  {isEs
+                    ? "Historial de Acciones Administrativas (vicelink_admin_audit_logs)"
+                    : "Recent Administrative Actions (vicelink_admin_audit_logs)"}
+                </h3>
+              </div>
+              <span className="verified-badge">{overview.auditLogs.length} entries</span>
+            </div>
+
+            <div className="fence-table-wrap audit-log-table-wrap">
+              <table className="receipt-table audit-log-table">
+                <thead>
+                  <tr>
+                    <th>{isEs ? "Fecha / Hora" : "Timestamp"}</th>
+                    <th>{isEs ? "Admin / Co-Fundador" : "Admin Email"}</th>
+                    <th>{isEs ? "Acción" : "Action Type"}</th>
+                    <th>{isEs ? "Objetivo" : "Target ID"}</th>
+                    <th>{isEs ? "Detalles" : "Details"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overview.auditLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ color: "var(--text-muted)", textAlign: "center", padding: 16 }}>
+                        {isEs
+                          ? "Aún no hay eventos registrados en la bitácora de auditoría."
+                          : "No audit events recorded yet."}
+                      </td>
+                    </tr>
+                  ) : (
+                    overview.auditLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+                          {formatAuditTimestamp(log.createdAt, isEs)}
+                        </td>
+                        <td>
+                          <strong style={{ color: "var(--accent-cyan)" }}>
+                            {log.adminEmail || log.adminId}
+                          </strong>
+                        </td>
+                        <td>
+                          <span className="submission-badge">{log.actionType}</span>
+                        </td>
+                        <td>
+                          <code>{log.targetId || "—"}</code>
+                        </td>
+                        <td style={{ fontSize: 11.5, color: "#cbd5e1", maxWidth: 360 }}>
+                          {summarizeAuditDetails(log.details)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
       {/* =================================================================
-          TAB 4: MANUAL VIP PASS GRANTER (YAPPY / PAGUELOFACIL / TILOPAY / STRIPE)
+          TAB 4: USERS, MANUAL VIP PASS GRANTER & BAN / UNBAN TOGGLE
          ================================================================= */}
       {activeTab === "users" && (
         <div className="admin-grid">
           <div className="admin-card">
             <span className="cat-tag">
-              {isEs ? "DIRECTORIO DE CUENTAS" : "USER ACCOUNT DIRECTORY"}
+              {isEs ? "DIRECTORIO DE CUENTAS Y CONSOLAS" : "PLAYER ACCOUNT & CONSOLE DIRECTORY"}
             </span>
             <h3 style={{ fontSize: 17, marginTop: 4 }}>
-              🔎 {isEs ? "Buscar por @usuario o Correo" : "Search Users by @username or Email"}
+              🔎{" "}
+              {isEs
+                ? "Buscar por @usuario, Correo, PSN ID o Xbox Gamertag"
+                : "Search by @handle, Email, PSN ID, or Xbox Gamertag"}
             </h3>
 
             <form
@@ -1756,7 +2631,11 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
                 type="text"
                 value={userQuery}
                 onChange={(e) => setUserQuery(e.target.value)}
-                placeholder={isEs ? "Buscar @usuario o correo..." : "Search @handle or email..."}
+                placeholder={
+                  isEs
+                    ? "Buscar @usuario, correo, PSN ID o Xbox Gamertag..."
+                    : "Search @handle, email, PSN ID, or Xbox Gamertag..."
+                }
               />
               <button
                 type="submit"
@@ -1774,7 +2653,7 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
               </button>
             </form>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 460, overflowY: "auto" }}>
               {users.length === 0 ? (
                 <p className="muted-sub">
                   {searchingUsers
@@ -1782,12 +2661,13 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
                       ? "Consultando usuarios..."
                       : "Loading users..."
                     : isEs
-                      ? "Sin resultados. Intenta buscar por correo o @handle."
-                      : "No matching accounts. Try searching by email or @handle."}
+                      ? "Sin resultados. Intenta buscar por correo, @handle o consola."
+                      : "No matching accounts. Try searching by email, @handle, or console ID."}
                 </p>
               ) : (
                 users.map((u) => {
                   const selected = u.userId === selectedUserId;
+                  const banned = Boolean(u.isBanned);
                   return (
                     <div
                       key={u.userId}
@@ -1795,10 +2675,12 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
                       style={
                         selected
                           ? { borderColor: "var(--accent-cyan)", background: "rgba(0, 229, 255, 0.08)" }
-                          : undefined
+                          : banned
+                            ? { borderColor: "rgba(244, 63, 94, 0.45)", background: "rgba(244, 63, 94, 0.06)" }
+                            : undefined
                       }
                     >
-                      <div style={{ flex: 1, minWidth: 160 }}>
+                      <div style={{ flex: 1, minWidth: 180 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                           <strong style={{ color: "var(--accent-cyan)", fontSize: 13 }}>
                             {u.handle}
@@ -1807,28 +2689,80 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
                             {u.tier.toUpperCase()}
                           </span>
                           {u.isAdmin && <span className="verified-badge">ADMIN</span>}
+                          {u.mfaEnabled && <span className="implemented-badge">🔒 2FA</span>}
+                          {banned && (
+                            <span className="status-patched">
+                              🚫 {isEs ? "BANEADO" : "BANNED"}
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
                           {u.email}
                         </div>
+                        {(u.psnId || u.xboxGamertag) && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                            {u.psnId && (
+                              <span
+                                className={u.psnVerified ? "console-verified-pill" : "cat-tag"}
+                                style={{ fontSize: 10 }}
+                              >
+                                PSN: {u.psnId} {u.psnVerified ? "✓" : ""}
+                              </span>
+                            )}
+                            {u.xboxGamertag && (
+                              <span
+                                className={u.xboxVerified ? "console-verified-pill" : "cat-tag"}
+                                style={{ fontSize: 10 }}
+                              >
+                                XBOX: {u.xboxGamertag} {u.xboxVerified ? "✓" : ""}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        className={selected ? "btn-pro" : "btn-secondary"}
-                        style={{ width: "auto", fontSize: 11.5, padding: "6px 10px" }}
-                        onClick={() => {
-                          setSelectedUserId(u.userId);
-                          setGrantTier(u.tier === "free" ? "street" : u.tier);
-                        }}
-                      >
-                        {selected
-                          ? isEs
-                            ? "✓ Seleccionado"
-                            : "✓ Selected"
-                          : isEs
-                            ? "Seleccionar"
-                            : "Select"}
-                      </button>
+
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className={selected ? "btn-pro" : "btn-secondary"}
+                          style={{ width: "auto", fontSize: 11.5, padding: "6px 10px" }}
+                          onClick={() => {
+                            setSelectedUserId(u.userId);
+                            setGrantTier(u.tier === "free" ? "street" : u.tier);
+                          }}
+                        >
+                          {selected
+                            ? isEs
+                              ? "✓ Seleccionado"
+                              : "✓ Selected"
+                            : isEs
+                              ? "Seleccionar"
+                              : "Select"}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          disabled={banningUserId === u.userId}
+                          style={{
+                            fontSize: 11.5,
+                            padding: "6px 10px",
+                            borderColor: banned ? "#22c55e" : "rgba(244, 63, 94, 0.55)",
+                            color: banned ? "#4ade80" : "#fda4af"
+                          }}
+                          onClick={() => void handleToggleBanUser(u)}
+                        >
+                          {banningUserId === u.userId
+                            ? "..."
+                            : banned
+                              ? isEs
+                                ? "🔓 Desbanear"
+                                : "🔓 Unban"
+                              : isEs
+                                ? "🚫 Banear"
+                                : "🚫 Ban"}
+                        </button>
+                      </div>
                     </div>
                   );
                 })
@@ -1850,6 +2784,11 @@ export function AdminView({ lang, isAdmin, onAdminDataChanged }: AdminViewProps)
                 <strong>{selectedUserRecord.handle}</strong> ({selectedUserRecord.email}) —{" "}
                 {isEs ? "Nivel actual:" : "Current tier:"}{" "}
                 <strong>{selectedUserRecord.tier.toUpperCase()}</strong>
+                {selectedUserRecord.isBanned && (
+                  <span className="status-patched" style={{ marginLeft: 8 }}>
+                    🚫 {isEs ? "BANEADO" : "BANNED"}
+                  </span>
+                )}
               </div>
             ) : (
               <p className="muted-sub">

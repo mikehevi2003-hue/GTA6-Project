@@ -11,6 +11,17 @@ import {
   getAuthedUser
 } from "@/lib/supabase/server";
 
+const AVATAR_PRESETS = [
+  "neon_vice",
+  "lucia_tactical",
+  "jason_keys",
+  "kingpin_gold",
+  "wasted_skull",
+  "ufo_kalaga"
+] as const;
+
+const CONSOLE_HANDLE_REGEX = /^[A-Za-z0-9 _-]{3,24}$/;
+
 const idArraySchema = z
   .array(z.string().trim().regex(/^[A-Za-z0-9_-]{1,64}$/))
   .max(250)
@@ -20,6 +31,11 @@ const patchMeSchema = z.object({
   handle: z.string().max(40).optional(),
   displayName: z.string().max(80).optional(),
   preferredLang: z.enum(["en", "es"]).optional(),
+  avatarPreset: z.enum(AVATAR_PRESETS).optional(),
+  psnId: z.string().max(40).optional(),
+  xboxGamertag: z.string().max(40).optional(),
+  socialClubHandle: z.string().max(40).optional(),
+  mfaEnabled: z.boolean().optional(),
   progress: z
     .object({
       favorites: idArraySchema.optional(),
@@ -38,6 +54,14 @@ const FORBIDDEN_PROFILE_KEYS = [
   "accessTier",
   "is_admin",
   "isAdmin",
+  "is_banned",
+  "isBanned",
+  "verification_code",
+  "verificationCode",
+  "psn_verified",
+  "psnVerified",
+  "xbox_verified",
+  "xboxVerified",
   "stripe_customer_id",
   "stripeCustomerId"
 ] as const;
@@ -81,7 +105,7 @@ export async function PATCH(request: NextRequest) {
       const record = rawBody as Record<string, unknown>;
       for (const forbidden of FORBIDDEN_PROFILE_KEYS) {
         if (forbidden in record) {
-          return apiError("FORBIDDEN_FIELD", 400, "Account tier cannot be modified via profile updates.");
+          return apiError("FORBIDDEN_FIELD", 400, "Protected account fields cannot be modified via profile updates.");
         }
       }
     }
@@ -92,12 +116,27 @@ export async function PATCH(request: NextRequest) {
     }
 
     const ensured = await ensureProfileAndProgress(supabase, user);
+    if (ensured.profile.is_banned) {
+      return apiError(
+        "ACCOUNT_BANNED",
+        403,
+        "Your ViceLink account has been suspended by an administrator."
+      );
+    }
+
     const input = parsed.data;
 
     const profilePatch: {
       handle?: string;
       display_name?: string;
       preferred_lang?: "en" | "es";
+      avatar_preset?: string;
+      psn_id?: string;
+      psn_verified?: boolean;
+      xbox_gamertag?: string;
+      xbox_verified?: boolean;
+      social_club_handle?: string;
+      mfa_enabled?: boolean;
     } = {};
 
     if (input.handle !== undefined) {
@@ -124,6 +163,53 @@ export async function PATCH(request: NextRequest) {
 
     if (input.preferredLang !== undefined) {
       profilePatch.preferred_lang = input.preferredLang;
+    }
+
+    if (input.avatarPreset !== undefined) {
+      profilePatch.avatar_preset = input.avatarPreset;
+    }
+
+    if (input.psnId !== undefined) {
+      if (containsDisallowedMarkup(input.psnId)) {
+        return apiError("INVALID_INPUT", 400, "PSN ID contains disallowed markup.");
+      }
+      const cleanPsn = sanitizePlainText(input.psnId, 24);
+      if (cleanPsn.length > 0 && !CONSOLE_HANDLE_REGEX.test(cleanPsn)) {
+        return apiError("INVALID_INPUT", 400, "PSN ID must be 3-24 alphanumeric, space, hyphen, or underscore characters.");
+      }
+      profilePatch.psn_id = cleanPsn;
+      if (cleanPsn !== (ensured.profile.psn_id ?? "")) {
+        profilePatch.psn_verified = false;
+      }
+    }
+
+    if (input.xboxGamertag !== undefined) {
+      if (containsDisallowedMarkup(input.xboxGamertag)) {
+        return apiError("INVALID_INPUT", 400, "Xbox Gamertag contains disallowed markup.");
+      }
+      const cleanXbox = sanitizePlainText(input.xboxGamertag, 24);
+      if (cleanXbox.length > 0 && !CONSOLE_HANDLE_REGEX.test(cleanXbox)) {
+        return apiError("INVALID_INPUT", 400, "Xbox Gamertag must be 3-24 alphanumeric, space, hyphen, or underscore characters.");
+      }
+      profilePatch.xbox_gamertag = cleanXbox;
+      if (cleanXbox !== (ensured.profile.xbox_gamertag ?? "")) {
+        profilePatch.xbox_verified = false;
+      }
+    }
+
+    if (input.socialClubHandle !== undefined) {
+      if (containsDisallowedMarkup(input.socialClubHandle)) {
+        return apiError("INVALID_INPUT", 400, "Social Club handle contains disallowed markup.");
+      }
+      const cleanSocial = sanitizePlainText(input.socialClubHandle, 24);
+      if (cleanSocial.length > 0 && !CONSOLE_HANDLE_REGEX.test(cleanSocial)) {
+        return apiError("INVALID_INPUT", 400, "Social Club handle must be 3-24 alphanumeric, space, hyphen, or underscore characters.");
+      }
+      profilePatch.social_club_handle = cleanSocial;
+    }
+
+    if (input.mfaEnabled !== undefined) {
+      profilePatch.mfa_enabled = input.mfaEnabled;
     }
 
     if (Object.keys(profilePatch).length > 0) {

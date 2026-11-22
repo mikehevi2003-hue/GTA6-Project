@@ -6,9 +6,9 @@ import {
   apiJson,
   createClient,
   getAuthedUser,
+  loadAdminUsersV2,
   requireAdminUser
 } from "@/lib/supabase/server";
-import type { AdminUserRecord } from "@/types/vicelink";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,30 +25,13 @@ export async function GET(request: NextRequest) {
     }
 
     const query = sanitizePlainText(request.nextUrl.searchParams.get("q") ?? "", 100);
-
-    const { data, error } = await supabase.rpc("vicelink_admin_search_users", {
-      p_query: query
-    });
-
-    if (error) {
-      if (error.code === "42501") {
-        return apiError("FORBIDDEN", 403, "Admin privileges required.");
-      }
-      throw error;
-    }
-
-    const users: AdminUserRecord[] = (data ?? []).map((row) => ({
-      userId: row.user_id,
-      email: row.email,
-      handle: row.handle,
-      displayName: row.display_name,
-      tier: row.access_tier,
-      isAdmin: Boolean(row.is_admin),
-      createdAt: row.created_at
-    }));
+    const users = await loadAdminUsersV2(supabase, query);
 
     return apiJson({ users });
   } catch (err) {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "42501") {
+      return apiError("FORBIDDEN", 403, "Admin privileges required.");
+    }
     return apiError(
       "ADMIN_USERS_SEARCH_FAILED",
       500,

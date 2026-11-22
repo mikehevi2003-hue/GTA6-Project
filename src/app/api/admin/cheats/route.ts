@@ -9,6 +9,7 @@ import {
   createClient,
   getAuthedUser,
   mapDynamicCheatRow,
+  recordAdminAuditLog,
   requireAdminUser
 } from "@/lib/supabase/server";
 
@@ -99,6 +100,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    await recordAdminAuditLog(supabase, {
+      adminId: user.id,
+      adminEmail: admin.profile.email,
+      actionType: "CHEAT_UPSERTED",
+      targetId: id,
+      details: {
+        titleEn,
+        category: input.category,
+        seqLength: input.seq.length
+      }
+    });
 
     return apiJson({ cheat: mapDynamicCheatRow(data) });
   } catch (err) {

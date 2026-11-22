@@ -9,6 +9,7 @@ import {
   createClient,
   getAuthedUser,
   mapDynamicPinRow,
+  recordAdminAuditLog,
   requireAdminUser
 } from "@/lib/supabase/server";
 
@@ -107,6 +108,21 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
+    await recordAdminAuditLog(supabase, {
+      adminId: user.id,
+      adminEmail: admin.profile.email,
+      actionType: "MAP_PIN_UPSERTED",
+      targetId: id,
+      details: {
+        nameEn,
+        region,
+        type: input.type,
+        tier: input.tier,
+        x: coordX,
+        y: coordY
+      }
+    });
+
     return apiJson({ pin: mapDynamicPinRow(data) });
   } catch (err) {
     return apiError(
@@ -147,6 +163,14 @@ export async function DELETE(request: NextRequest) {
     if (!data) {
       return apiError("PIN_NOT_FOUND", 404, "Dynamic map pin not found.");
     }
+
+    await recordAdminAuditLog(supabase, {
+      adminId: user.id,
+      adminEmail: admin.profile.email,
+      actionType: "MAP_PIN_DELETED",
+      targetId: data.id,
+      details: { pinId: data.id }
+    });
 
     return apiJson({ ok: true, id: data.id });
   } catch (err) {

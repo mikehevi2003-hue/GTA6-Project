@@ -8,6 +8,7 @@ import {
   getAiQuotaInfo,
   getAuthedUser,
   loadGlitchVotes,
+  loadSiteSettings,
   mergeDynamicCheats,
   mergeDynamicGlitches,
   mergeDynamicPins
@@ -29,14 +30,15 @@ export async function GET() {
 
     const { profile } = await ensureProfileAndProgress(supabase, user);
     const tier = profile.access_tier;
-    const isStreetPlus = hasAccess(tier, "street");
-    const isKingpin = hasAccess(tier, "kingpin");
+    const isAdmin = Boolean(profile.is_admin);
+    const isStreetPlus = hasAccess(tier, "street") || isAdmin;
+    const isKingpin = hasAccess(tier, "kingpin") || isAdmin;
 
     // Read dynamic CMS rows (pins use admin client if available so locked dynamic
     // pins still render as masked stubs on Free accounts without relaxing RLS).
     const pinsClient = isAdminConfigured() ? getSupabaseAdmin() : supabase;
 
-    const [cheatsRes, pinsRes] = await Promise.all([
+    const [cheatsRes, pinsRes, siteSettings] = await Promise.all([
       supabase
         .from("vicelink_dynamic_cheats")
         .select("*")
@@ -44,7 +46,8 @@ export async function GET() {
       pinsClient
         .from("vicelink_dynamic_map_pins")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false }),
+      loadSiteSettings(supabase)
     ]);
 
     if (cheatsRes.error) throw cheatsRes.error;
@@ -56,7 +59,7 @@ export async function GET() {
     // 2. Pins: merge dynamic pins on top of seed pins and mask locked pins.
     const mergedPins = mergeDynamicPins(LEONIDA_PINS, pinsRes.data ?? []);
     const pins: MapPin[] = mergedPins.map((pin: MapPin) => {
-      if (hasAccess(tier, pin.tier)) {
+      if (hasAccess(tier, pin.tier) || isAdmin) {
         return { ...pin, locked: false };
       }
       const needsKingpin = pin.tier === "kingpin";
@@ -79,9 +82,10 @@ export async function GET() {
       };
     });
 
-    // 3. Glitches: completely gated behind Street Pass+, merged with live CMS status/items.
+    // 3. Glitches: gated behind Street Pass+, and respects siteSettings.glitchesTabEnabled for non-admins.
+    const canViewGlitches = isStreetPlus && (siteSettings.glitchesTabEnabled || isAdmin);
     let glitches: GlitchItem[] = [];
-    if (isStreetPlus) {
+    if (canViewGlitches) {
       const [dynamicGlitchesRes, votesData] = await Promise.all([
         supabase
           .from("vicelink_dynamic_glitches")
@@ -105,8 +109,13 @@ export async function GET() {
     const vehicles = isStreetPlus ? VEHICLES_DATA : VEHICLES_DATA.slice(0, 6);
     const properties = isStreetPlus ? PROPERTIES_DATA : [];
 
-    // 5. AI Quota.
-    const aiQuota = await getAiQuotaInfo(supabase, user.id, tier);
+    // 5. AI Quota (respects dynamic siteSettings.freeAiDailyLimit).
+    const aiQuota = await getAiQuotaInfo(
+      supabase,
+      user.id,
+      isKingpin ? "kingpin" : tier,
+      siteSettings.freeAiDailyLimit
+    );
 
     // 6. Stages 6–8: Controls (Free), Leonida Radio (Free), Trophies & Criminal Profile (Street+).
     const totalTrophiesCount = TROPHIES_DATA.length;
@@ -116,7 +125,7 @@ export async function GET() {
       cheats,
       pins,
       glitches,
-      glitchesLocked: !isStreetPlus,
+      glitchesLocked: !canViewGlitches,
       vehicles,
       vehiclesLocked: !isStreetPlus,
       totalVehiclesCount,
@@ -130,7 +139,8 @@ export async function GET() {
       trophies: isStreetPlus ? TROPHIES_DATA : [],
       trophiesLocked: !isStreetPlus,
       totalTrophiesCount,
-      criminalProfileTiers: isStreetPlus ? CRIMINAL_PROFILE_TIERS : []
+      criminalProfileTiers: isStreetPlus ? CRIMINAL_PROFILE_TIERS : [],
+      siteSettings
     };
 
     return apiJson(payload);

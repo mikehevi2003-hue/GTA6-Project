@@ -3,8 +3,13 @@ import {
   apiJson,
   buildCommunitySubmissions,
   createClient,
+  getAuthenticatorAssuranceLevel,
   getAuthedUser,
+  loadAdminAuditLogs,
+  loadAdminTelemetry,
+  loadAdminUsersV2,
   loadGlitchVotes,
+  loadSiteSettings,
   mapDynamicPinRow,
   mergeDynamicCheats,
   mergeDynamicGlitches,
@@ -22,7 +27,22 @@ export async function GET() {
     const admin = await requireAdminUser(supabase, user);
     if (!admin) return apiError("FORBIDDEN", 403, "Admin privileges required.");
 
-    const [cheatsRes, glitchesRes, pinsRes, votesData, submissions] = await Promise.all([
+    const [
+      telemetry,
+      siteSettings,
+      auditLogs,
+      callerAal,
+      cheatsRes,
+      glitchesRes,
+      pinsRes,
+      votesData,
+      submissions,
+      users
+    ] = await Promise.all([
+      loadAdminTelemetry(supabase),
+      loadSiteSettings(supabase),
+      loadAdminAuditLogs(supabase, 50),
+      getAuthenticatorAssuranceLevel(supabase),
       supabase
         .from("vicelink_dynamic_cheats")
         .select("*")
@@ -36,7 +56,8 @@ export async function GET() {
         .select("*")
         .order("created_at", { ascending: false }),
       loadGlitchVotes(supabase, user.id),
-      buildCommunitySubmissions(supabase, user.id)
+      buildCommunitySubmissions(supabase, user.id),
+      loadAdminUsersV2(supabase, "")
     ]);
 
     if (cheatsRes.error) throw cheatsRes.error;
@@ -53,10 +74,15 @@ export async function GET() {
     const dynamicPins = (pinsRes.data ?? []).map(mapDynamicPinRow);
 
     return apiJson({
+      telemetry,
+      siteSettings,
+      auditLogs,
+      callerAal,
       cheats,
       glitches,
       dynamicPins,
-      submissions
+      submissions,
+      users
     });
   } catch (err) {
     return apiError(

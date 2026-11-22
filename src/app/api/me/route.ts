@@ -26,7 +26,8 @@ const patchMeSchema = z.object({
       unlockedCheats: idArraySchema.optional(),
       foundPins: idArraySchema.optional(),
       plannedVehicles: idArraySchema.optional(),
-      plannedProps: idArraySchema.optional()
+      plannedProps: idArraySchema.optional(),
+      unlockedTrophies: idArraySchema.optional()
     })
     .optional()
 });
@@ -35,6 +36,8 @@ const FORBIDDEN_PROFILE_KEYS = [
   "tier",
   "access_tier",
   "accessTier",
+  "is_admin",
+  "isAdmin",
   "stripe_customer_id",
   "stripeCustomerId"
 ] as const;
@@ -138,6 +141,7 @@ export async function PATCH(request: NextRequest) {
         found_pins?: string[];
         planned_vehicles?: string[];
         planned_props?: string[];
+        unlocked_trophies?: string[];
       } = {};
       if (input.progress.favorites !== undefined) progressPatch.favorites = input.progress.favorites;
       if (input.progress.unlockedCheats !== undefined)
@@ -147,6 +151,8 @@ export async function PATCH(request: NextRequest) {
         progressPatch.planned_vehicles = input.progress.plannedVehicles;
       if (input.progress.plannedProps !== undefined)
         progressPatch.planned_props = input.progress.plannedProps;
+      if (input.progress.unlockedTrophies !== undefined)
+        progressPatch.unlocked_trophies = input.progress.unlockedTrophies;
 
       if (Object.keys(progressPatch).length > 0) {
         const { error: progErr } = await supabase

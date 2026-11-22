@@ -2,7 +2,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
-// Typed schema for the ViceLink tables (supabase/migrations/20261121000001).
+// Typed schema for the ViceLink tables (supabase/migrations/20261121000001 + 000002).
 // Only vicelink_* objects are described: the shared project's other tables
 // are intentionally unreachable through these typed clients.
 // ---------------------------------------------------------------------------
@@ -11,6 +11,16 @@ type TierText = "free" | "street" | "kingpin";
 type PaidTierText = "street" | "kingpin";
 type ProviderText = "yappy" | "tilopay" | "paguelofacil" | "stripe";
 type PaymentStatusText = "pending" | "completed" | "failed" | "refunded";
+type CheatCategoryText = "Player" | "Combat" | "Vehicles" | "World";
+type GlitchCategoryText = "Money" | "Camera" | "Stealth" | "Physics";
+type PinTypeText = "Money" | "ATM" | "RareCar" | "Fence" | "EasterEgg" | "Collectible";
+type SubmissionTypeText =
+  | "money_spot"
+  | "glitch_report"
+  | "easter_egg"
+  | "cheat_combo"
+  | "site_feedback";
+type SubmissionStatusText = "pending" | "approved" | "implemented" | "rejected";
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type VicelinkProfileRow = {
@@ -19,6 +29,7 @@ export type VicelinkProfileRow = {
   handle: string;
   display_name: string;
   access_tier: TierText;
+  is_admin: boolean;
   preferred_lang: "en" | "es";
   stripe_customer_id: string | null;
   created_at: string;
@@ -45,6 +56,7 @@ export type VicelinkProgressRow = {
   found_pins: string[];
   planned_vehicles: string[];
   planned_props: string[];
+  unlocked_trophies: string[];
   updated_at: string;
 };
 
@@ -73,6 +85,68 @@ export type VicelinkCommentRow = {
 };
 export type VicelinkCommentLikeRow = { comment_id: string; user_id: string };
 
+export type VicelinkDynamicCheatRow = {
+  id: string;
+  title_en: string;
+  title_es: string;
+  category: CheatCategoryText;
+  unlock_en: string;
+  unlock_es: string;
+  how_to_unlock_en: string;
+  how_to_unlock_es: string;
+  desc_en: string;
+  desc_es: string;
+  button_sequence: Json;
+  updated_at: string;
+};
+
+export type VicelinkDynamicGlitchRow = {
+  id: string;
+  category: GlitchCategoryText;
+  patch_status: string;
+  is_patched: boolean;
+  title_en: string;
+  title_es: string;
+  steps_en: Json;
+  steps_es: Json;
+  warning_en: string;
+  warning_es: string;
+  updated_at: string;
+};
+
+export type VicelinkDynamicMapPinRow = {
+  id: string;
+  tier: TierText;
+  pin_type: PinTypeText;
+  region: string;
+  icon: string;
+  coord_x: number;
+  coord_y: number;
+  name_en: string;
+  name_es: string;
+  note_en: string;
+  note_es: string;
+  created_at: string;
+};
+
+export type VicelinkCommunitySubmissionRow = {
+  id: string;
+  user_id: string | null;
+  author_handle: string;
+  submission_type: SubmissionTypeText;
+  region_or_category: string;
+  title: string;
+  details: string;
+  status: SubmissionStatusText;
+  admin_notes: string;
+  created_at: string;
+};
+
+export type VicelinkSubmissionVoteRow = {
+  submission_id: string;
+  user_id: string;
+};
+
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row;
   Insert: Insert;
@@ -91,6 +165,7 @@ export type Database = {
           handle: string;
           display_name?: string;
           access_tier?: TierText;
+          is_admin?: boolean;
           preferred_lang?: "en" | "es";
           stripe_customer_id?: string | null;
           created_at?: string;
@@ -121,6 +196,7 @@ export type Database = {
           found_pins?: string[];
           planned_vehicles?: string[];
           planned_props?: string[];
+          unlocked_trophies?: string[];
           updated_at?: string;
         }
       >;
@@ -154,6 +230,72 @@ export type Database = {
         }
       >;
       vicelink_comment_likes: Table<VicelinkCommentLikeRow, VicelinkCommentLikeRow>;
+      vicelink_dynamic_cheats: Table<
+        VicelinkDynamicCheatRow,
+        {
+          id: string;
+          title_en: string;
+          title_es: string;
+          category: CheatCategoryText;
+          unlock_en?: string;
+          unlock_es?: string;
+          how_to_unlock_en?: string;
+          how_to_unlock_es?: string;
+          desc_en?: string;
+          desc_es?: string;
+          button_sequence?: Json;
+          updated_at?: string;
+        }
+      >;
+      vicelink_dynamic_glitches: Table<
+        VicelinkDynamicGlitchRow,
+        {
+          id: string;
+          category: GlitchCategoryText;
+          patch_status?: string;
+          is_patched?: boolean;
+          title_en: string;
+          title_es: string;
+          steps_en?: Json;
+          steps_es?: Json;
+          warning_en?: string;
+          warning_es?: string;
+          updated_at?: string;
+        }
+      >;
+      vicelink_dynamic_map_pins: Table<
+        VicelinkDynamicMapPinRow,
+        {
+          id: string;
+          tier?: TierText;
+          pin_type: PinTypeText;
+          region: string;
+          icon: string;
+          coord_x: number;
+          coord_y: number;
+          name_en: string;
+          name_es: string;
+          note_en?: string;
+          note_es?: string;
+          created_at?: string;
+        }
+      >;
+      vicelink_community_submissions: Table<
+        VicelinkCommunitySubmissionRow,
+        {
+          id?: string;
+          user_id: string | null;
+          author_handle: string;
+          submission_type: SubmissionTypeText;
+          region_or_category?: string;
+          title: string;
+          details: string;
+          status?: SubmissionStatusText;
+          admin_notes?: string;
+          created_at?: string;
+        }
+      >;
+      vicelink_submission_votes: Table<VicelinkSubmissionVoteRow, VicelinkSubmissionVoteRow>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -173,6 +315,27 @@ export type Database = {
           p_target_tier: PaidTierText;
           p_amount_usd: number;
           p_raw_payload: Json;
+        };
+        Returns: TierText;
+      };
+      vicelink_admin_search_users: {
+        Args: { p_query: string };
+        Returns: {
+          user_id: string;
+          email: string;
+          handle: string;
+          display_name: string;
+          access_tier: TierText;
+          is_admin: boolean;
+          created_at: string;
+        }[];
+      };
+      vicelink_admin_grant_tier: {
+        Args: {
+          p_target_user_id: string;
+          p_target_tier: TierText;
+          p_provider?: ProviderText;
+          p_reference?: string;
         };
         Returns: TierText;
       };

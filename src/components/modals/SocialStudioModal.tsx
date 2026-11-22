@@ -9,6 +9,10 @@ export interface SocialStudioModalProps {
   socialStudioLocked: boolean;
   userHandle: string;
   userTier: UserTier;
+  psnVerified?: boolean;
+  xboxVerified?: boolean;
+  psnId?: string;
+  xboxGamertag?: string;
   foundPinsCount: number;
   totalPinsCount: number;
   plannedWorthUsd: number;
@@ -24,6 +28,10 @@ export default function SocialStudioModal({
   socialStudioLocked,
   userHandle,
   userTier,
+  psnVerified = false,
+  xboxVerified = false,
+  psnId = "",
+  xboxGamertag = "",
   foundPinsCount,
   totalPinsCount,
   plannedWorthUsd,
@@ -86,41 +94,72 @@ export default function SocialStudioModal({
 
     ctx.fillStyle = "#facc15";
     ctx.font = "bold 18px sans-serif";
-    ctx.fillText(`PLAYER: ${userHandle} (${userTier.toUpperCase()})`, 54, 172);
+    ctx.fillText(`PLAYER: ${userHandle} (${userTier.toUpperCase()})`, 54, 170);
+
+    // Draw Verified Console Badges (PSN ✓ / XBOX ✓) on the 9:16 Flex Card Canvas
+    let badgeX = 54;
+    if (psnVerified) {
+      const label = psnId ? `PSN ✓ ${psnId}` : "PSN ✓ VERIFIED";
+      ctx.font = "bold 13px sans-serif";
+      const textWidth = ctx.measureText(label).width;
+      const pillW = Math.min(210, textWidth + 22);
+      ctx.fillStyle = "rgba(0, 229, 255, 0.18)";
+      ctx.fillRect(badgeX, 182, pillW, 26);
+      ctx.strokeStyle = "#00e5ff";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(badgeX, 182, pillW, 26);
+      ctx.fillStyle = "#7dd3fc";
+      ctx.fillText(label, badgeX + 11, 200);
+      badgeX += pillW + 10;
+    }
+
+    if (xboxVerified) {
+      const label = xboxGamertag ? `XBOX ✓ ${xboxGamertag}` : "XBOX ✓ VERIFIED";
+      ctx.font = "bold 13px sans-serif";
+      const textWidth = ctx.measureText(label).width;
+      const pillW = Math.min(210, textWidth + 22);
+      ctx.fillStyle = "rgba(34, 197, 94, 0.18)";
+      ctx.fillRect(badgeX, 182, pillW, 26);
+      ctx.strokeStyle = "#4ade80";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(badgeX, 182, pillW, 26);
+      ctx.fillStyle = "#86efac";
+      ctx.fillText(label, badgeX + 11, 200);
+    }
 
     const pct = totalPinsCount > 0 ? Math.round((foundPinsCount / totalPinsCount) * 100) : 0;
     ctx.fillStyle = "rgba(255,255,255,0.06)";
-    ctx.fillRect(54, 220, 432, 160);
+    ctx.fillRect(54, 224, 432, 160);
     ctx.fillStyle = "#94a3b8";
     ctx.font = "bold 16px sans-serif";
     ctx.fillText(
       isEs ? "PROGRESO 100% MAPA LEONIDA" : "100% STORY & MAP DISCOVERY",
       78,
-      262
+      266
     );
     ctx.fillStyle = "#00e5ff";
     ctx.font = "900 64px sans-serif";
-    ctx.fillText(`${pct}%`, 78, 336);
+    ctx.fillText(`${pct}%`, 78, 340);
     ctx.fillStyle = "#e2e8f0";
     ctx.font = "600 18px sans-serif";
     ctx.fillText(
       `${foundPinsCount} / ${totalPinsCount} ${isEs ? "Pines" : "Pins Found"}`,
       235,
-      326
+      330
     );
 
     ctx.fillStyle = "rgba(255,255,255,0.06)";
-    ctx.fillRect(54, 410, 432, 150);
+    ctx.fillRect(54, 412, 432, 150);
     ctx.fillStyle = "#94a3b8";
     ctx.font = "bold 16px sans-serif";
     ctx.fillText(
       isEs ? "VALOR DEL IMPERIO EN LEONIDA" : "PLANNED LEONIDA EMPIRE VALUE",
       78,
-      452
+      454
     );
     ctx.fillStyle = "#4ade80";
     ctx.font = "900 44px sans-serif";
-    ctx.fillText(`$${plannedWorthUsd.toLocaleString()}`, 78, 518);
+    ctx.fillText(`$${plannedWorthUsd.toLocaleString()}`, 78, 520);
 
     ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.fillRect(54, 590, 432, 130);
@@ -159,6 +198,10 @@ export default function SocialStudioModal({
     isEs,
     userHandle,
     userTier,
+    psnVerified,
+    xboxVerified,
+    psnId,
+    xboxGamertag,
     foundPinsCount,
     totalPinsCount,
     plannedWorthUsd,
@@ -212,9 +255,13 @@ export default function SocialStudioModal({
     >
       <div className="modal-content modal-wide" style={{ maxWidth: 760 }}>
         <div className="modal-top-bar">
-          <span className="brand-badge">
-            {isEs ? "ESTUDIO TIKTOK E INSTAGRAM 9:16" : "TIKTOK & INSTAGRAM 9:16 STUDIO"}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className="brand-badge">
+              {isEs ? "ESTUDIO TIKTOK E INSTAGRAM 9:16" : "TIKTOK & INSTAGRAM 9:16 STUDIO"}
+            </span>
+            {psnVerified && <span className="console-verified-pill">PSN ✓</span>}
+            {xboxVerified && <span className="console-verified-pill">XBOX ✓</span>}
+          </div>
           <button type="button" className="modal-close-pill" onClick={onClose}>
             ✕ {isEs ? "Cerrar" : "Close"}
           </button>

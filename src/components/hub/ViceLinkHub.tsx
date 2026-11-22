@@ -8,7 +8,9 @@ import type {
   ContentPayload,
   Language,
   MePayload,
+  SiteSettingsPayload,
   TheoryPost,
+  UserProfile,
   UserProgress
 } from "@/types/vicelink";
 import { LEGAL_POLICIES } from "@/lib/legal/policies";
@@ -25,12 +27,14 @@ import ControlsView from "@/components/views/ControlsView";
 import RadioView from "@/components/views/RadioView";
 import TrophiesView from "@/components/views/TrophiesView";
 import FeedbackView from "@/components/views/FeedbackView";
+import AccountView from "@/components/views/AccountView";
 import AdminView from "@/components/views/AdminView";
+import CommandPaletteModal from "@/components/hub/CommandPaletteModal";
 import PricingModal from "@/components/modals/PricingModal";
 import SocialStudioModal from "@/components/modals/SocialStudioModal";
 import AccountModal from "@/components/modals/AccountModal";
 
-type ActiveView =
+export type ActiveView =
   | "cheats"
   | "map"
   | "glitches"
@@ -42,6 +46,7 @@ type ActiveView =
   | "trophies"
   | "ai"
   | "feedback"
+  | "account"
   | "admin";
 
 const EMPTY_PROGRESS: UserProgress = {
@@ -51,6 +56,17 @@ const EMPTY_PROGRESS: UserProgress = {
   plannedVehicles: [],
   plannedProps: [],
   unlockedTrophies: []
+};
+
+const DEFAULT_SITE_SETTINGS: SiteSettingsPayload = {
+  globalBanner: {
+    active: false,
+    textEn: "",
+    textEs: ""
+  },
+  freeAiDailyLimit: 3,
+  maintenanceMode: false,
+  glitchesTabEnabled: true
 };
 
 export default function ViceLinkHub() {
@@ -67,6 +83,8 @@ export default function ViceLinkHub() {
   const [pricingOpen, setPricingOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [cmdkOpen, setCmdkOpen] = useState(false);
+  const [tickerDismissed, setTickerDismissed] = useState(false);
 
   const [toast, setToast] = useState<{ kind: "success" | "info" | "error"; text: string } | null>(
     null
@@ -77,6 +95,18 @@ export default function ViceLinkHub() {
     window.setTimeout(() => {
       setToast((prev) => (prev && prev.text === text ? null : prev));
     }, 5000);
+  }, []);
+
+  // Global Cmd+K / Ctrl+K shortcut for Stage 11 Command Palette
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdkOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   const loadAll = useCallback(async () => {
@@ -156,6 +186,11 @@ export default function ViceLinkHub() {
       handle?: string;
       displayName?: string;
       preferredLang?: Language;
+      avatarPreset?: string;
+      psnId?: string;
+      xboxGamertag?: string;
+      socialClubHandle?: string;
+      mfaEnabled?: boolean;
       progress?: Partial<UserProgress>;
     }) => {
       const res = await fetch("/api/me", {
@@ -306,16 +341,23 @@ export default function ViceLinkHub() {
   };
 
   const handleSaveProfile = async (patch: {
-    handle: string;
-    displayName: string;
-    preferredLang: Language;
+    handle?: string;
+    displayName?: string;
+    preferredLang?: Language;
+    avatarPreset?: string;
+    psnId?: string;
+    xboxGamertag?: string;
+    socialClubHandle?: string;
+    mfaEnabled?: boolean;
   }) => {
     await patchMe(patch);
-    setLang(patch.preferredLang);
-    try {
-      window.localStorage.setItem("vicelink_lang", patch.preferredLang);
-    } catch {
-      // Ignore storage write errors
+    if (patch.preferredLang) {
+      setLang(patch.preferredLang);
+      try {
+        window.localStorage.setItem("vicelink_lang", patch.preferredLang);
+      } catch {
+        // Ignore storage write errors
+      }
     }
   };
 
@@ -392,6 +434,17 @@ export default function ViceLinkHub() {
     return vehCost + propCost;
   }, [content, progress.plannedVehicles, progress.plannedProps]);
 
+  const siteSettings: SiteSettingsPayload = content?.siteSettings ?? DEFAULT_SITE_SETTINGS;
+  const glitchesAllowed =
+    siteSettings.glitchesTabEnabled !== false || me?.profile.isAdmin === true;
+
+  // Redirect away from glitches tab if disabled for non-admins
+  useEffect(() => {
+    if (!glitchesAllowed && activeView === "glitches") {
+      setActiveView("cheats");
+    }
+  }, [glitchesAllowed, activeView]);
+
   const isEs = lang === "es";
 
   if (loading) {
@@ -440,8 +493,18 @@ export default function ViceLinkHub() {
           ? "RECLUTA GRATIS"
           : "FREE RECRUIT";
 
+  const tickerText = isEs
+    ? siteSettings.globalBanner?.textEs || siteSettings.globalBanner?.textEn || ""
+    : siteSettings.globalBanner?.textEn || siteSettings.globalBanner?.textEs || "";
+
+  const showGlobalTicker =
+    Boolean(siteSettings.globalBanner?.active) && Boolean(tickerText.trim()) && !tickerDismissed;
+
+  const isUnderMaintenanceForUser =
+    siteSettings.maintenanceMode === true && me.profile.isAdmin !== true;
+
   return (
-    <div className="app-layout">
+    <div className="app-layout app-shell">
       {/* Verified Neon Sidebar (Zero Tier Simulator!) */}
       <aside className="sidebar">
         <div>
@@ -483,11 +546,40 @@ export default function ViceLinkHub() {
           {/* Authenticated Account Card */}
           <div className="user-account-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <strong style={{ color: "var(--accent-cyan)", fontSize: 13.5 }}>
+              <button
+                type="button"
+                onClick={() => setActiveView("account")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  color: "var(--accent-cyan)",
+                  fontSize: 13.5,
+                  fontWeight: 800
+                }}
+              >
                 {me.profile.handle}
-              </strong>
+              </button>
               <span className={`tier-chip tier-${me.profile.tier}`}>{tierBadgeLabel}</span>
             </div>
+
+            {(me.profile.psnVerified || me.profile.xboxVerified || me.profile.mfaEnabled) && (
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 2 }}>
+                {me.profile.psnVerified && (
+                  <span className="console-verified-pill">PSN ✓</span>
+                )}
+                {me.profile.xboxVerified && (
+                  <span className="console-verified-pill">XBOX ✓</span>
+                )}
+                {me.profile.mfaEnabled && (
+                  <span className="implemented-badge" style={{ fontSize: 9.5, padding: "2px 6px" }}>
+                    🔒 2FA
+                  </span>
+                )}
+              </div>
+            )}
+
             <p
               style={{
                 fontSize: 11.5,
@@ -506,7 +598,7 @@ export default function ViceLinkHub() {
                 type="button"
                 className="btn-secondary"
                 style={{ flex: 1, padding: "6px 8px", fontSize: 11.5 }}
-                onClick={() => setAccountOpen(true)}
+                onClick={() => setActiveView("account")}
               >
                 👤 {isEs ? "Cuenta" : "Account"}
               </button>
@@ -542,15 +634,19 @@ export default function ViceLinkHub() {
               <small className="badge-live">{content.pins.length}</small>
             </button>
 
-            <button
-              type="button"
-              className={`nav-btn ${activeView === "glitches" ? "active" : ""}`}
-              onClick={() => setActiveView("glitches")}
-            >
-              <span className="nav-icon">⚡</span>
-              <span>{t(lang, "navGlitches", isEs ? "Glitches y Trucos" : "Glitches & Exploits")}</span>
-              <small className="badge-new">v1.002</small>
-            </button>
+            {glitchesAllowed && (
+              <button
+                type="button"
+                className={`nav-btn ${activeView === "glitches" ? "active" : ""}`}
+                onClick={() => setActiveView("glitches")}
+              >
+                <span className="nav-icon">⚡</span>
+                <span>{t(lang, "navGlitches", isEs ? "Glitches y Trucos" : "Glitches & Exploits")}</span>
+                <small className="badge-new">
+                  {siteSettings.glitchesTabEnabled === false ? "OFF" : "v1.002"}
+                </small>
+              </button>
+            )}
 
             <button
               type="button"
@@ -635,6 +731,18 @@ export default function ViceLinkHub() {
               </span>
             </button>
 
+            <button
+              type="button"
+              className={`nav-btn ${activeView === "account" ? "active" : ""}`}
+              onClick={() => setActiveView("account")}
+            >
+              <span className="nav-icon">👤</span>
+              <span>
+                {t(lang, "nav.account", isEs ? "Cuenta y 2FA" : "Account & 2FA")}
+              </span>
+              {me.profile.mfaEnabled && <small className="badge-live">2FA</small>}
+            </button>
+
             {me.profile.isAdmin === true && (
               <button
                 type="button"
@@ -686,7 +794,168 @@ export default function ViceLinkHub() {
       </aside>
 
       {/* Main Workspace */}
-      <main className="main-content">
+      <main className="main-content main-panel">
+        {/* Live Global Alert Ticker (.global-ticker-bar) */}
+        {showGlobalTicker && (
+          <div
+            className="global-ticker-bar"
+            role="region"
+            aria-label={isEs ? "Alerta global de ViceLink" : "ViceLink global alert"}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 16px",
+              marginBottom: 14,
+              borderRadius: 12,
+              background:
+                "linear-gradient(90deg, rgba(255, 42, 133, 0.22), rgba(0, 229, 255, 0.16))",
+              border: "1px solid rgba(0, 229, 255, 0.5)",
+              color: "#ffffff",
+              fontSize: 13,
+              fontWeight: 700
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <span className="badge-new" style={{ flexShrink: 0 }}>
+                LIVE
+              </span>
+              <span style={{ lineHeight: 1.4 }}>{tickerText}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTickerDismissed(true)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#ffffff",
+                cursor: "pointer",
+                fontWeight: 800,
+                fontSize: 14,
+                flexShrink: 0
+              }}
+              aria-label={isEs ? "Ocultar alerta" : "Dismiss alert"}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Admin Maintenance Bypass Notice */}
+        {siteSettings.maintenanceMode === true && me.profile.isAdmin === true && (
+          <div
+            className="auth-alert"
+            role="status"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 10,
+              marginBottom: 14,
+              background: "rgba(245, 158, 11, 0.15)",
+              borderColor: "rgba(245, 158, 11, 0.55)",
+              color: "#fde047"
+            }}
+          >
+            <span>
+              🛡️{" "}
+              {isEs
+                ? "Modo Mantenimiento ACTIVO para jugadores regulares. Como Admin/Co-Fundador tienes acceso completo."
+                : "Maintenance Mode is ACTIVE for non-admin players. As an Admin/Co-Founder, you have full bypass access."}
+            </span>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: 11.5, padding: "5px 10px" }}
+              onClick={() => setActiveView("admin")}
+            >
+              {isEs ? "Gestionar Flags" : "Manage Flags"}
+            </button>
+          </div>
+        )}
+
+        {/* Stage 11 Neo-Glass HUD Top Bar with ⌘K Command Palette Trigger & @handle Account Pill */}
+        <div
+          className="top-bar"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 10,
+            marginBottom: 16,
+            padding: "10px 14px",
+            borderRadius: 13,
+            background: "rgba(13, 19, 34, 0.78)",
+            border: "1px solid rgba(255, 255, 255, 0.08)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className="brand-badge">VICELINK // LEONIDA HUD</span>
+            {me.profile.psnVerified && <span className="console-verified-pill">PSN ✓</span>}
+            {me.profile.xboxVerified && <span className="console-verified-pill">XBOX ✓</span>}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="cmdk-trigger-btn btn-secondary"
+              onClick={() => setCmdkOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 12px",
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 800,
+                borderColor: "rgba(0, 229, 255, 0.45)",
+                color: "#e2e8f0"
+              }}
+            >
+              <span>🔎 {isEs ? "Buscar en 8 Bases" : "Search 8 Datasets"}</span>
+              <kbd
+                style={{
+                  padding: "2px 6px",
+                  borderRadius: 6,
+                  background: "#060913",
+                  border: "1px solid rgba(0, 229, 255, 0.4)",
+                  color: "var(--accent-cyan)",
+                  fontSize: 11
+                }}
+              >
+                ⌘K
+              </kbd>
+            </button>
+
+            <button
+              type="button"
+              className={`btn-secondary ${activeView === "account" ? "active" : ""}`}
+              onClick={() => setActiveView("account")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "7px 12px",
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 800,
+                borderColor:
+                  activeView === "account" ? "var(--accent-cyan)" : "rgba(255, 255, 255, 0.14)",
+                color: "var(--accent-cyan)"
+              }}
+              title={isEs ? "Abrir Cuenta, Consolas y 2FA" : "Open Account, Consoles & 2FA"}
+            >
+              <span>👤 {me.profile.handle}</span>
+              {me.profile.mfaEnabled && (
+                <span style={{ color: "#4ade80", fontSize: 10.5 }}>🔒</span>
+              )}
+            </button>
+          </div>
+        </div>
+
         {toast && (
           <div className={`toast-banner toast-${toast.kind}`} role="status">
             <span>{toast.text}</span>
@@ -701,122 +970,275 @@ export default function ViceLinkHub() {
           </div>
         )}
 
-        {activeView === "cheats" && (
-          <CheatsView
-            lang={lang}
-            tier={me.profile.tier}
-            cheats={content.cheats}
-            favorites={progress.favorites}
-            unlockedCheats={progress.unlockedCheats}
-            onToggleFavorite={handleToggleFavorite}
-            onToggleUnlocked={handleToggleCheatUnlocked}
-          />
-        )}
+        {/* Non-Admin Maintenance Mode Shield */}
+        {isUnderMaintenanceForUser && activeView !== "account" ? (
+          <section className="view active">
+            <div className="paywall-box" style={{ maxWidth: 560, margin: "32px auto" }}>
+              <span className="brand-badge">
+                🛡️ {isEs ? "ESCUDO DE MANTENIMIENTO ACTIVO" : "LEONIDA MAINTENANCE SHIELD ACTIVE"}
+              </span>
+              <h2 style={{ marginTop: 12, fontSize: 22 }}>
+                {isEs
+                  ? "Actualizando Telemetría y Parches de GTA VI"
+                  : "Synchronizing GTA VI Patch Intel & Server Nodes"}
+              </h2>
+              <p style={{ marginTop: 8, color: "var(--text-muted)", lineHeight: 1.55 }}>
+                {isEs
+                  ? "Los co-fundadores de ViceLink están desplegando una actualización táctica en vivo. Tu progreso en la nube, pases vitalicios y configuración 2FA siguen 100% protegidos."
+                  : "ViceLink Co-Founders are deploying a live tactical database update. Your cloud progress, lifetime passes, and 2FA security settings remain 100% protected."}
+              </p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn-pro"
+                  style={{ width: "auto" }}
+                  onClick={() => setActiveView("account")}
+                >
+                  👤 {isEs ? "Ir a Mi Cuenta y 2FA" : "Open My Account & 2FA"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => void loadAll()}
+                >
+                  ↻ {isEs ? "Comprobar Estado" : "Check Status"}
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            {activeView === "cheats" && (
+              <CheatsView
+                lang={lang}
+                tier={me.profile.tier}
+                cheats={content.cheats}
+                favorites={progress.favorites}
+                unlockedCheats={progress.unlockedCheats}
+                onToggleFavorite={handleToggleFavorite}
+                onToggleUnlocked={handleToggleCheatUnlocked}
+              />
+            )}
 
-        {activeView === "map" && (
-          <MapView
-            lang={lang}
-            pins={content.pins}
-            foundPins={progress.foundPins}
-            onTogglePinFound={handleTogglePinFound}
-            onOpenPricing={() => setPricingOpen(true)}
-            onOpenSocialStudio={() => setSocialOpen(true)}
-          />
-        )}
+            {activeView === "map" && (
+              <MapView
+                lang={lang}
+                pins={content.pins}
+                foundPins={progress.foundPins}
+                onTogglePinFound={handleTogglePinFound}
+                onOpenPricing={() => setPricingOpen(true)}
+                onOpenSocialStudio={() => setSocialOpen(true)}
+              />
+            )}
 
-        {activeView === "glitches" && (
-          <GlitchesView
-            lang={lang}
-            glitches={content.glitches}
-            glitchesLocked={content.glitchesLocked}
-            onOpenPricing={() => setPricingOpen(true)}
-            onVoteGlitch={handleVoteGlitch}
-          />
-        )}
+            {activeView === "glitches" && glitchesAllowed && (
+              <GlitchesView
+                lang={lang}
+                glitches={content.glitches}
+                glitchesLocked={content.glitchesLocked}
+                onOpenPricing={() => setPricingOpen(true)}
+                onVoteGlitch={handleVoteGlitch}
+              />
+            )}
 
-        {activeView === "forum" && (
-          <ForumView
-            lang={lang}
-            userHandle={me.profile.handle}
-            userTier={me.profile.tier}
-            theories={theories}
-            onUpdateHandle={handleUpdateHandle}
-            onCreateTheory={handleCreateTheory}
-            onTheoryAction={handleTheoryAction}
-          />
-        )}
+            {activeView === "forum" && (
+              <ForumView
+                lang={lang}
+                userHandle={me.profile.handle}
+                userTier={me.profile.tier}
+                psnVerified={me.profile.psnVerified}
+                xboxVerified={me.profile.xboxVerified}
+                isAdmin={me.profile.isAdmin}
+                theories={theories}
+                onUpdateHandle={handleUpdateHandle}
+                onCreateTheory={handleCreateTheory}
+                onTheoryAction={handleTheoryAction}
+                onRefreshForum={loadAll}
+              />
+            )}
 
-        {activeView === "database" && (
-          <DatabaseView
-            lang={lang}
-            vehicles={content.vehicles}
-            vehiclesLocked={content.vehiclesLocked}
-            totalVehiclesCount={content.totalVehiclesCount}
-            properties={content.properties}
-            propertiesLocked={content.propertiesLocked}
-            plannedVehicles={progress.plannedVehicles}
-            plannedProps={progress.plannedProps}
-            onToggleVehicle={handleToggleVehicle}
-            onToggleProperty={handleToggleProperty}
-            onClearPlan={handleClearPlan}
-            onOpenPricing={() => setPricingOpen(true)}
-          />
-        )}
+            {activeView === "database" && (
+              <DatabaseView
+                lang={lang}
+                vehicles={content.vehicles}
+                vehiclesLocked={content.vehiclesLocked}
+                totalVehiclesCount={content.totalVehiclesCount}
+                properties={content.properties}
+                propertiesLocked={content.propertiesLocked}
+                plannedVehicles={progress.plannedVehicles}
+                plannedProps={progress.plannedProps}
+                onToggleVehicle={handleToggleVehicle}
+                onToggleProperty={handleToggleProperty}
+                onClearPlan={handleClearPlan}
+                onOpenPricing={() => setPricingOpen(true)}
+              />
+            )}
 
-        {activeView === "mechanics" && (
-          <MechanicsView lang={lang} mechanics={content.mechanics} />
-        )}
+            {activeView === "mechanics" && (
+              <MechanicsView lang={lang} mechanics={content.mechanics} />
+            )}
 
-        {activeView === "controls" && (
-          <ControlsView lang={lang} controls={content.controls} />
-        )}
+            {activeView === "controls" && (
+              <ControlsView lang={lang} controls={content.controls} />
+            )}
 
-        {activeView === "radio" && (
-          <RadioView lang={lang} stations={content.radioStations} />
-        )}
+            {activeView === "radio" && (
+              <RadioView lang={lang} stations={content.radioStations} />
+            )}
 
-        {activeView === "trophies" && (
-          <TrophiesView
-            lang={lang}
-            trophies={content.trophies}
-            trophiesLocked={content.trophiesLocked}
-            totalTrophiesCount={content.totalTrophiesCount}
-            criminalProfileTiers={content.criminalProfileTiers}
-            unlockedTrophies={progress.unlockedTrophies ?? []}
-            onToggleTrophy={handleToggleTrophy}
-            onOpenPricing={() => setPricingOpen(true)}
-          />
-        )}
+            {activeView === "trophies" && (
+              <TrophiesView
+                lang={lang}
+                trophies={content.trophies}
+                trophiesLocked={content.trophiesLocked}
+                totalTrophiesCount={content.totalTrophiesCount}
+                criminalProfileTiers={content.criminalProfileTiers}
+                unlockedTrophies={progress.unlockedTrophies ?? []}
+                onToggleTrophy={handleToggleTrophy}
+                onOpenPricing={() => setPricingOpen(true)}
+              />
+            )}
 
-        {activeView === "ai" && (
-          <AiAdvisorView
-            lang={lang}
-            tier={me.profile.tier}
-            aiQuota={content.aiQuota}
-            onUpdateQuota={handleUpdateQuota}
-            onOpenPricing={() => setPricingOpen(true)}
-            onOpenSocialStudio={() => setSocialOpen(true)}
-          />
-        )}
+            {activeView === "ai" && (
+              <AiAdvisorView
+                lang={lang}
+                tier={me.profile.tier}
+                aiQuota={content.aiQuota}
+                onUpdateQuota={handleUpdateQuota}
+                onOpenPricing={() => setPricingOpen(true)}
+                onOpenSocialStudio={() => setSocialOpen(true)}
+              />
+            )}
 
-        {activeView === "feedback" && (
-          <FeedbackView
-            lang={lang}
-            userHandle={me.profile.handle}
-            userTier={me.profile.tier}
-          />
-        )}
+            {activeView === "feedback" && (
+              <FeedbackView
+                lang={lang}
+                userHandle={me.profile.handle}
+                userTier={me.profile.tier}
+              />
+            )}
 
-        {activeView === "admin" && me.profile.isAdmin === true && (
-          <AdminView
-            lang={lang}
-            isAdmin={me.profile.isAdmin}
-            onAdminDataChanged={loadAll}
-          />
+            {activeView === "account" && (
+              <AccountView
+                lang={lang}
+                profile={me.profile}
+                progress={progress}
+                payments={me.payments}
+                onSaveProfile={handleSaveProfile}
+                onProfileUpdated={(updatedProfile: UserProfile) => {
+                  setMe((curr) => (curr ? { ...curr, profile: updatedProfile } : curr));
+                }}
+                onProgressSynced={(foundPins: string[]) => {
+                  setMe((curr) =>
+                    curr
+                      ? {
+                          ...curr,
+                          progress: {
+                            ...curr.progress,
+                            foundPins
+                          }
+                        }
+                      : curr
+                  );
+                }}
+                onOpenPricing={() => setPricingOpen(true)}
+                onSignOut={handleSignOut}
+                onToast={showToast}
+              />
+            )}
+
+            {activeView === "admin" && me.profile.isAdmin === true && (
+              <AdminView
+                lang={lang}
+                isAdmin={me.profile.isAdmin}
+                userEmail={me.profile.email}
+                onNavigateToAccount={() => setActiveView("account")}
+                onAdminDataChanged={loadAll}
+                onSiteSettingsChanged={(nextSettings) => {
+                  setContent((curr) => (curr ? { ...curr, siteSettings: nextSettings } : curr));
+                  setTickerDismissed(false);
+                }}
+                onToast={showToast}
+              />
+            )}
+          </>
         )}
       </main>
 
+      {/* Stage 11 Mobile-First Floating Glass Bottom Dock (<768px) */}
+      <nav
+        className="mobile-bottom-dock"
+        aria-label={isEs ? "Navegación rápida móvil" : "Mobile quick navigation"}
+      >
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeView === "cheats" ? "active" : ""}`}
+          style={{ minWidth: 52, minHeight: 48 }}
+          onClick={() => setActiveView("cheats")}
+        >
+          <span aria-hidden="true">🎮</span>
+          <span>{isEs ? "Trucos" : "Cheats"}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeView === "map" ? "active" : ""}`}
+          style={{ minWidth: 52, minHeight: 48 }}
+          onClick={() => setActiveView("map")}
+        >
+          <span aria-hidden="true">🗺️</span>
+          <span>{isEs ? "Mapa" : "Map"}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeView === "glitches" ? "active" : ""}`}
+          style={{
+            minWidth: 52,
+            minHeight: 48,
+            opacity: glitchesAllowed ? 1 : 0.45
+          }}
+          disabled={!glitchesAllowed}
+          onClick={() => {
+            if (glitchesAllowed) setActiveView("glitches");
+          }}
+        >
+          <span aria-hidden="true">⚡</span>
+          <span>Glitches</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeView === "ai" ? "active" : ""}`}
+          style={{ minWidth: 52, minHeight: 48 }}
+          onClick={() => setActiveView("ai")}
+        >
+          <span aria-hidden="true">🤖</span>
+          <span>{isEs ? "IA" : "AI"}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-dock-btn ${activeView === "account" ? "active" : ""}`}
+          style={{ minWidth: 52, minHeight: 48 }}
+          onClick={() => setActiveView("account")}
+        >
+          <span aria-hidden="true">👤</span>
+          <span>{isEs ? "Cuenta" : "Account"}</span>
+        </button>
+      </nav>
+
       {/* Modals */}
+      <CommandPaletteModal
+        open={cmdkOpen}
+        lang={lang}
+        content={content}
+        glitchesAllowed={glitchesAllowed}
+        onClose={() => setCmdkOpen(false)}
+        onSelectView={(targetView) => setActiveView(targetView)}
+        onToast={showToast}
+      />
+
       <PricingModal
         open={pricingOpen}
         lang={lang}
@@ -834,6 +1256,10 @@ export default function ViceLinkHub() {
         socialStudioLocked={content.socialStudioLocked}
         userHandle={me.profile.handle}
         userTier={me.profile.tier}
+        psnVerified={me.profile.psnVerified}
+        xboxVerified={me.profile.xboxVerified}
+        psnId={me.profile.psnId}
+        xboxGamertag={me.profile.xboxGamertag}
         foundPinsCount={progress.foundPins.length}
         totalPinsCount={content.pins.length}
         plannedWorthUsd={plannedWorthUsd}

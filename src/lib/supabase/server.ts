@@ -6,6 +6,12 @@ import { NextResponse } from "next/server";
 import { AI_DAILY_LIMIT_FREE } from "@/lib/security/tier";
 import type {
   AiQuotaInfo,
+  CheatItem,
+  CommunitySubmission,
+  DirectionKey,
+  GlitchItem,
+  LocalizedText,
+  MapPin,
   MePayload,
   PaymentReceipt,
   TheoryComment,
@@ -16,6 +22,10 @@ import type {
 } from "@/types/vicelink";
 import type {
   Database,
+  VicelinkCommunitySubmissionRow,
+  VicelinkDynamicCheatRow,
+  VicelinkDynamicGlitchRow,
+  VicelinkDynamicMapPinRow,
   VicelinkProfileRow,
   VicelinkProgressRow,
   VicelinkSupabaseClient
@@ -80,6 +90,17 @@ export async function getAuthedUser(supabase: VicelinkSupabaseClient): Promise<U
   }
 }
 
+export async function requireAdminUser(
+  supabase: VicelinkSupabaseClient,
+  authedUser?: User
+): Promise<{ user: User; profile: VicelinkProfileRow } | null> {
+  const user = authedUser ?? (await getAuthedUser(supabase));
+  if (!user) return null;
+  const { profile } = await ensureProfileAndProgress(supabase, user);
+  if (!profile.is_admin) return null;
+  return { user, profile };
+}
+
 export function deriveFallbackHandle(user: User): string {
   const prefix = (user.email ?? "")
     .split("@")[0]!
@@ -92,7 +113,7 @@ export function deriveFallbackHandle(user: User): string {
 /**
  * Loads the user's profile and progress rows, creating missing defaults via
  * RLS-scoped self-insert if the auth signup trigger hasn't populated them.
- * Access tier is always enforced to 'free' on insert by the DB trigger.
+ * Access tier is always enforced to 'free' and is_admin to false on insert.
  */
 export async function ensureProfileAndProgress(
   supabase: VicelinkSupabaseClient,
@@ -161,6 +182,7 @@ export function mapProfileRow(row: VicelinkProfileRow): UserProfile {
     handle: row.handle,
     displayName: row.display_name,
     tier: row.access_tier,
+    isAdmin: Boolean(row.is_admin),
     preferredLang: row.preferred_lang,
     createdAt: row.created_at
   };
@@ -172,7 +194,8 @@ export function mapProgressRow(row: VicelinkProgressRow): UserProgress {
     unlockedCheats: row.unlocked_cheats ?? [],
     foundPins: row.found_pins ?? [],
     plannedVehicles: row.planned_vehicles ?? [],
-    plannedProps: row.planned_props ?? []
+    plannedProps: row.planned_props ?? [],
+    unlockedTrophies: row.unlocked_trophies ?? []
   };
 }
 
@@ -234,6 +257,240 @@ export async function getAiQuotaInfo(
     limit: unlimited ? null : AI_DAILY_LIMIT_FREE,
     unlimited
   };
+}
+
+function toDirectionSeq(value: unknown): DirectionKey[] {
+  if (!Array.isArray(value)) return [];
+  const valid: DirectionKey[] = [];
+  for (const item of value) {
+    if (item === "UP" || item === "DOWN" || item === "LEFT" || item === "RIGHT") {
+      valid.push(item);
+    }
+  }
+  return valid;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function localizeGlitchStatus(patchStatus: string, isPatched: boolean): LocalizedText {
+  const clean = patchStatus.trim();
+  if (!clean || clean.toUpperCase() === "PATCHED") {
+    return isPatched
+      ? { en: "PATCHED", es: "PARCHEADO" }
+      : { en: "WORKING ON PATCH 01.002.001", es: "FUNCIONANDO EN PARCHE 01.002.001" };
+  }
+  if (clean.toUpperCase() === "WORKING ON PATCH 01.002.001") {
+    return { en: "WORKING ON PATCH 01.002.001", es: "FUNCIONANDO EN PARCHE 01.002.001" };
+  }
+  return { en: clean, es: clean };
+}
+
+export function mapDynamicCheatRow(row: VicelinkDynamicCheatRow): CheatItem {
+  return {
+    id: row.id,
+    title: { en: row.title_en, es: row.title_es },
+    category: row.category,
+    unlock: { en: row.unlock_en, es: row.unlock_es },
+    howToUnlock: { en: row.how_to_unlock_en, es: row.how_to_unlock_es },
+    desc: { en: row.desc_en, es: row.desc_es },
+    seq: toDirectionSeq(row.button_sequence)
+  };
+}
+
+export function mapDynamicGlitchRow(
+  row: VicelinkDynamicGlitchRow,
+  votes = 0,
+  voted = false
+): GlitchItem {
+  const isPatched = Boolean(row.is_patched);
+  return {
+    id: row.id,
+    category: row.category,
+    status: localizeGlitchStatus(row.patch_status, isPatched),
+    isPatched,
+    title: { en: row.title_en, es: row.title_es },
+    votes,
+    voted,
+    warning: { en: row.warning_en, es: row.warning_es },
+    steps: {
+      en: toStringArray(row.steps_en),
+      es: toStringArray(row.steps_es)
+    }
+  };
+}
+
+export function mapDynamicPinRow(row: VicelinkDynamicMapPinRow): MapPin {
+  return {
+    id: row.id,
+    tier: row.tier,
+    name: { en: row.name_en, es: row.name_es },
+    region: row.region,
+    type: row.pin_type,
+    icon: row.icon,
+    x: Number(row.coord_x),
+    y: Number(row.coord_y),
+    note: { en: row.note_en, es: row.note_es },
+    locked: false
+  };
+}
+
+export function mergeDynamicCheats(
+  seedCheats: CheatItem[],
+  dynamicRows: VicelinkDynamicCheatRow[]
+): CheatItem[] {
+  const seedIds = new Set(seedCheats.map((c) => c.id));
+  const overrides = new Map<string, CheatItem>();
+  const added: CheatItem[] = [];
+
+  for (const row of dynamicRows) {
+    const mapped = mapDynamicCheatRow(row);
+    if (seedIds.has(mapped.id)) overrides.set(mapped.id, mapped);
+    else added.push(mapped);
+  }
+
+  return [...added, ...seedCheats.map((c) => overrides.get(c.id) ?? c)];
+}
+
+export function mergeDynamicGlitches(
+  seedGlitches: GlitchItem[],
+  dynamicRows: VicelinkDynamicGlitchRow[],
+  voteCounts: Map<string, number>,
+  userVoted: Set<string>
+): GlitchItem[] {
+  const seedById = new Map(seedGlitches.map((g) => [g.id, g]));
+  const overrides = new Map<string, GlitchItem>();
+  const added: GlitchItem[] = [];
+
+  for (const row of dynamicRows) {
+    const seed = seedById.get(row.id);
+    const totalVotes = (seed?.votes ?? 0) + (voteCounts.get(row.id) ?? 0);
+    const mapped = mapDynamicGlitchRow(row, totalVotes, userVoted.has(row.id));
+    if (seed) overrides.set(mapped.id, mapped);
+    else added.push(mapped);
+  }
+
+  const mergedSeed = seedGlitches.map((g) => {
+    const override = overrides.get(g.id);
+    if (override) return override;
+    return {
+      ...g,
+      isPatched: Boolean(g.isPatched),
+      votes: g.votes + (voteCounts.get(g.id) ?? 0),
+      voted: userVoted.has(g.id)
+    };
+  });
+
+  return [...added, ...mergedSeed];
+}
+
+export function mergeDynamicPins(
+  seedPins: MapPin[],
+  dynamicRows: VicelinkDynamicMapPinRow[]
+): MapPin[] {
+  const seedIds = new Set(seedPins.map((p) => p.id));
+  const overrides = new Map<string, MapPin>();
+  const added: MapPin[] = [];
+
+  for (const row of dynamicRows) {
+    const mapped = mapDynamicPinRow(row);
+    if (seedIds.has(mapped.id)) overrides.set(mapped.id, mapped);
+    else added.push(mapped);
+  }
+
+  return [...added, ...seedPins.map((p) => overrides.get(p.id) ?? p)];
+}
+
+export async function loadGlitchVotes(
+  supabase: VicelinkSupabaseClient,
+  currentUserId: string
+): Promise<{ voteCounts: Map<string, number>; userVoted: Set<string> }> {
+  const { data: voteRows, error: voteErr } = await supabase
+    .from("vicelink_glitch_votes")
+    .select("glitch_id, user_id");
+  if (voteErr) throw voteErr;
+
+  const voteCounts = new Map<string, number>();
+  const userVoted = new Set<string>();
+  for (const row of voteRows ?? []) {
+    voteCounts.set(row.glitch_id, (voteCounts.get(row.glitch_id) ?? 0) + 1);
+    if (row.user_id === currentUserId) userVoted.add(row.glitch_id);
+  }
+
+  return { voteCounts, userVoted };
+}
+
+export async function buildCommunitySubmissions(
+  supabase: VicelinkSupabaseClient,
+  currentUserId: string,
+  options?: { onlyPublicOrMine?: boolean; onlySubmissionId?: string }
+): Promise<CommunitySubmission[]> {
+  let query = supabase
+    .from("vicelink_community_submissions")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (options?.onlySubmissionId) {
+    query = query.eq("id", options.onlySubmissionId);
+  } else if (options?.onlyPublicOrMine) {
+    query = query.or(`status.in.(approved,implemented),user_id.eq.${currentUserId}`);
+  }
+
+  const { data: rows, error: rowsErr } = await query;
+  if (rowsErr) throw rowsErr;
+
+  const submissions: VicelinkCommunitySubmissionRow[] = rows ?? [];
+  if (submissions.length === 0) return [];
+
+  const submissionIds = submissions.map((s) => s.id);
+  const { data: votesData, error: votesErr } = await supabase
+    .from("vicelink_submission_votes")
+    .select("submission_id, user_id")
+    .in("submission_id", submissionIds);
+  if (votesErr) throw votesErr;
+
+  const userIds = Array.from(
+    new Set(submissions.map((s) => s.user_id).filter((id): id is string => Boolean(id)))
+  );
+  const authorMeta = new Map<string, { handle: string; tier: UserTier }>();
+  if (userIds.length > 0) {
+    const { data: tiersData, error: tiersErr } = await supabase.rpc("vicelink_author_tiers", {
+      p_user_ids: userIds
+    });
+    if (tiersErr) throw tiersErr;
+    for (const row of tiersData ?? []) {
+      authorMeta.set(row.user_id, { handle: row.handle, tier: row.access_tier });
+    }
+  }
+
+  const voteCounts = new Map<string, number>();
+  const userVoted = new Set<string>();
+  for (const v of votesData ?? []) {
+    voteCounts.set(v.submission_id, (voteCounts.get(v.submission_id) ?? 0) + 1);
+    if (v.user_id === currentUserId) userVoted.add(v.submission_id);
+  }
+
+  return submissions.map((row) => {
+    const meta = row.user_id ? authorMeta.get(row.user_id) : undefined;
+    return {
+      id: row.id,
+      authorHandle: meta?.handle ?? row.author_handle,
+      authorTier: meta?.tier ?? "free",
+      submissionType: row.submission_type,
+      regionOrCategory: row.region_or_category,
+      title: row.title,
+      details: row.details,
+      status: row.status,
+      adminNotes: row.admin_notes,
+      votes: voteCounts.get(row.id) ?? 0,
+      upvoted: userVoted.has(row.id),
+      isMine: row.user_id === currentUserId,
+      createdAt: row.created_at
+    };
+  });
 }
 
 /**

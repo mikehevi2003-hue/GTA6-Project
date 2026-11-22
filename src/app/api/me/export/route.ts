@@ -20,34 +20,49 @@ export async function GET() {
     const ensured = await ensureProfileAndProgress(supabase, user);
     const me = await buildMePayload(supabase, user, ensured);
 
-    const [aiUsageRes, glitchVotesRes, theoriesRes, commentsRes, theoryVotesRes, reactionsRes, likesRes] =
-      await Promise.all([
-        supabase
-          .from("vicelink_ai_usage")
-          .select("usage_date, count")
-          .eq("user_id", user.id)
-          .order("usage_date", { ascending: false }),
-        supabase
-          .from("vicelink_glitch_votes")
-          .select("glitch_id, created_at")
-          .eq("user_id", user.id),
-        supabase
-          .from("vicelink_theories")
-          .select("id, author_handle, title, tag, coords, body, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("vicelink_comments")
-          .select("id, theory_id, author_handle, body, gif_id, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase.from("vicelink_theory_votes").select("theory_id").eq("user_id", user.id),
-        supabase
-          .from("vicelink_theory_reactions")
-          .select("theory_id, emoji")
-          .eq("user_id", user.id),
-        supabase.from("vicelink_comment_likes").select("comment_id").eq("user_id", user.id)
-      ]);
+    const [
+      aiUsageRes,
+      glitchVotesRes,
+      theoriesRes,
+      commentsRes,
+      theoryVotesRes,
+      reactionsRes,
+      likesRes,
+      submissionsRes,
+      submissionVotesRes
+    ] = await Promise.all([
+      supabase
+        .from("vicelink_ai_usage")
+        .select("usage_date, count")
+        .eq("user_id", user.id)
+        .order("usage_date", { ascending: false }),
+      supabase
+        .from("vicelink_glitch_votes")
+        .select("glitch_id, created_at")
+        .eq("user_id", user.id),
+      supabase
+        .from("vicelink_theories")
+        .select("id, author_handle, title, tag, coords, body, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("vicelink_comments")
+        .select("id, theory_id, author_handle, body, gif_id, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase.from("vicelink_theory_votes").select("theory_id").eq("user_id", user.id),
+      supabase
+        .from("vicelink_theory_reactions")
+        .select("theory_id, emoji")
+        .eq("user_id", user.id),
+      supabase.from("vicelink_comment_likes").select("comment_id").eq("user_id", user.id),
+      supabase
+        .from("vicelink_community_submissions")
+        .select("id, submission_type, region_or_category, title, details, status, admin_notes, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase.from("vicelink_submission_votes").select("submission_id").eq("user_id", user.id)
+    ]);
 
     const errors = [
       aiUsageRes.error,
@@ -56,7 +71,9 @@ export async function GET() {
       commentsRes.error,
       theoryVotesRes.error,
       reactionsRes.error,
-      likesRes.error
+      likesRes.error,
+      submissionsRes.error,
+      submissionVotesRes.error
     ].filter(Boolean);
     if (errors.length > 0) throw errors[0];
 
@@ -81,7 +98,9 @@ export async function GET() {
         glitchVotes: glitchVotesRes.data ?? [],
         theoryVotes: theoryVotesRes.data ?? [],
         theoryReactions: reactionsRes.data ?? [],
-        commentLikes: likesRes.data ?? []
+        commentLikes: likesRes.data ?? [],
+        communitySubmissions: submissionsRes.data ?? [],
+        submissionVotes: submissionVotesRes.data ?? []
       }
     };
 

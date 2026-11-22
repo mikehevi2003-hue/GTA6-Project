@@ -33,7 +33,7 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#39;");
 }
 
-export function buildPromotionalEmailHtml(params: {
+function buildPromotionalEmailHtml(params: {
   lang: "en" | "es";
   handle: string;
   subject: string;

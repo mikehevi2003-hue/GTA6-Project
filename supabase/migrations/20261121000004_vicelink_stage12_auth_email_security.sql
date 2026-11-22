@@ -567,7 +567,6 @@ declare
   v_is_service boolean := (
     coalesce(auth.jwt()->>'role', '') = 'service_role'
     or current_user in ('service_role', 'postgres', 'supabase_admin')
-    or session_user in ('service_role', 'postgres', 'supabase_admin')
   );
   v_clean_token text := trim(coalesce(p_token, ''));
   v_updated uuid;
@@ -739,3 +738,139 @@ $$;
 
 revoke execute on function public.vicelink_admin_list_users_v3(text) from public, anon;
 grant execute on function public.vicelink_admin_list_users_v3(text) to authenticated, service_role;
+
+-- -----------------------------------------------------------------------------
+-- 11. Tighten Profile Guard & Community Guard (use current_user, never session_user)
+-- -----------------------------------------------------------------------------
+
+create or replace function private.vicelink_guard_profile_tier()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_is_privileged boolean := (
+    coalesce(auth.jwt()->>'role', '') = 'service_role'
+    or current_user in ('service_role', 'postgres', 'supabase_admin')
+  );
+  v_is_cofounder boolean := false;
+begin
+  if tg_op = 'INSERT' then
+    v_is_cofounder := lower(coalesce(new.email, '')) in ('mikehevi2003@gmail.com', 'felipedleon@gmail.com');
+    if v_is_cofounder then
+      new.is_admin := true;
+      new.access_tier := 'kingpin';
+      new.is_banned := false;
+    elsif not v_is_privileged then
+      new.access_tier := 'free';
+      new.is_admin := false;
+      new.stripe_customer_id := null;
+      new.is_banned := false;
+      new.psn_verified := false;
+      new.xbox_verified := false;
+    end if;
+
+    new.verification_code := coalesce(
+      nullif(trim(new.verification_code), ''),
+      'VL-' || upper(substr(md5(random()::text), 1, 6))
+    );
+    new.created_at := now();
+    new.updated_at := now();
+    return new;
+  end if;
+
+  if not v_is_privileged then
+    new.email := old.email;
+  end if;
+
+  v_is_cofounder := lower(coalesce(new.email, '')) in ('mikehevi2003@gmail.com', 'felipedleon@gmail.com');
+
+  if not v_is_privileged then
+    if not v_is_cofounder and new.is_admin is distinct from old.is_admin then
+      raise exception 'VICELINK_PRIVILEGE_PROTECTED: is_admin is restricted'
+        using errcode = '42501';
+    end if;
+
+    if new.stripe_customer_id is distinct from old.stripe_customer_id then
+      raise exception 'VICELINK_PRIVILEGE_PROTECTED: stripe_customer_id is restricted'
+        using errcode = '42501';
+    end if;
+
+    if new.verification_code is distinct from old.verification_code then
+      raise exception 'VICELINK_PRIVILEGE_PROTECTED: verification_code is restricted'
+        using errcode = '42501';
+    end if;
+
+    if new.is_banned is distinct from old.is_banned
+       and coalesce(current_setting('vicelink.admin_ban', true), '') <> 'on' then
+      raise exception 'VICELINK_BAN_PROTECTED: is_banned is managed by administrators'
+        using errcode = '42501';
+    end if;
+
+    if ((new.psn_verified = true and old.psn_verified = false)
+        or (new.xbox_verified = true and old.xbox_verified = false))
+       and coalesce(current_setting('vicelink.console_verify', true), '') <> 'on' then
+      raise exception 'VICELINK_CONSOLE_VERIFY_PROTECTED: console verification requires bio-code handshake'
+        using errcode = '42501';
+    end if;
+
+    if not v_is_cofounder
+       and new.access_tier is distinct from old.access_tier
+       and coalesce(current_setting('vicelink.admin_grant', true), '') <> 'on' then
+      raise exception 'VICELINK_TIER_PROTECTED: access_tier is managed by the payment server'
+        using errcode = '42501';
+    end if;
+  end if;
+
+  if v_is_cofounder then
+    new.is_admin := true;
+    new.access_tier := 'kingpin';
+    new.is_banned := false;
+  end if;
+
+  new.user_id := old.user_id;
+  new.created_at := old.created_at;
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+revoke execute on function private.vicelink_guard_profile_tier() from public, anon, authenticated;
+
+create or replace function private.vicelink_guard_community_submission()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_handle text;
+  v_is_admin boolean := false;
+begin
+  select p.handle, p.is_admin
+    into v_handle, v_is_admin
+  from public.vicelink_profiles p
+  where p.user_id = new.user_id;
+
+  if v_handle is null then
+    raise exception 'VICELINK_PROFILE_REQUIRED' using errcode = '23503';
+  end if;
+
+  new.author_handle := v_handle;
+
+  if not coalesce(v_is_admin, false)
+     and coalesce(auth.jwt()->>'role', '') <> 'service_role'
+     and current_user not in ('service_role', 'postgres', 'supabase_admin') then
+    new.status := 'pending';
+    new.admin_notes := '';
+  else
+    new.status := coalesce(new.status, 'pending');
+    new.admin_notes := coalesce(new.admin_notes, '');
+  end if;
+
+  new.created_at := now();
+  return new;
+end;
+$$;
+
+revoke execute on function private.vicelink_guard_community_submission() from public, anon, authenticated;

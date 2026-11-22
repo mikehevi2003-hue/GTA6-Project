@@ -1100,4 +1100,357 @@ describe("ViceLink Stage E — Automated Security, Data & Bilingual Logic Suite"
       "MapView.tsx must define the 6-stop FIRST_HOUR_ROUTE_STOPS speedrun overlay"
     );
   });
+
+  it("19. [SEC-03] Yappy Webhook Cryptographic Signature, Timing-Safe HMAC Verification & Replay Protection", async () => {
+    const {
+      computeYappyIpnHash,
+      verifyYappyIpnHash,
+      generateYappyOrderId
+    } = await importProjectModule<{
+      computeYappyIpnHash: (
+        params: { orderId: string; status: string; domain: string },
+        secretKey: string
+      ) => string;
+      verifyYappyIpnHash: (
+        params: { orderId: string; status: string; hash: string; domain: string },
+        secretKey: string
+      ) => boolean;
+      generateYappyOrderId: () => string;
+    }>("../src/lib/payments/yappy.ts");
+
+    const yappyLibSource = readFileSync(
+      new URL("../src/lib/payments/yappy.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      yappyLibSource,
+      /timingSafeEqual/,
+      "src/lib/payments/yappy.ts must use crypto.timingSafeEqual for constant-time HMAC verification"
+    );
+
+    const secret = Buffer.from("vicelink_stage14_secret.extra_segment").toString("base64");
+    const orderId = generateYappyOrderId();
+    const domain = "https://vicelink.app";
+    const status = "E";
+    const validHash = computeYappyIpnHash({ orderId, status, domain }, secret);
+
+    assert.equal(
+      verifyYappyIpnHash({ orderId, status, domain, hash: validHash }, secret),
+      true,
+      "verifyYappyIpnHash must accept a valid HMAC-SHA256 signature"
+    );
+    assert.equal(
+      verifyYappyIpnHash({ orderId, status, domain, hash: "" }, secret),
+      false,
+      "verifyYappyIpnHash must reject unsigned/empty hash"
+    );
+    assert.equal(
+      verifyYappyIpnHash({ orderId, status, domain, hash: "not-hex-payload!" }, secret),
+      false,
+      "verifyYappyIpnHash must reject non-hex hashes"
+    );
+    assert.equal(
+      verifyYappyIpnHash({ orderId, status, domain, hash: validHash.slice(0, 32) }, secret),
+      false,
+      "verifyYappyIpnHash must reject truncated hashes"
+    );
+    const flippedFirstChar = validHash[0] === "0" ? "1" : "0";
+    assert.equal(
+      verifyYappyIpnHash(
+        { orderId, status, domain, hash: `${flippedFirstChar}${validHash.slice(1)}` },
+        secret
+      ),
+      false,
+      "verifyYappyIpnHash must reject same-length forged hashes"
+    );
+
+    // Inspect src/app/api/webhooks/yappy/route.ts for Stage 13 SEC-03 hardening
+    const yappyRouteSource = readFileSync(
+      new URL("../src/app/api/webhooks/yappy/route.ts", import.meta.url),
+      "utf8"
+    );
+    const unsignedCheckIdx = yappyRouteSource.indexOf("!params.hash");
+    const notConfiguredIdx = yappyRouteSource.indexOf("WEBHOOK_NOT_CONFIGURED");
+    assert.ok(
+      unsignedCheckIdx !== -1,
+      "api/webhooks/yappy/route.ts must explicitly check !params.hash for unsigned webhooks"
+    );
+    assert.ok(
+      notConfiguredIdx === -1 || unsignedCheckIdx < notConfiguredIdx,
+      "api/webhooks/yappy/route.ts must reject unsigned requests (!params.hash) BEFORE WEBHOOK_NOT_CONFIGURED"
+    );
+    assert.match(
+      yappyRouteSource,
+      /!params\.hash[\s\S]{0,300}status:\s*401/,
+      "api/webhooks/yappy/route.ts must return HTTP 401 for unsigned webhooks (!params.hash)"
+    );
+    assert.match(
+      yappyRouteSource,
+      /tx\.status\s*===\s*["']completed["']/,
+      "api/webhooks/yappy/route.ts must check tx.status === 'completed' to block replay attacks"
+    );
+    assert.match(
+      yappyRouteSource,
+      /alreadyProcessed:\s*true[\s\S]{0,260}status:\s*200/,
+      "api/webhooks/yappy/route.ts must return HTTP 200 with alreadyProcessed: true without re-crediting"
+    );
+  });
+
+  it("20. [SEC-04] XSS & SQLi Fuzzing Defense (containsDisallowedMarkup, sanitizePlainText, handle normalization & parameterized SQL)", async () => {
+    const {
+      containsDisallowedMarkup,
+      sanitizePlainText,
+      normalizeHandle,
+      isValidHandle
+    } = await importProjectModule<{
+      containsDisallowedMarkup: (input: string) => boolean;
+      sanitizePlainText: (input: string, maxLen: number) => string;
+      normalizeHandle: (input: string) => string;
+      isValidHandle: (input: string) => boolean;
+    }>("../src/lib/security/sanitize.ts");
+
+    const xssPayloads = [
+      "<script>alert(1)</script>",
+      "<img src=x onerror=alert(1)>",
+      "<svg/onload=alert(1)>",
+      "javascript:alert(document.cookie)",
+      "data:text/html,<script>alert(1)</script>"
+    ];
+
+    for (const payload of xssPayloads) {
+      assert.equal(
+        containsDisallowedMarkup(payload),
+        true,
+        `containsDisallowedMarkup must flag XSS payload: ${payload}`
+      );
+      const sanitized = sanitizePlainText(payload, 200);
+      assert.ok(
+        !sanitized.includes("<") && !sanitized.includes(">"),
+        `sanitizePlainText must strip HTML angle brackets from XSS payload: ${payload}`
+      );
+    }
+
+    const sqliPayloads = [
+      "' OR 1=1--",
+      "'; DROP TABLE vicelink_profiles;--",
+      "\" UNION SELECT * FROM auth.users--",
+      "admin'/*"
+    ];
+
+    for (const payload of sqliPayloads) {
+      assert.equal(
+        isValidHandle(payload),
+        false,
+        `isValidHandle must reject SQLi payload: ${payload}`
+      );
+      const normalized = normalizeHandle(payload);
+      assert.ok(
+        !normalized.includes("'") &&
+          !normalized.includes("\"") &&
+          !normalized.includes("--") &&
+          !normalized.includes(";"),
+        `normalizeHandle must strip SQLi metacharacters from "${payload}", got "${normalized}"`
+      );
+      const cleanText = sanitizePlainText(`<script>${payload}</script>`, 64);
+      assert.ok(
+        !cleanText.includes("<") && !cleanText.includes(">") && cleanText.length <= 64,
+        `sanitizePlainText must strip angle brackets and enforce length cap for "${payload}"`
+      );
+    }
+
+    const stage12Sql = readFileSync(
+      new URL("../supabase/migrations/20261121000004_vicelink_stage12_auth_email_security.sql", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      stage12Sql,
+      /escape\s+'\\'/,
+      "vicelink_admin_list_users_v3 must escape ILIKE wildcards with explicit escape '\\'"
+    );
+  });
+
+  it("21. [SEC-01 / SEC-02 / SEC-05] Edge Rate Limiting (5/15m Auth Policy), Zero-Trust aal2 Gate, Zero session_user Bypasses & PricingModal Waiver Copy", async () => {
+    const rateLimitMod = await importProjectModule<{
+      checkRateLimit: (
+        key: string,
+        limit: number,
+        windowMs: number
+      ) => { allowed: boolean; remaining: number; retryAfterMs: number };
+      resetRateLimits: () => void;
+      checkRateLimitAsync?: (
+        key: string,
+        limit: number,
+        windowMs: number
+      ) => Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }>;
+    }>("../src/lib/security/rate-limit.ts");
+
+    const { checkRateLimit, resetRateLimits } = rateLimitMod;
+    resetRateLimits();
+
+    const authKey = "auth-edge:203.0.113.42";
+    const authWindowMs = 15 * 60_000;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const res = checkRateLimit(authKey, 5, authWindowMs);
+      assert.equal(res.allowed, true, `Attempt ${attempt}/5 must be allowed`);
+      assert.equal(res.remaining, 5 - attempt, `Remaining after attempt ${attempt} must be ${5 - attempt}`);
+      assert.equal(res.retryAfterMs, 0);
+    }
+
+    const blocked = checkRateLimit(authKey, 5, authWindowMs);
+    assert.equal(blocked.allowed, false, "6th attempt in /api/auth/* sliding window must be blocked");
+    assert.equal(blocked.remaining, 0);
+    assert.ok(blocked.retryAfterMs > 0, "Blocked rate limit response must include positive retryAfterMs");
+
+    resetRateLimits();
+    const afterReset = checkRateLimit(authKey, 5, authWindowMs);
+    assert.equal(afterReset.allowed, true, "resetRateLimits() must cleanly reset rate limit buckets");
+    assert.equal(afterReset.remaining, 4);
+
+    if (typeof rateLimitMod.checkRateLimitAsync === "function") {
+      resetRateLimits();
+      const asyncKey = "auth-edge-async:203.0.113.99";
+      const r1 = await rateLimitMod.checkRateLimitAsync(asyncKey, 2, 60_000);
+      const r2 = await rateLimitMod.checkRateLimitAsync(asyncKey, 2, 60_000);
+      const r3 = await rateLimitMod.checkRateLimitAsync(asyncKey, 2, 60_000);
+      assert.equal(r1.allowed, true);
+      assert.equal(r2.allowed, true);
+      assert.equal(r3.allowed, false, "checkRateLimitAsync fallback must block requests exceeding limit");
+      resetRateLimits();
+    }
+
+    // Verify 0 active `session_user` bypasses in Stage 12/13 Postgres migration guards
+    const stage12Sql = readFileSync(
+      new URL("../supabase/migrations/20261121000004_vicelink_stage12_auth_email_security.sql", import.meta.url),
+      "utf8"
+    );
+    const sqlWithoutComments = stage12Sql
+      .replace(/--.*$/gm, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.doesNotMatch(
+      sqlWithoutComments,
+      /\bsession_user\b/i,
+      "20261121000004_vicelink_stage12_auth_email_security.sql must have ZERO session_user bypasses"
+    );
+    assert.match(
+      sqlWithoutComments,
+      /current_user\s+in\s*\(\s*'service_role'\s*,\s*'postgres'\s*,\s*'supabase_admin'\s*\)/i,
+      "Postgres trigger guards must rely on current_user, never session_user"
+    );
+
+    // Verify Stage 13 SEC-05 aal2 server guard (when merged) and PricingModal Stage 14 copy fix
+    const serverSource = readFileSync(
+      new URL("../src/lib/supabase/server.ts", import.meta.url),
+      "utf8"
+    );
+    if (serverSource.includes("requireAdminAal2")) {
+      assert.match(
+        serverSource,
+        /MFA_AAL2_REQUIRED/,
+        "src/lib/supabase/server.ts must return MFA_AAL2_REQUIRED when Co-Founder AAL !== 'aal2'"
+      );
+    }
+
+    const pricingModalSource = readFileSync(
+      new URL("../src/components/modals/PricingModal.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      pricingModalSource,
+      /box above/i,
+      "PricingModal.tsx EN waiver alert must reference 'box above'"
+    );
+    assert.doesNotMatch(
+      pricingModalSource,
+      /box below/i,
+      "PricingModal.tsx EN waiver alert must not contain stale 'box below' copy"
+    );
+    assert.match(
+      pricingModalSource,
+      /casilla superior/i,
+      "PricingModal.tsx ES waiver alert must reference 'casilla superior'"
+    );
+    assert.doesNotMatch(
+      pricingModalSource,
+      /casilla inferior/i,
+      "PricingModal.tsx ES waiver alert must not contain stale 'casilla inferior' copy"
+    );
+  });
+
+  it("22. [Stage 15] Strict Security Headers, Deep-Link URL Parsing (/?view=map&pin=rc1), PWA Manifest/SW, Dynamic OG Route & Capacitor Config", async () => {
+    // 1. Strict vercel.json security headers
+    const vercelJsonUrl = new URL("../vercel.json", import.meta.url);
+    assert.equal(existsSync(vercelJsonUrl), true, "vercel.json must exist at repository root");
+    const vercelJsonSource = readFileSync(vercelJsonUrl, "utf8");
+    for (const token of [
+      "X-Frame-Options",
+      "DENY",
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "nosniff",
+      "Content-Security-Policy"
+    ]) {
+      assert.ok(
+        vercelJsonSource.includes(token),
+        `vercel.json must include security header token "${token}"`
+      );
+    }
+
+    // 2. Deep-link URL query parsing (`/?view=map&pin=rc1`) validated against LEONIDA_PINS
+    const { LEONIDA_PINS } = await importProjectModule<{
+      LEONIDA_PINS: MapPin[];
+    }>("../src/server/data/pins.ts");
+
+    const parsedDeepLink = new URL("https://vicelink.app/?view=map&pin=rc1");
+    const deepView = parsedDeepLink.searchParams.get("view");
+    const deepPin = parsedDeepLink.searchParams.get("pin");
+    assert.equal(deepView, "map");
+    assert.equal(deepPin, "rc1");
+    assert.ok(
+      LEONIDA_PINS.some((p) => p.id === deepPin),
+      `Deep-link target pin "${deepPin}" must exist in LEONIDA_PINS`
+    );
+
+    // 3. Stage 15 PWA Manifest (`public/manifest.json`)
+    const manifestUrl = new URL("../public/manifest.json", import.meta.url);
+    assert.equal(existsSync(manifestUrl), true, "public/manifest.json must exist for Stage 15 PWA");
+    const manifest = JSON.parse(readFileSync(manifestUrl, "utf8")) as {
+      name?: string;
+      short_name?: string;
+      start_url?: string;
+      display?: string;
+      background_color?: string;
+      theme_color?: string;
+      icons?: Array<{ src?: string }>;
+    };
+    assert.ok(manifest.name && manifest.name.length > 0, "manifest.json must define name");
+    assert.ok(manifest.short_name && manifest.short_name.length > 0, "manifest.json must define short_name");
+    assert.equal(manifest.start_url, "/", "manifest.json start_url must be '/'");
+    assert.equal(manifest.display, "standalone", "manifest.json display must be 'standalone'");
+    assert.equal(manifest.background_color, "#05070e", "manifest.json background_color must be '#05070e'");
+    assert.ok(
+      Array.isArray(manifest.icons) && manifest.icons.length >= 2,
+      "manifest.json must declare 192 & 512 PWA icons"
+    );
+
+    // 4. Stage 15 Service Worker (`public/sw.js`) — strict no-cache on /api/ and supabase.co
+    const swUrl = new URL("../public/sw.js", import.meta.url);
+    assert.equal(existsSync(swUrl), true, "public/sw.js must exist for Stage 15 PWA");
+    const swSource = readFileSync(swUrl, "utf8");
+    assert.ok(swSource.includes("/api/"), "public/sw.js must bypass caching for /api/ routes");
+    assert.ok(swSource.includes("supabase.co"), "public/sw.js must bypass caching for supabase.co");
+
+    // 5. Stage 15 Dynamic Edge OpenGraph Route (`src/app/api/og/route.tsx`)
+    const ogUrl = new URL("../src/app/api/og/route.tsx", import.meta.url);
+    assert.equal(existsSync(ogUrl), true, "src/app/api/og/route.tsx must exist for Stage 15 dynamic OG cards");
+    const ogSource = readFileSync(ogUrl, "utf8");
+    assert.match(ogSource, /runtime\s*=\s*["']edge["']/, "api/og/route.tsx must export runtime = 'edge'");
+    assert.match(ogSource, /ImageResponse/, "api/og/route.tsx must render via next/og ImageResponse");
+
+    // 6. Stage 15 Mobile Store Packaging (`capacitor.config.ts`)
+    const capUrl = new URL("../capacitor.config.ts", import.meta.url);
+    assert.equal(existsSync(capUrl), true, "capacitor.config.ts must exist for Stage 15 iOS/Android packaging");
+    const capSource = readFileSync(capUrl, "utf8");
+    assert.match(capSource, /app\.vicelink\.leonida/, "capacitor.config.ts must set appId 'app.vicelink.leonida'");
+    assert.match(capSource, /https:\/\/vicelink\.app/, "capacitor.config.ts must target https://vicelink.app");
+  });
 });

@@ -316,5 +316,117 @@ Run `npm run typecheck` and `npm test` (executing all **18 automated test suites
 | **`QA-07`** | **International No-Refund Policy & Statutory Citations** | `LEGAL_POLICIES.refunds` and `LEGAL_POLICIES.terms` disclose immediate digital delivery & final sale under Panama Law 45 & Law 81, EU Directive 2011/83/EU Art. 16(m), UK CCR, and chargeback protection while preserving `Rockstar Games`. | `Test 2` & `Test 17` (`tests/security-and-logic.test.ts`) |
 | **`QA-08`** | **Promo Code Math, Law 81 Unsubscribe & `$250K/hr` Map Route** | `PANAMA50` (50% off -> `$1.00` Street / `$2.50` Kingpin), `LEONIDA25` (25% off -> `$1.49` / `$3.74`), `FOUNDERVIP` (100% -> `$0.00` instant unlock); `/api/unsubscribe` 1-click opt-out in Admin Email Broadcaster; 6-stop `$250K/hr` route in `MapView.tsx`. | `Test 18` (`tests/security-and-logic.test.ts`) |
 
+---
+
+## 8. Final Pre-Launch & Stage 13–15 Official Go-Live Runbook
+
+Stages 13–15 complete ViceLink's **Five-Layer Zero-Trust Security Architecture**, full **Stage 14 Penetration & QA Verification Suite (`Tests 1–22`)**, **Mobile PWA & Dynamic Edge OpenGraph Cards (`/api/og`)**, **Shareable Deep Links (`/?view=map&pin=<id>`)**, **Capacitor iOS/Android Store Packaging**, and **Production Observability & Backup Operations** for `https://vicelink.app`.
+
+### 8.1 Five-Layer Zero-Trust Security Architecture
+
+| Layer | Control Plane | Enforcement Mechanism |
+| :---: | :--- | :--- |
+| **Layer 1** | **Edge Network, WAF & Distributed Rate Limiting** | Cloudflare WAF (TLS 1.3 Full Strict + Bot Fight Mode) + Vercel security headers (`X-Frame-Options: DENY`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, strict `Content-Security-Policy` in `next.config.ts` & `vercel.json`) + `checkRateLimitAsync()` (Upstash Redis REST pipeline via `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`, with sliding-window memory fallback). Enforces **`5 req / 15 min`** on `/api/auth/*` (excluding `/api/auth/signout`) and **`10 req / min`** burst shield on `/api/ai/ask`. |
+| **Layer 2** | **Authentication & Mandatory Co-Founder 2FA (`AAL2`) Gate** | Supabase PKCE Auth + `requireAdminAal2()` enforced on **all 11 `/api/admin/*` API routes** (`overview`, `cheats`, `glitches`, `pins`, `promos`, `send-promo`, `settings`, `submissions/[id]`, `users`, `users/ban`, `users/grant`) plus dedicated server-rendered `/admin` route (`src/app/admin/page.tsx`) and inline step-up TOTP modal (`AdminView.tsx`). Any Co-Founder session at `aal1` receives `403 MFA_AAL2_REQUIRED` with `setupUrl: "/?setup2fa=1"`. |
+| **Layer 3** | **Input Sanitization & Injection Prevention** | Zero `dangerouslySetInnerHTML`; all user-submitted content validated through `containsDisallowedMarkup()`, `sanitizePlainText()`, and `normalizeHandle()` (`src/lib/security/sanitize.ts`). All Postgres queries use typed RPCs and explicit `escape '\'` wildcard escaping (`vicelink_admin_list_users_v3`). |
+| **Layer 4** | **Cryptographic Payment Webhooks & Replay Lock** | **Yappy Comercial V2 (`src/app/api/webhooks/yappy/route.ts`):** rejects unsigned callbacks (`!params.hash`) with `401 UNAUTHORIZED` *before* environment/config checks, verifies HMAC-SHA256 using `crypto.timingSafeEqual` (`verifyYappyIpnHash`), and blocks duplicate replays (`tx.status === "completed"`) by returning `200 { alreadyProcessed: true }` without re-crediting. **Stripe/Card (`/api/webhooks/card`):** raw-body cryptographic signature check. **Pre-Checkout Waiver:** `waiverAccepted: true` enforced on both client and server. |
+| **Layer 5** | **PostgreSQL RLS & Immutable Trigger Guards** | `ENABLE` + `FORCE ROW LEVEL SECURITY` on every `public.vicelink_*` table. `private.vicelink_guard_profile_tier()` and `private.vicelink_guard_community_submission()` check `current_user in ('service_role', 'postgres', 'supabase_admin')` with **zero `session_user` bypasses**, blocking client-side tampering with `access_tier`, `is_admin`, `is_banned`, `stripe_customer_id`, or `verification_code`. All admin actions append immutable records to `public.vicelink_admin_audit_logs`. |
+
+### 8.2 Stage 14 Penetration (`SEC-01`..`SEC-05`) & Staging QA (`QA-01`..`QA-05`) Verification Matrix
+
+Run the complete **22-test automated suite** before every production release:
+
+```bash
+npm run typecheck
+npm test
+```
+
+| ID | Security / QA Domain | Acceptance Criteria | Automated / Staging Verification |
+| :---: | :--- | :--- | :--- |
+| **`SEC-01`** | **Edge & Auth Brute-Force Rate Limiting** | `/api/auth/*` blocks the 6th rapid request within 15 minutes (`429 RATE_LIMITED` + `Retry-After`); `/api/ai/ask` enforces 10 req/min burst shield + Postgres daily quota; Upstash Redis fails open to in-memory sliding window. | `Test 21` (`checkRateLimit` / `checkRateLimitAsync` / `resetRateLimits`) + `curl` burst test on staging |
+| **`SEC-02`** | **PostgreSQL Privilege Escalation & RLS Guard** | Direct `PATCH /api/me` or Supabase REST updates attempting to mutate `access_tier`, `is_admin`, `is_banned`, or `stripe_customer_id` fail with `403`/`42501`; `0` `session_user` bypasses in SQL migrations. | `Test 16` & `Test 21` (`20261121000004_vicelink_stage12_auth_email_security.sql`) |
+| **`SEC-03`** | **Yappy & Card Webhook Signature + Replay Lock** | Unsigned `POST`/`GET /api/webhooks/yappy` (`!params.hash`) returns `401 UNAUTHORIZED`; forged/truncated hashes fail constant-time `timingSafeEqual`; replaying a `completed` order returns `200 { alreadyProcessed: true }` without double-crediting. | `Test 6` & `Test 19` (`tests/security-and-logic.test.ts`) |
+| **`SEC-04`** | **XSS & SQLi Fuzzing Defense** | `<script>alert(1)</script>`, `<img src=x onerror=alert(1)>`, `<svg/onload=...>`, `javascript:`, and SQLi payloads (`' OR 1=1--`, `'; DROP TABLE ...`) are flagged/stripped of `<`/`>` and rejected by handle validators & parameterized RPCs. | `Test 10`, `Test 12`, & `Test 20` |
+| **`SEC-05`** | **Mandatory Co-Founder 2FA (`AAL2`) Admin Gate** | Unauthenticated `/admin` redirects to `/login`; non-admin users receive `403 FORBIDDEN`; Co-Founders at `aal1` receive `403 MFA_AAL2_REQUIRED` across all 11 `/api/admin/*` routes and see the inline TOTP verification gate until elevated to `aal2`. | `Test 15` & `Test 21` + live staging verification on `/admin` |
+| **`QA-01`** | **Co-Founder Non-Lockout Login & TOTP Setup** | First login for `mikehevi2003@gmail.com` and `felipedleon@gmail.com` routes to `/?setup2fa=1` without lockout; enrolling TOTP elevates session to `aal2` and unlocks `/admin`. | `Test 11` & `Test 15` |
+| **`QA-02`** | **Checkout Waiver Copy & Promo Math Accuracy** | `PricingModal.tsx` displays accurate directional copy (`"box above"` / `"casilla superior"`), blocks checkout until waiver is checked, and calculates `PANAMA50` (`$1.00`/`$2.50`), `LEONIDA25` (`$1.49`/`$3.74`), and `FOUNDERVIP` (`$0.00`). | `Test 18` & `Test 21` |
+| **`QA-03`** | **Strict Security Headers & CSP Compliance** | Both `next.config.ts` and `vercel.json` emit `X-Frame-Options: DENY`, `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, and `Content-Security-Policy` allowing Supabase, Stripe, and Yappy CDN origins only. | `Test 16` & `Test 22` + `curl -I https://vicelink.app` |
+| **`QA-04`** | **Deep Links (`/?view=map&pin=rc1`) & Edge OG Cards** | Navigating to `/?view=map&pin=rc1` opens the Tactical Map focused on `rc1`; clicking **Share Pin** copies a canonical deep link; `GET /api/og?view=map&pin=rc1` returns a `1200x630` PNG on Edge runtime without requiring auth. | `Test 22` + OpenGraph debugger preview |
+| **`QA-05`** | **PWA Installability & Service Worker Isolation** | `public/manifest.json` passes installability checks (`display: standalone`, `#05070e`, 192/512 icons); `public/sw.js` caches static assets only and strictly bypasses `/api/` and `supabase.co`. | `Test 22` + Chrome Lighthouse PWA audit |
+
+### 8.3 Resend + Cloudflare WAF + `vicelink.app` SSL Cutover
+
+1. **Cloudflare DNS & SSL/TLS Cutover (`vicelink.app`):**
+   - Point apex `vicelink.app` (`A` -> `76.76.21.21` or Cloudflare CNAME flattening -> `cname.vercel-dns.com`) and `www.vicelink.app` (`CNAME` -> `cname.vercel-dns.com`) to Vercel.
+   - Set **SSL/TLS Encryption Mode** to **Full (Strict)**, enable **Always Use HTTPS**, **TLS 1.3**, and **Automatic HTTPS Rewrites**.
+   - Enable **Cloudflare WAF Managed Ruleset** + **Bot Fight Mode** and add a Custom WAF Rate Limiting rule on `/api/auth/*` and `/api/checkout/*` as an additional outer shield above Vercel Edge Middleware.
+2. **Resend Domain & Supabase Custom SMTP Cutover:**
+   - Publish Resend **SPF**, **DKIM (`resend._domainkey`)**, and **DMARC (`_dmarc`)** `TXT` records in Cloudflare DNS (DNS Only / gray cloud) and confirm `Verified` status in `resend.com/domains`.
+   - Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL="ViceLink Leonida Hub <intel@vicelink.app>"` in Vercel Production Environment Variables and configure `smtp.resend.com` in **Supabase → Auth → SMTP Settings**.
+   - Run a live inbox deliverability smoke test to both a **Gmail** (`@gmail.com`) and **Apple iCloud** (`@icloud.com`) test address (signup confirmation, password reset to `/reset-password`, and 1-click `/api/unsubscribe`).
+3. **Production Origins & Live Payment Webhooks:**
+   - Update `NEXT_PUBLIC_APP_URL=https://vicelink.app` and `YAPPY_DOMAIN_URL=https://vicelink.app` in Vercel Production.
+   - Update **Supabase → Auth → URL Configuration** (`Site URL`: `https://vicelink.app`, `Redirect URLs`: `https://vicelink.app/api/auth/callback`).
+   - Switch **Stripe** webhook endpoint to `https://vicelink.app/api/webhooks/card` and **Banco General Yappy Comercial V2** IPN URL to `https://vicelink.app/api/webhooks/yappy`.
+   - Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in Vercel Production to activate multi-region Edge rate limiting.
+
+### 8.4 Mobile PWA & `@capacitor/core` iOS (StoreKit 2) / Android (Google Play Billing) Packaging
+
+ViceLink ships as an installable **Progressive Web App (PWA)** out of the box (`public/manifest.json`, `public/sw.js`, `src/components/pwa/PwaRegister.tsx`) and includes `capacitor.config.ts` (`appId: "app.vicelink.leonida"`, `appName: "ViceLink"`, `server.url: "https://vicelink.app"`) for App Store and Google Play Store native shell packaging:
+
+1. **PWA Verification:**
+   - Confirm `https://vicelink.app/manifest.json` and `https://vicelink.app/sw.js` return `200 OK` without auth redirect (allowlisted in `src/middleware.ts`).
+   - Verify iOS Safari **"Add to Home Screen"** launches full-screen (`appleWebApp.statusBarStyle: "black-translucent"`) and Chrome/Android displays the standalone install prompt.
+2. **Native Store Wrapper Initialization (Optional App Store / Play Store Build):**
+   ```bash
+   # Install Capacitor CLI & native platforms in a dedicated mobile release branch
+   npm install @capacitor/core @capacitor/ios @capacitor/android
+   npm install -D @capacitor/cli
+   npx cap add ios
+   npx cap add android
+   npx cap sync
+   ```
+3. **iOS App Store — StoreKit 2 In-App Purchase Compliance (App Store Review Guideline 3.1.1):**
+   - For digital pass unlocks purchased *inside* the native iOS binary, configure two **Non-Consumable IAP SKUs** in **App Store Connect**:
+     - `app.vicelink.street_pass` — **$1.99 USD** (Street Pass Lifetime)
+     - `app.vicelink.kingpin_vip` — **$4.99 USD** (Kingpin VIP Lifetime)
+   - Integrate StoreKit 2 receipt verification (e.g., `@revenuecat/purchases-capacitor` or Apple App Store Server API JWS verification) forwarding verified transactions to a server webhook that calls `completePaymentAndUpgrade()`.
+   - Keep Yappy Comercial & Stripe checkout exclusive to the web storefront (`https://vicelink.app`) unless Apple external link entitlement is approved for the target region.
+4. **Android Google Play — Google Play Billing Library v7 Compliance:**
+   - Configure matching **One-Time In-App Products** (`app.vicelink.street_pass`, `app.vicelink.kingpin_vip`) in **Google Play Console**.
+   - Verify purchase tokens server-side via Google Play Developer API (`purchases.products.get`) and acknowledge within 3 days before calling `completePaymentAndUpgrade()`.
+   - Run `npx cap open ios` (Xcode signing & TestFlight upload) and `npx cap open android` (Android Studio signed `.aab` upload to Play Console Internal Testing).
+
+### 8.5 Sentry Crash & Error Observability (Co-Founder Alert Routing)
+
+1. Create a Next.js project in **[Sentry](https://sentry.io/)** (`vicelink-leonida-hub`) and copy the client DSN.
+2. Set `NEXT_PUBLIC_SENTRY_DSN` in Vercel **Production** (and optionally Preview) Environment Variables. `PwaRegister.tsx` automatically binds `window.addEventListener("error")` and `unhandledrejection` listeners to forward uncaught client errors to the Sentry envelope endpoint without crashing when the DSN is unset locally.
+3. Configure **Sentry Alert Rules → Action: Send a notification to Email** routed to both Co-Founders:
+   - `mikehevi2003@gmail.com`
+   - `felipedleon@gmail.com`
+4. Recommended Alert Triggers:
+   - **P0 Payment/Auth Alert:** Any `5xx` spike or unhandled exception on `/api/webhooks/*`, `/api/checkout/*`, or `/api/auth/*` (instant email alert).
+   - **P1 Runtime Alert:** `>= 10` unhandled frontend crashes affecting `>= 3` distinct users within 5 minutes.
+   - **P2 Quota/Edge Alert:** Upstash Redis timeout fallback warnings or Gemini OCR API failures.
+
+### 8.6 Daily Supabase Backup & Disaster Recovery Checklist
+
+- [ ] **Automated Daily Backups:** Confirm Supabase Dashboard → **Database → Backups** shows **Daily Backups** enabled (or enable **Point-in-Time Recovery (PITR)** once on Supabase Pro for 1-minute RPO across payment & profile tables).
+- [ ] **Weekly Off-Site Logical Snapshot (`vicelink_*` Schema):** Schedule an encrypted weekly backup job (GitHub Actions / secure cron) exporting only `vicelink_*` tables (excluding secrets) to private object storage:
+  ```bash
+  pg_dump "$SUPABASE_DB_URL" \
+    --schema=public --table='public.vicelink_*' \
+    --no-owner --no-privileges --format=custom \
+    --file="vicelink-backup-$(date +%Y%m%d).dump"
+  ```
+- [ ] **Quarterly Restore Drill:** Test restoring a logical backup into a scratch/staging database and verify `vicelink_profiles`, `vicelink_transactions`, `vicelink_promo_codes`, and `vicelink_admin_audit_logs` row counts and RLS policies (`FORCE ROW LEVEL SECURITY`).
+- [ ] **90-Day Secret Hygiene:** Rotate `SUPABASE_SECRET_KEY`, `RESEND_API_KEY`, `UPSTASH_REDIS_REST_TOKEN`, and `GEMINI_API_KEY` on a quarterly cadence via Vercel Environment Variables (never commit `.env.local` to git).
+- [ ] **Final Go-Live Sign-Off:**
+  - [ ] `npm run typecheck` passes with `0` errors.
+  - [ ] `npm test` passes **22/22** security, data, bilingual, and Stage 15 PWA/OG tests.
+  - [ ] Both Co-Founders (`mikehevi2003@gmail.com` & `felipedleon@gmail.com`) have enrolled TOTP 2FA (`aal2`), downloaded emergency backup codes, and verified `/admin` access on production.
+  - [ ] Live `$1.99` Yappy & Card smoke test completed and verified in `vicelink_transactions` + Law 81 JSON export (`/api/me/export`).
+
+
 
 

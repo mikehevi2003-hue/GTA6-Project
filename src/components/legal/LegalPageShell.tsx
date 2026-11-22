@@ -7,7 +7,7 @@ import { LEGAL_POLICIES } from "@/lib/legal/policies";
 import { tField } from "@/lib/i18n/helpers";
 import { t } from "@/lib/i18n/translations";
 
-export type LegalTab = "terms" | "privacy" | "refunds";
+export type LegalTab = "terms" | "privacy" | "refunds" | "dmca";
 
 export interface LegalPageShellProps {
   active: LegalTab;
@@ -16,7 +16,8 @@ export interface LegalPageShellProps {
 const TABS: { id: LegalTab; href: string; en: string; es: string }[] = [
   { id: "terms", href: "/terms", en: "Terms of Service", es: "Términos de Servicio" },
   { id: "privacy", href: "/privacy", en: "Privacy Policy (Law 81)", es: "Privacidad (Ley 81)" },
-  { id: "refunds", href: "/refunds", en: "Refund Policy", es: "Política de Reembolso" }
+  { id: "refunds", href: "/refunds", en: "Refund Policy", es: "Política de Reembolso" },
+  { id: "dmca", href: "/dmca", en: "Copyright & DMCA", es: "Copyright y DMCA" }
 ];
 
 export default function LegalPageShell({ active }: LegalPageShellProps) {

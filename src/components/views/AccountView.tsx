@@ -28,6 +28,7 @@ export interface AccountViewProps {
   }) => Promise<void>;
   onProfileUpdated: (profile: UserProfile) => void;
   onProgressSynced: (foundPins: string[]) => void;
+  onTrophiesSynced?: (unlockedTrophies: string[]) => void;
   onOpenPricing: () => void;
   onSignOut: () => Promise<void>;
   onToast?: (kind: "success" | "info" | "error", text: string) => void;
@@ -100,6 +101,7 @@ export function AccountView({
   onSaveProfile,
   onProfileUpdated,
   onProgressSynced,
+  onTrophiesSynced,
   onOpenPricing,
   onSignOut,
   onToast
@@ -448,6 +450,9 @@ export function AccountView({
 
       if (Array.isArray(data.foundPins)) {
         onProgressSynced(data.foundPins as string[]);
+      }
+      if (Array.isArray(data.unlockedTrophies)) {
+        onTrophiesSynced?.(data.unlockedTrophies as string[]);
       }
 
       const syncedCount = Array.isArray(data.syncedPinIds) ? data.syncedPinIds.length : 0;
@@ -1395,9 +1400,31 @@ export function AccountView({
             </h3>
             <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}>
               {isEs
-                ? "Sube una captura del mapa o menú de estadísticas de GTA VI (o ejecuta el escaneo demo de Leonida) para marcar automáticamente tus ubicaciones descubiertas."
-                : "Upload a GTA VI map or stats screenshot (or run the 1-click Demo Leonida Scan) to automatically match and check off discovered map pins."}
+                ? "Sube una captura del mapa o trofeos de GTA VI (o compártela directo desde la app PS5 / Xbox sin contraseñas) para marcar automáticamente tus ubicaciones y trofeos."
+                : "Upload or 1-tap Share a GTA VI map or trophy screenshot from your PS5 / Xbox app (zero credentials needed) to auto-sync discovered pins and trophies."}
             </p>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(0, 229, 255, 0.07)",
+              border: "1px solid rgba(0, 229, 255, 0.25)",
+              borderRadius: 10,
+              padding: "9px 12px",
+              fontSize: 11.5,
+              color: "#cbd5e1",
+              lineHeight: 1.5
+            }}
+          >
+            <strong style={{ color: "var(--accent-cyan)", display: "block", marginBottom: 3 }}>
+              📱{" "}
+              {isEs
+                ? "Auto-Sincronización 1-Tap desde PlayStation App / Xbox App:"
+                : "1-Tap PS5 / Xbox App Auto-Sync (PWA Share Target):"}
+            </strong>
+            {isEs
+              ? "1) Instala ViceLink en tu teléfono (Agregar a Pantalla de Inicio) • 2) En PlayStation App o Xbox App abre tu captura reciente • 3) Toca Compartir → ViceLink y tu progreso se sincroniza en la nube al instante."
+              : "1) Install ViceLink PWA on your phone • 2) Open your latest screenshot in the PlayStation App or Xbox App • 3) Tap Share → ViceLink to auto-check map pins & trophies cleanly."}
           </div>
 
           <label

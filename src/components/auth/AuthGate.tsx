@@ -1253,6 +1253,8 @@ export default function AuthGate() {
                 <Link href="/privacy">{isEs ? "Privacidad" : "Privacy"}</Link>
                 <span>•</span>
                 <Link href="/refunds">{isEs ? "Reembolsos" : "Refunds"}</Link>
+                <span>•</span>
+                <Link href="/dmca">DMCA</Link>
               </div>
               <p className="legal-note" style={{ marginTop: 8 }}>
                 {tField(LEGAL_POLICIES.disclaimer, lang)}

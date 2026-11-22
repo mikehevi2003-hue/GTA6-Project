@@ -30,6 +30,8 @@ import FeedbackView from "@/components/views/FeedbackView";
 import AccountView from "@/components/views/AccountView";
 import AdminView from "@/components/views/AdminView";
 import CommandPaletteModal from "@/components/hub/CommandPaletteModal";
+import DailyBriefingCard from "@/components/hub/DailyBriefingCard";
+import ViewErrorBoundary from "@/components/hub/ViewErrorBoundary";
 import PricingModal from "@/components/modals/PricingModal";
 import SocialStudioModal from "@/components/modals/SocialStudioModal";
 import AccountModal from "@/components/modals/AccountModal";
@@ -135,24 +137,31 @@ export default function ViceLinkHub() {
         fetch("/api/forum", { cache: "no-store" })
       ]);
 
-      if (meRes.status === 401 || contentRes.status === 401 || forumRes.status === 401) {
+      if (meRes.status === 401 || contentRes.status === 401) {
         router.replace("/login");
         return;
       }
 
-      if (!meRes.ok || !contentRes.ok || !forumRes.ok) {
+      if (!meRes.ok || !contentRes.ok) {
         throw new Error("Failed to load ViceLink workspace data.");
       }
 
-      const [meData, contentData, forumData] = (await Promise.all([
+      const [meData, contentData] = (await Promise.all([
         meRes.json(),
-        contentRes.json(),
-        forumRes.json()
-      ])) as [MePayload, ContentPayload, { theories: TheoryPost[] } | TheoryPost[]];
+        contentRes.json()
+      ])) as [MePayload, ContentPayload];
+
+      let forumList: TheoryPost[] = [];
+      if (forumRes.ok) {
+        const forumData = (await forumRes.json().catch(() => [])) as
+          | { theories: TheoryPost[] }
+          | TheoryPost[];
+        forumList = Array.isArray(forumData) ? forumData : forumData.theories || [];
+      }
 
       setMe(meData);
       setContent(contentData);
-      setTheories(Array.isArray(forumData) ? forumData : forumData.theories || []);
+      setTheories(forumList);
 
       const nextLang = meData.profile.preferredLang === "es" ? "es" : "en";
       setLang(nextLang);
@@ -181,8 +190,9 @@ export default function ViceLinkHub() {
     const setup2fa = params.get("setup2fa");
     const rawView = params.get("view")?.trim().toLowerCase() ?? "";
     const rawPin = params.get("pin")?.trim() ?? "";
+    const syncedFlag = params.get("synced");
 
-    if (!checkout && !setup2fa && !rawView && !rawPin) return;
+    if (!checkout && !setup2fa && !rawView && !rawPin && !syncedFlag) return;
     initialQueryHandledRef.current = true;
 
     if (setup2fa === "1") {
@@ -192,6 +202,16 @@ export default function ViceLinkHub() {
         lang === "es"
           ? "🛡️ Acceso de Co-Fundador activo. Escanea tu código QR 2FA en Bóveda de Seguridad para elevar a AAL2."
           : "🛡️ Co-Founder Admin session active. Scan your 2FA Authenticator QR code below to enable AAL2."
+      );
+    } else if (syncedFlag === "1") {
+      setActiveView("account");
+      const pinsN = Number(params.get("pins") || "0");
+      const trophiesN = Number(params.get("trophies") || "0");
+      showToast(
+        "success",
+        lang === "es"
+          ? `📸 ¡Captura PS5/Xbox sincronizada! +${pinsN} pines y +${trophiesN} trofeos guardados en tu nube.`
+          : `📸 PS5/Xbox screenshot synced! +${pinsN} pins & +${trophiesN} trophies saved to your cloud.`
       );
     } else if (rawPin) {
       const cleanedPin = rawPin.slice(0, 48);
@@ -218,7 +238,7 @@ export default function ViceLinkHub() {
       );
     }
 
-    if (checkout || setup2fa) {
+    if (checkout || setup2fa || syncedFlag) {
       window.history.replaceState({}, "", "/");
     }
   }, [lang, loadAll, showToast]);
@@ -831,6 +851,8 @@ export default function ViceLinkHub() {
             <Link href="/privacy">{isEs ? "Privacidad" : "Privacy"}</Link>
             <span>•</span>
             <Link href="/refunds">{isEs ? "Reembolsos" : "Refunds"}</Link>
+            <span>•</span>
+            <Link href="/dmca">DMCA</Link>
           </div>
 
           <p className="legal-note">{tField(LEGAL_POLICIES.disclaimer, lang)}</p>
@@ -1051,7 +1073,20 @@ export default function ViceLinkHub() {
             </div>
           </section>
         ) : (
-          <>
+          <ViewErrorBoundary
+            viewName={activeView}
+            lang={lang}
+            onFallbackView={() => setActiveView("cheats")}
+          >
+            <DailyBriefingCard
+              lang={lang}
+              content={content}
+              progress={progress}
+              onNavigateView={(targetView, targetPin) => {
+                setActiveView(targetView);
+                if (targetPin) setDeepLinkPinId(targetPin);
+              }}
+            />
             {activeView === "cheats" && (
               <CheatsView
                 lang={lang}
@@ -1188,6 +1223,19 @@ export default function ViceLinkHub() {
                       : curr
                   );
                 }}
+                onTrophiesSynced={(unlockedTrophies: string[]) => {
+                  setMe((curr) =>
+                    curr
+                      ? {
+                          ...curr,
+                          progress: {
+                            ...curr.progress,
+                            unlockedTrophies
+                          }
+                        }
+                      : curr
+                  );
+                }}
                 onOpenPricing={() => setPricingOpen(true)}
                 onSignOut={handleSignOut}
                 onToast={showToast}
@@ -1209,7 +1257,7 @@ export default function ViceLinkHub() {
                 onToast={showToast}
               />
             )}
-          </>
+          </ViewErrorBoundary>
         )}
       </main>
 

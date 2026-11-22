@@ -6,7 +6,7 @@ export type LegalSection = {
 };
 
 export type LegalPolicy = {
-  id: "terms" | "refunds" | "privacy";
+  id: "terms" | "refunds" | "privacy" | "dmca";
   title: LocalizedText;
   summary: LocalizedText;
   updatedAt: string;
@@ -55,12 +55,12 @@ export const TERMS_POLICY: LegalPolicy = {
           es: "Free Recruit ($0 USD): trucos y guía de desbloqueo, foro de Easter Eggs, mapa inicial (10 pines), 6 vehículos iniciales y 3 preguntas diarias al asesor IA (con anuncios).",
         },
         {
-          en: "Street Pass ($1.99 USD, one-time digital access pass): 100% ad-free experience, all 32 tactical Leonida map coordinates ($250K/hr cash & supercar routes), the full Glitches & Exploits hub, all 55 Trophy roadmaps, and the full vehicle and property ROI planner.",
-          es: "Street Pass ($1.99 USD, pase de acceso digital de pago único): experiencia 100% sin anuncios, las 32 coordenadas del mapa táctico de Leonida (rutas de $250K/h y superautos), el centro completo de Glitches y Exploits, las 55 guías de Trofeos y el planificador completo de vehículos y propiedades.",
+          en: "Street Pass ($1.99 USD, one-time software utility pass): 100% ad-free HUD experience, interactive coordinate planner across all 32 tactical Leonida locations ($250K/hr cash & supercar routes), Single-Player Sandbox Techniques & Patch Status Tracker (story mode only — never online exploits), all 55 Trophy roadmaps, and the full vehicle and property ROI planner.",
+          es: "Street Pass ($1.99 USD, pase único de utilidad de software): experiencia HUD 100% sin anuncios, planificador interactivo en 32 coordenadas tácticas de Leonida (rutas de $250K/h y superautos), Rastreador de Técnicas Sandbox y Parches (solo modo historia — nunca exploits online), las 55 guías de Trofeos y el planificador completo de vehículos y propiedades.",
         },
         {
-          en: "Kingpin VIP ($4.99 USD, one-time digital access pass): everything in Street Pass plus unlimited AI Mission Advisor queries, cloud sync, verified Gold Kingpin forum badge, and the TikTok & Instagram 9:16 Card Studio.",
-          es: "Kingpin VIP ($4.99 USD, pase de acceso digital de pago único): todo lo incluido en Street Pass más consultas ilimitadas al Asesor IA de Misiones, sincronización en la nube, insignia dorada Kingpin en el foro y el Estudio de Tarjetas 9:16 para TikTok e Instagram.",
+          en: "Kingpin VIP ($4.99 USD, one-time software utility pass): everything in Street Pass plus unlimited AI Mission Advisor queries, cross-device cloud progress sync, Console Link & Screenshot Progress Importer, verified Gold Kingpin forum badge, and the TikTok & Instagram 9:16 Card Studio.",
+          es: "Kingpin VIP ($4.99 USD, pase único de utilidad de software): todo lo incluido en Street Pass más consultas ilimitadas al Asesor IA de Misiones, sincronización de progreso en la nube entre dispositivos, Importador por Captura y Vinculación de Consola, insignia dorada Kingpin en el foro y Estudio de Tarjetas 9:16 para TikTok e Instagram.",
         },
         {
           en: "All prices are one-time payments in US dollars (USD). There are no subscriptions, no recurring monthly fees, and no 24-hour trial periods.",
@@ -301,9 +301,58 @@ export const PRIVACY_POLICY: LegalPolicy = {
   ],
 };
 
+export const DMCA_POLICY: LegalPolicy = {
+  id: "dmca",
+  title: { en: "Copyright, Fair-Use Facts & DMCA Safe Harbor", es: "Derechos de Autor, Uso Justo y Puerto Seguro DMCA" },
+  summary: {
+    en: "Original software utility, factual game intel boundary, and 17 U.S.C. § 512 / Panama Law 64 takedown channel.",
+    es: "Utilidad de software original, frontera de datos factuales y canal formal DMCA (17 U.S.C. § 512 / Ley 64 de Panamá).",
+  },
+  updatedAt: LEGAL_LAST_UPDATED,
+  sections: [
+    {
+      heading: { en: "1. Independent Software & Original Assets", es: "1. Software Independiente y Activos Originales" },
+      paragraphs: [
+        {
+          en: "ViceLink (vicelink.app) is an independent companion software utility created with 100% original TypeScript source code, Neo-Glass UI components, original SVG tactical maps, and community editorial commentary. ViceLink does not redistribute Rockstar Games binaries, copyrighted artwork, audio files, texture rips, or proprietary source code.",
+          es: "ViceLink (vicelink.app) es una utilidad de software complementaria independiente creada con código fuente TypeScript 100% original, interfaz Neo-Glass propia, mapas vectoriales SVG originales y guías editoriales de la comunidad. ViceLink no redistribuye binarios, arte protegido, archivos de audio, texturas extraídas ni código propietario de Rockstar Games.",
+        },
+      ],
+    },
+    {
+      heading: { en: "2. Factual Reference vs. Copyrighted Expression", es: "2. Datos Factuales vs. Expresión Protegida" },
+      paragraphs: [
+        {
+          en: "Under international copyright doctrine (U.S. 17 U.S.C. § 102(b) and Panama Law 64 of 2012 on Copyright and Related Rights), copyright protects creative expression but does not monopolize underlying facts, coordinates, patch observations, button sequences, or transformable utility software. Paid passes compensate exclusively for ViceLink's cloud infrastructure, ad-free HUD utility, AI indexing, route computation, and cross-device synchronization.",
+          es: "Conforme a la doctrina internacional de derechos de autor (17 U.S.C. § 102(b) de EE. UU. y Ley 64 de 2012 de Panamá sobre Derecho de Autor), el copyright protege la expresión creativa, pero no monopoliza hechos objetivos, coordenadas, historial de parches, secuencias de botones ni software utilitario independiente. Los pases de pago remuneran exclusivamente la infraestructura cloud de ViceLink, interfaz sin anuncios, indexación IA, cálculo de rutas y sincronización entre dispositivos.",
+        },
+      ],
+    },
+    {
+      heading: { en: "3. Strictly Single-Player & Official TOS Boundaries", es: "3. Límites Estrictos de Solo Historia y TOS Oficiales" },
+      paragraphs: [
+        {
+          en: "ViceLink strictly prohibits monetization or distribution of online multiplayer cheats, griefing tools, account mods, or automated scrapers. All Sandbox Techniques & Patch Tracker notes document single-player story mode behavior only. Console Screenshot Sync analyzes player-submitted screenshots strictly via user-initiated upload or OS Share Sheet — never requiring PlayStation, Xbox, or Rockstar credentials.",
+          es: "ViceLink prohíbe estrictamente monetizar o distribuir trampas para modos online multijugador, modificación de cuentas o scrapers automatizados. Todas las notas de Técnicas Sandbox y Parches documentan únicamente el modo historia para un jugador. La sincronización por captura analiza únicamente imágenes subidas voluntariamente por el jugador o mediante Share Sheet del sistema operativo, sin pedir nunca contraseñas de PlayStation, Xbox o Rockstar.",
+        },
+      ],
+    },
+    {
+      heading: { en: "4. DMCA & Rightsholder Takedown Desk (48-Hour Expedited Review)", es: "4. Canal de Notificación DMCA y Titulares (Revisión en 48 Horas)" },
+      paragraphs: [
+        {
+          en: "If you are a copyright or trademark owner (including Rockstar Games, Take-Two Interactive, Sony Interactive Entertainment, or Microsoft) and believe any user post, community submission, or guide item infringes your rights, submit a notice compliant with 17 U.S.C. § 512(c)(3) to dmca@vicelink.app specifying the exact URL/item ID, proof of ownership, and contact details. Verified notices receive expedited removal within 48 hours.",
+          es: "Si eres titular de derechos de autor o marca (incluyendo Rockstar Games, Take-Two Interactive, Sony Interactive Entertainment o Microsoft) y consideras que algún contenido o aporte comunitario vulnera tus derechos, envía una notificación conforme al 17 U.S.C. § 512(c)(3) a dmca@vicelink.app indicando la URL exacta o ID del elemento, acreditación de titularidad y datos de contacto. Las solicitudes verificadas se revisan y retiran en un plazo máximo de 48 horas.",
+        },
+      ],
+    },
+  ],
+};
+
 export const LEGAL_POLICIES = {
   terms: TERMS_POLICY,
   refunds: REFUND_POLICY,
   privacy: PRIVACY_POLICY,
+  dmca: DMCA_POLICY,
   disclaimer: UNOFFICIAL_DISCLAIMER,
 } as const;

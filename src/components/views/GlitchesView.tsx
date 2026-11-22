@@ -48,8 +48,8 @@ export default function GlitchesView({
               lang,
               "glitchTitle",
               isEs
-                ? "Glitches y Exploits Activos en GTA VI (Parche 01.002.001)"
-                : "Active GTA VI Glitches & Exploits (Patch 01.002.001)"
+                ? "Técnicas Sandbox y Estado de Parches (Solo Historia • Parche 01.002.001)"
+                : "Single-Player Sandbox Techniques & Patch Tracker (Patch 01.002.001)"
             )}
           </h2>
           <p>
@@ -57,8 +57,8 @@ export default function GlitchesView({
               lang,
               "glitchSub",
               isEs
-                ? "Métodos de dinero infinito, cámara en primera persona y trucos de física verificados."
-                : "Verified money loops, First-Person camera exploit & physics tricks tested on latest patch."
+                ? "Mecánicas de modo historia, cámara en primera persona y verificación de parches (sin exploits online)."
+                : "Verified story-mode mechanics, first-person camera tricks & patch status tracker (never online exploits)."
             )}
           </p>
         </div>
@@ -87,13 +87,13 @@ export default function GlitchesView({
           <h3>
             ⚡{" "}
             {isEs
-              ? "Desbloquea Glitches Activos y Dinero Infinito"
-              : "Unlock Active Glitches & Money Loops"}
+              ? "Desbloquea Técnicas Sandbox de Historia y Estado de Parches"
+              : "Unlock Story-Mode Sandbox Techniques & Patch Tracker"}
           </h3>
           <p>
             {isEs
-              ? "Accede paso a paso al bucle de dinero del Granero Rojo, cámara en primera persona, trucos de física y votos en vivo del parche 01.002.001."
-              : "Get step-by-step instructions for the Red Barn Unlimited Money Loop, First-Person Camera Glitch, Physics boosts, and live Patch 01.002.001 status."}
+              ? "Accede paso a paso a las mecánicas de modo historia, cámara en primera persona, trucos de física y votos en vivo del parche 01.002.001 (sin herramientas online)."
+              : "Get step-by-step single-player story mechanics, First-Person camera tricks, physics tips, and live Patch 01.002.001 status tracking (strictly offline story mode)."}
           </p>
           <button
             type="button"

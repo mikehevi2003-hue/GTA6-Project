@@ -18,6 +18,8 @@ const PUBLIC_PATHS = [
   "/terms",
   "/privacy",
   "/refunds",
+  "/dmca",
+  "/api/health",
   "/api/auth",
   "/api/unsubscribe",
   "/api/og",

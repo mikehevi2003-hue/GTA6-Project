@@ -456,7 +456,7 @@ export default function PricingModal({
             >
               ⚡{" "}
               <strong>
-                {isEs ? "5 Glitches de Dinero Activos" : "5 Working Money Glitches"}
+                {isEs ? "5 Técnicas Sandbox de Historia" : "5 Sandbox Story Techniques"}
               </strong>
             </div>
             <div
@@ -831,7 +831,7 @@ export default function PricingModal({
                 <li>
                   ✓{" "}
                   <strong>
-                    {isEs ? "Hub de Glitches y Exploits" : "Active Glitches & Exploits Hub"}
+                    {isEs ? "Técnicas Sandbox y Parches (Solo Historia)" : "Single-Player Sandbox Techniques"}
                   </strong>
                 </li>
                 <li>

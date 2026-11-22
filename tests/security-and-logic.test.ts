@@ -1453,4 +1453,93 @@ describe("ViceLink Stage E — Automated Security, Data & Bilingual Logic Suite"
     assert.match(capSource, /app\.vicelink\.leonida/, "capacitor.config.ts must set appId 'app.vicelink.leonida'");
     assert.match(capSource, /https:\/\/vicelink\.app/, "capacitor.config.ts must target https://vicelink.app");
   });
+
+  it("23. [Stage 16 Legal & IP] LEGAL_POLICIES.dmca includes 17 U.S.C. § 512 / Law 64 Safe Harbor, /dmca route & /api/health exist, and Glitches UI uses safe single-player Sandbox Techniques framing", async () => {
+    const { LEGAL_POLICIES } = await importProjectModule<{
+      LEGAL_POLICIES: {
+        dmca: {
+          title: LocalizedText;
+          summary: LocalizedText;
+          sections: Array<{ heading: LocalizedText; paragraphs: LocalizedText[] }>;
+        };
+      };
+    }>("../src/lib/legal/policies.ts");
+
+    assert.ok(LEGAL_POLICIES.dmca, "LEGAL_POLICIES.dmca must be exported");
+    const dmcaEn = collectLocalizedText(LEGAL_POLICIES.dmca, "en");
+    const dmcaEs = collectLocalizedText(LEGAL_POLICIES.dmca, "es");
+    assert.match(dmcaEn, /512|DMCA/i, "EN DMCA policy must cite 17 U.S.C. § 512 / DMCA");
+    assert.match(dmcaEs, /Ley 64|DMCA/i, "ES DMCA policy must cite Ley 64 / DMCA");
+    assert.match(dmcaEn, /dmca@vicelink\.app/i, "DMCA policy must include dmca@vicelink.app takedown email");
+
+    assert.equal(
+      existsSync(new URL("../src/app/dmca/page.tsx", import.meta.url)),
+      true,
+      "Public /dmca route page must exist"
+    );
+
+    const mwSource = readFileSync(new URL("../src/middleware.ts", import.meta.url), "utf8");
+    assert.ok(mwSource.includes('"/dmca"'), "middleware.ts PUBLIC_PATHS must include /dmca");
+    assert.ok(mwSource.includes('"/api/health"'), "middleware.ts PUBLIC_PATHS must include /api/health");
+
+    const { TRANSLATIONS } = await importProjectModule<{
+      TRANSLATIONS: Record<Language, Record<string, string>>;
+    }>("../src/lib/i18n/translations.ts");
+    assert.match(TRANSLATIONS.en["nav.glitches"], /Sandbox Techniques/i);
+    assert.match(TRANSLATIONS.es["nav.glitches"], /Técnicas Sandbox/i);
+  });
+
+  it("24. [Stage 16 Console Sync] PWA manifest declares share_target -> /api/share-sync and progress OCR syncs both found_pins and unlocked_trophies", () => {
+    const manifest = JSON.parse(
+      readFileSync(new URL("../public/manifest.json", import.meta.url), "utf8")
+    ) as {
+      share_target?: {
+        action?: string;
+        method?: string;
+        enctype?: string;
+        params?: { files?: Array<{ name?: string; accept?: string[] }> };
+      };
+    };
+
+    assert.ok(manifest.share_target, "manifest.json must configure PWA share_target");
+    assert.equal(manifest.share_target?.action, "/api/share-sync");
+    assert.equal(manifest.share_target?.method, "POST");
+    assert.equal(manifest.share_target?.enctype, "multipart/form-data");
+    assert.ok(
+      manifest.share_target?.params?.files?.some((f) => f.name === "image"),
+      "share_target must accept uploaded image screenshot"
+    );
+
+    assert.equal(
+      existsSync(new URL("../src/app/api/share-sync/route.ts", import.meta.url)),
+      true,
+      "src/app/api/share-sync/route.ts must exist"
+    );
+    const ocrLibSource = readFileSync(
+      new URL("../src/lib/sync/progress-ocr.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(ocrLibSource, /found_pins/, "progress-ocr.ts must update found_pins");
+    assert.match(ocrLibSource, /unlocked_trophies/, "progress-ocr.ts must update unlocked_trophies");
+  });
+
+  it("25. [Stage 16 Resilience & Retention] Health endpoint, ViewErrorBoundary, Next error boundaries, and DailyBriefingCard exist and compile cleanly", () => {
+    for (const rel of [
+      "../src/app/api/health/route.ts",
+      "../src/components/hub/ViewErrorBoundary.tsx",
+      "../src/components/hub/DailyBriefingCard.tsx",
+      "../src/app/error.tsx",
+      "../src/app/global-error.tsx"
+    ]) {
+      assert.equal(existsSync(new URL(rel, import.meta.url)), true, `${rel} must exist`);
+    }
+
+    const hubSource = readFileSync(
+      new URL("../src/components/hub/ViceLinkHub.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(hubSource, /ViewErrorBoundary/, "ViceLinkHub must isolate views with ViewErrorBoundary");
+    assert.match(hubSource, /DailyBriefingCard/, "ViceLinkHub must render DailyBriefingCard");
+    assert.match(hubSource, /\/dmca/, "ViceLinkHub sidebar footer must link to /dmca");
+  });
 });

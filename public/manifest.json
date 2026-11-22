@@ -1,7 +1,7 @@
 {
   "name": "ViceLink // Leonida Companion Hub",
   "short_name": "ViceLink",
-  "description": "Private member tactical hub for Leonida: cheat codes, interactive map, verified glitches, economy planner, and AI mission advisor.",
+  "description": "Private member utility hub for Leonida: cheat codes, interactive map, sandbox patch tracker, economy planner, and AI mission advisor.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,6 +9,21 @@
   "background_color": "#05070e",
   "theme_color": "#00e5ff",
   "categories": ["games", "entertainment", "utilities"],
+  "share_target": {
+    "action": "/api/share-sync",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "files": [
+        {
+          "name": "image",
+          "accept": ["image/png", "image/jpeg", "image/webp"]
+        }
+      ]
+    }
+  },
   "icons": [
     {
       "src": "/icons/icon-192.svg",

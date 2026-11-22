@@ -15,7 +15,7 @@ import {
   mapDynamicPinRow,
   mergeDynamicCheats,
   mergeDynamicGlitches,
-  requireAdminUser
+  requireAdminAal2
 } from "@/lib/supabase/server";
 import { CHEATS_DATA } from "@/server/data/cheats";
 import { GLITCHES_DATA } from "@/server/data/glitches";
@@ -26,8 +26,13 @@ export async function GET() {
     const user = await getAuthedUser(supabase);
     if (!user) return apiError("UNAUTHORIZED", 401);
 
-    const admin = await requireAdminUser(supabase, user);
-    if (!admin) return apiError("FORBIDDEN", 403, "Admin privileges required.");
+    const adminCheck = await requireAdminAal2(supabase, user);
+    if (!adminCheck.ok) {
+      return apiError(adminCheck.error, adminCheck.status, adminCheck.message, {
+        aal: adminCheck.aal,
+        setupUrl: adminCheck.setupUrl
+      });
+    }
 
     const [
       telemetry,

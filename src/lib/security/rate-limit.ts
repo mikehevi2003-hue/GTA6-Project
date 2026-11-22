@@ -56,3 +56,53 @@ export function checkRateLimit(key: string, limit: number, windowMs: number): Ra
 export function resetRateLimits(): void {
   buckets.clear();
 }
+
+/**
+ * Edge & Serverless distributed rate limiter backed by Upstash Redis REST pipeline
+ * when UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are configured, with
+ * automatic zero-downtime fallback to the in-memory sliding-window limiter.
+ */
+export async function checkRateLimitAsync(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<RateLimitResult> {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+
+  if (redisUrl && redisToken) {
+    try {
+      const endpoint = `${redisUrl.replace(/\/+$/, "")}/pipeline`;
+      const bucketKey = `rl:${key}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${redisToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify([
+          ["INCR", bucketKey],
+          ["PEXPIRE", bucketKey, String(windowMs), "NX"]
+        ]),
+        cache: "no-store",
+        signal: AbortSignal.timeout(2000)
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as Array<{ result?: number }>;
+        const count = Number(data?.[0]?.result ?? 0);
+        if (Number.isFinite(count) && count > 0) {
+          return {
+            allowed: count <= limit,
+            remaining: Math.max(0, limit - count),
+            retryAfterMs: count > limit ? windowMs : 0
+          };
+        }
+      }
+    } catch {
+      // Fall back gracefully to local sliding-window rate limiter on Redis timeout/error.
+    }
+  }
+
+  return checkRateLimit(key, limit, windowMs);
+}

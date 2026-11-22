@@ -144,6 +144,53 @@ export async function requireAdminUser(
   return { user, profile };
 }
 
+export type AdminAal2Check =
+  | { ok: true; user: User; profile: VicelinkProfileRow; aal: "aal2" }
+  | {
+      ok: false;
+      status: 403;
+      error: "FORBIDDEN" | "MFA_AAL2_REQUIRED";
+      message: string;
+      aal: "aal1" | "aal2";
+      setupUrl?: string;
+    };
+
+export async function requireAdminAal2(
+  supabase: VicelinkSupabaseClient,
+  authedUser?: User
+): Promise<AdminAal2Check> {
+  const admin = await requireAdminUser(supabase, authedUser);
+  if (!admin || !admin.profile.is_admin || admin.profile.is_banned) {
+    return {
+      ok: false,
+      status: 403,
+      error: "FORBIDDEN",
+      message: "Admin privileges required.",
+      aal: "aal1"
+    };
+  }
+
+  const aal = await getAuthenticatorAssuranceLevel(supabase);
+  if (aal !== "aal2") {
+    return {
+      ok: false,
+      status: 403,
+      error: "MFA_AAL2_REQUIRED",
+      message:
+        "Co-Founder Admin routes require verified 2FA (AAL2). Complete 2FA verification or scan your TOTP QR code at /?setup2fa=1.",
+      aal,
+      setupUrl: "/?setup2fa=1"
+    };
+  }
+
+  return {
+    ok: true,
+    user: admin.user,
+    profile: admin.profile,
+    aal: "aal2"
+  };
+}
+
 export function deriveFallbackHandle(user: User): string {
   const prefix = (user.email ?? "")
     .split("@")[0]!

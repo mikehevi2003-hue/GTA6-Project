@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { checkRateLimit } from "@/lib/security/rate-limit";
+import { checkRateLimitAsync } from "@/lib/security/rate-limit";
 import { containsDisallowedMarkup, sanitizePlainText } from "@/lib/security/sanitize";
 import {
   apiError,
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(supabase);
     if (!user) return apiError("UNAUTHORIZED", 401);
 
-    const rl = checkRateLimit(`ai:${user.id}`, 15, 60_000);
+    const rl = await checkRateLimitAsync(`ai:${user.id}`, 10, 60_000);
     if (!rl.allowed) {
       return apiError("RATE_LIMITED", 429, "Too many AI requests; please wait a moment.");
     }

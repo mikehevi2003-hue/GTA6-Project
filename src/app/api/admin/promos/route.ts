@@ -9,7 +9,7 @@ import {
   loadPromoCodes,
   mapPromoCodeRow,
   recordAdminAuditLog,
-  requireAdminUser
+  requireAdminAal2
 } from "@/lib/supabase/server";
 
 const PROMO_CODE_REGEX = /^[A-Z0-9_-]{3,24}$/;
@@ -50,8 +50,14 @@ export async function GET() {
     const user = await getAuthedUser(supabase);
     if (!user) return apiError("UNAUTHORIZED", 401);
 
-    const admin = await requireAdminUser(supabase, user);
-    if (!admin) return apiError("FORBIDDEN", 403, "Admin privileges required.");
+    const adminCheck = await requireAdminAal2(supabase, user);
+    if (!adminCheck.ok) {
+      return apiError(adminCheck.error, adminCheck.status, adminCheck.message, {
+        aal: adminCheck.aal,
+        setupUrl: adminCheck.setupUrl
+      });
+    }
+    const admin = adminCheck;
 
     const promoCodes = await loadPromoCodes(supabase);
     return apiJson({ promoCodes });
@@ -70,8 +76,14 @@ export async function POST(request: NextRequest) {
     const user = await getAuthedUser(supabase);
     if (!user) return apiError("UNAUTHORIZED", 401);
 
-    const admin = await requireAdminUser(supabase, user);
-    if (!admin) return apiError("FORBIDDEN", 403, "Admin privileges required.");
+    const adminCheck = await requireAdminAal2(supabase, user);
+    if (!adminCheck.ok) {
+      return apiError(adminCheck.error, adminCheck.status, adminCheck.message, {
+        aal: adminCheck.aal,
+        setupUrl: adminCheck.setupUrl
+      });
+    }
+    const admin = adminCheck;
 
     const rl = checkRateLimit(`admin-promos:${user.id}`, 30, 60_000);
     if (!rl.allowed) {
@@ -148,8 +160,14 @@ export async function PATCH(request: NextRequest) {
     const user = await getAuthedUser(supabase);
     if (!user) return apiError("UNAUTHORIZED", 401);
 
-    const admin = await requireAdminUser(supabase, user);
-    if (!admin) return apiError("FORBIDDEN", 403, "Admin privileges required.");
+    const adminCheck = await requireAdminAal2(supabase, user);
+    if (!adminCheck.ok) {
+      return apiError(adminCheck.error, adminCheck.status, adminCheck.message, {
+        aal: adminCheck.aal,
+        setupUrl: adminCheck.setupUrl
+      });
+    }
+    const admin = adminCheck;
 
     let rawBody: unknown;
     try {

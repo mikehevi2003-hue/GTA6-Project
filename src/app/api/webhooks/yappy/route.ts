@@ -51,6 +51,18 @@ async function handleYappyIpn(request: NextRequest) {
     return NextResponse.json({ success: false, error: "RATE_LIMITED" }, { status: 429 });
   }
 
+  const params = await extractIpnFields(request);
+  if (!params.hash) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "UNAUTHORIZED",
+        message: "Missing Yappy HMAC-SHA256 signature."
+      },
+      { status: 401 }
+    );
+  }
+
   const secretKey = process.env.YAPPY_SECRET_KEY;
   if (!secretKey || !isAdminConfigured()) {
     return NextResponse.json(
@@ -59,8 +71,7 @@ async function handleYappyIpn(request: NextRequest) {
     );
   }
 
-  const params = await extractIpnFields(request);
-  if (!params.orderId || !params.status || !params.hash) {
+  if (!params.orderId || !params.status) {
     return NextResponse.json(
       { success: false, error: "MISSING_PARAMS" },
       { status: 400 }
@@ -92,6 +103,20 @@ async function handleYappyIpn(request: NextRequest) {
     }
 
     if (params.status === "E") {
+      if (tx.status === "completed") {
+        return NextResponse.json(
+          {
+            success: true,
+            alreadyProcessed: true,
+            message: "Already Processed",
+            orderId: params.orderId,
+            status: "completed",
+            tier: tx.target_tier
+          },
+          { status: 200, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+
       const tier = await completePaymentAndUpgrade({
         provider: "yappy",
         providerOrderId: params.orderId,

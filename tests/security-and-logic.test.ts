@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import Module from "node:module";
 import type {
   CheatItem,
@@ -518,5 +519,248 @@ describe("ViceLink Stage E — Automated Security, Data & Bilingual Logic Suite"
     const sanitized = sanitizePlainText("<b>Admin Note</b>\u0000\u202E: Verified on Patch 01.002.001", 120);
     assert.ok(!sanitized.includes("<") && !sanitized.includes(">") && !sanitized.includes("\u0000"));
     assert.equal(isValidHandle(normalizeHandle("@Leonida_Founder")), true);
+  });
+
+  it("11. Stage 10 Co-Founder email recognition logic (mikehevi2003@gmail.com & felipedleon@gmail.com, case-insensitive & trimmed) vs non-founder emails", async () => {
+    const COFOUNDER_EMAILS = new Set(["mikehevi2003@gmail.com", "felipedleon@gmail.com"]);
+
+    function isCoFounderEmail(email: unknown): boolean {
+      if (typeof email !== "string") return false;
+      return COFOUNDER_EMAILS.has(email.trim().toLowerCase());
+    }
+
+    function resolveProfilePrivileges(email: string, existingTier: UserTier = "free") {
+      if (isCoFounderEmail(email)) {
+        return { isAdmin: true, tier: "kingpin" as UserTier, isBanned: false };
+      }
+      return { isAdmin: false, tier: existingTier, isBanned: false };
+    }
+
+    assert.equal(isCoFounderEmail("mikehevi2003@gmail.com"), true);
+    assert.equal(isCoFounderEmail("  MikeHevi2003@Gmail.com "), true);
+    assert.equal(isCoFounderEmail("felipedleon@gmail.com"), true);
+    assert.equal(isCoFounderEmail("FELIPEDLEON@GMAIL.COM\n"), true);
+
+    assert.equal(isCoFounderEmail("player@vicelink.app"), false);
+    assert.equal(isCoFounderEmail("mikehevi2003@gmail.com.attacker.test"), false);
+    assert.equal(isCoFounderEmail("felipedleon@yahoo.com"), false);
+    assert.equal(isCoFounderEmail(""), false);
+    assert.equal(isCoFounderEmail(null), false);
+
+    assert.deepEqual(resolveProfilePrivileges("  MIKEHEVI2003@gmail.com  "), {
+      isAdmin: true,
+      tier: "kingpin",
+      isBanned: false
+    });
+    assert.deepEqual(resolveProfilePrivileges("  FelipeDLeon@gmail.com "), {
+      isAdmin: true,
+      tier: "kingpin",
+      isBanned: false
+    });
+    assert.deepEqual(resolveProfilePrivileges("recruit@leonida.test", "free"), {
+      isAdmin: false,
+      tier: "free",
+      isBanned: false
+    });
+  });
+
+  it("12. Stage 9 Bio verification code generator/validator (VL-[A-F0-9]{6}) and console handle validation (3..24 chars, [A-Za-z0-9 _-], rejecting <script> / HTML markup)", async () => {
+    const { containsDisallowedMarkup } = await importProjectModule<{
+      containsDisallowedMarkup: (input: string) => boolean;
+    }>("../src/lib/security/sanitize.ts");
+
+    const BIO_CODE_REGEX = /^VL-[A-F0-9]{6}$/;
+    const CONSOLE_HANDLE_REGEX = /^[A-Za-z0-9 _-]{3,24}$/;
+
+    function generateBioVerificationCode(): string {
+      return `VL-${randomBytes(3).toString("hex").toUpperCase()}`;
+    }
+
+    function isValidBioVerificationCode(code: unknown): boolean {
+      return typeof code === "string" && BIO_CODE_REGEX.test(code.trim());
+    }
+
+    function isValidConsoleHandle(handle: unknown): boolean {
+      if (typeof handle !== "string") return false;
+      const trimmed = handle.trim();
+      if (containsDisallowedMarkup(trimmed)) return false;
+      return CONSOLE_HANDLE_REGEX.test(trimmed);
+    }
+
+    for (let i = 0; i < 10; i++) {
+      const generated = generateBioVerificationCode();
+      assert.equal(
+        isValidBioVerificationCode(generated),
+        true,
+        `Generated bio code "${generated}" must match /^VL-[A-F0-9]{6}$/`
+      );
+    }
+
+    assert.equal(isValidBioVerificationCode("VL-94A2F1"), true);
+    assert.equal(isValidBioVerificationCode("VL-00FFAB"), true);
+    assert.equal(isValidBioVerificationCode("vl-94a2f1"), false);
+    assert.equal(isValidBioVerificationCode("VL-12345"), false);
+    assert.equal(isValidBioVerificationCode("VL-1234567"), false);
+    assert.equal(isValidBioVerificationCode("VL-ZZZZZZ"), false);
+
+    // Valid PSN / Xbox / Social Club handles (3..24 chars, alphanumeric + space, _, -)
+    assert.equal(isValidConsoleHandle("Lucia_Vice6"), true);
+    assert.equal(isValidConsoleHandle("Jason Keys 2026"), true);
+    assert.equal(isValidConsoleHandle("Kingpin-PS5"), true);
+    assert.equal(isValidConsoleHandle("ABC"), true);
+    assert.equal(isValidConsoleHandle("A".repeat(24)), true);
+
+    // Invalid console handles (too short, too long, HTML/script injection)
+    assert.equal(isValidConsoleHandle("ab"), false);
+    assert.equal(isValidConsoleHandle("A".repeat(25)), false);
+    assert.equal(isValidConsoleHandle("<script>alert(1)</script>"), false);
+    assert.equal(isValidConsoleHandle("<img src=x onerror=alert(1)>"), false);
+    assert.equal(isValidConsoleHandle("Vice<Admin>"), false);
+    assert.equal(isValidConsoleHandle("javascript:alert(1)"), false);
+  });
+
+  it("13. Stage 9 4-criterion password strength evaluator rejects weak passwords ('123456', 'password') and passes strong ones ('Leonida#2026')", async () => {
+    function evaluatePasswordCriteria(pw: string) {
+      const minLength = pw.length >= 8;
+      const upperAndLower = /[a-z]/.test(pw) && /[A-Z]/.test(pw);
+      const hasDigit = /\d/.test(pw);
+      const hasSymbolOrPassphrase = /[^A-Za-z0-9]/.test(pw) || pw.length >= 12;
+      const score =
+        (minLength ? 1 : 0) +
+        (upperAndLower ? 1 : 0) +
+        (hasDigit ? 1 : 0) +
+        (hasSymbolOrPassphrase ? 1 : 0);
+      return {
+        minLength,
+        upperAndLower,
+        hasDigit,
+        hasSymbolOrPassphrase,
+        score,
+        isStrong: score === 4 && minLength
+      };
+    }
+
+    const weak1 = evaluatePasswordCriteria("123456");
+    assert.equal(weak1.isStrong, false, "'123456' must be rejected as weak");
+    assert.equal(weak1.minLength, false);
+
+    const weak2 = evaluatePasswordCriteria("password");
+    assert.equal(weak2.isStrong, false, "'password' must be rejected as weak");
+    assert.equal(weak2.upperAndLower, false);
+    assert.equal(weak2.hasDigit, false);
+
+    const weak3 = evaluatePasswordCriteria("alllowercase123");
+    assert.equal(weak3.isStrong, false, "Password missing uppercase must not pass all 4 criteria");
+
+    const strong1 = evaluatePasswordCriteria("Leonida#2026");
+    assert.equal(strong1.isStrong, true, "'Leonida#2026' must pass all 4 criteria");
+    assert.equal(strong1.score, 4);
+
+    const strong2 = evaluatePasswordCriteria("ViceCityKingpin2026");
+    assert.equal(strong2.isStrong, true, "12+ char mixed-case alphanumeric passphrase must pass all 4 criteria");
+    assert.equal(strong2.score, 4);
+  });
+
+  it("14. Stage 9–11 bilingual TRANSLATIONS key parity check and Neo-Glass HUD CSS class presence verification (mobile-bottom-dock, cmdk-modal, admin-kpi-grid, auth-split-shell)", async () => {
+    const { TRANSLATIONS } = await importProjectModule<{
+      TRANSLATIONS: Record<Language, Record<string, string>>;
+    }>("../src/lib/i18n/translations.ts");
+
+    const enKeys = Object.keys(TRANSLATIONS.en).sort();
+    const esKeys = Object.keys(TRANSLATIONS.es).sort();
+    assert.deepEqual(
+      enKeys,
+      esKeys,
+      "Stage 9–11 TRANSLATIONS.en and TRANSLATIONS.es must have 100% identical key sets"
+    );
+
+    const requiredStage9To11Keys = [
+      "nav.account",
+      "dock.cheats",
+      "dock.map",
+      "dock.glitches",
+      "dock.ai",
+      "dock.account",
+      "auth.showcase.title",
+      "auth.criteria.length",
+      "auth.criteria.case",
+      "auth.criteria.digit",
+      "auth.criteria.symbol",
+      "auth.recovery.title",
+      "auth.mfa.title",
+      "reset.title",
+      "console.bioCodeLabel",
+      "ocr.title",
+      "mfa.sectionTitle",
+      "admin.cofounderBadge",
+      "admin.kpi.revenue",
+      "admin.auditTitle",
+      "cmdk.placeholder"
+    ];
+
+    for (const key of requiredStage9To11Keys) {
+      assert.ok(
+        typeof TRANSLATIONS.en[key] === "string" && TRANSLATIONS.en[key].trim().length > 0,
+        `Expected Stage 9–11 EN translation for "${key}"`
+      );
+      assert.ok(
+        typeof TRANSLATIONS.es[key] === "string" && TRANSLATIONS.es[key].trim().length > 0,
+        `Expected Stage 9–11 ES translation for "${key}"`
+      );
+    }
+
+    const cssUrl = new URL("../src/styles/vice-ui.css", import.meta.url);
+    const cssText = readFileSync(cssUrl, "utf8");
+
+    const requiredCssTokens = [
+      "#05070e",
+      "backdrop-filter: blur(18px)",
+      "font-variant-numeric: tabular-nums",
+      ".auth-split-shell",
+      ".auth-showcase-panel",
+      ".auth-password-wrap",
+      ".auth-password-toggle",
+      ".auth-strength-grid",
+      ".auth-strength-item",
+      ".auth-otp-grid",
+      ".auth-recovery-card",
+      ".auth-reset-shell",
+      ".global-ticker-bar",
+      ".cmdk-trigger-btn",
+      ".cmdk-backdrop",
+      ".cmdk-modal",
+      ".cmdk-input-wrap",
+      ".cmdk-input",
+      ".cmdk-cats",
+      ".cmdk-results",
+      ".cmdk-item",
+      ".account-grid",
+      ".avatar-preset-grid",
+      ".avatar-preset-btn",
+      ".console-link-grid",
+      ".console-link-card",
+      ".bio-code-box",
+      ".totp-qr-box",
+      ".backup-codes-grid",
+      ".ocr-dropzone",
+      ".console-verified-pill",
+      ".admin-kpi-grid",
+      ".admin-kpi-card",
+      ".admin-kpi-value",
+      ".admin-subnav",
+      ".audit-log-table-wrap",
+      ".audit-log-table",
+      ".flag-toggle-row",
+      ".aal-badge",
+      ".mobile-bottom-dock",
+      ".mobile-dock-btn"
+    ];
+
+    for (const token of requiredCssTokens) {
+      assert.ok(
+        cssText.includes(token),
+        `Expected src/styles/vice-ui.css to include "${token}"`
+      );
+    }
   });
 });

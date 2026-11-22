@@ -198,3 +198,45 @@ If you accept a manual **Yappy QR** transfer (or verify a support receipt from *
 4. Paste the Yappy confirmation number or receipt reference into the reference box and click **`Grant Pass`**.
 5. This executes `public.vicelink_admin_grant_tier(...)`, which atomically upgrades `public.vicelink_profiles.access_tier` and records a completed audit receipt (`ADM...`) in `public.vicelink_transactions` so the user's receipt table and Law 81 data export remain 100% accurate.
 
+---
+
+## 6. Stages 9–11: Co-Founder Elevation, TOTP 2FA, Console Verification, Screenshot OCR Sync & Live Feature Flags
+
+Stages 9–11 upgrade ViceLink to the **2026 Neo-Glass HUD UI System**, adding split-screen SaaS authentication, step-up TOTP 2FA (`aal1 -> aal2`), `/reset-password` recovery, PSN/Xbox/Social Club bio-code console verification, Screenshot Progress OCR Sync (`POST /api/sync-progress`), Co-Founder Admin Telemetry & Audit Logs, a Global Command Palette (`Cmd + K`), and a Mobile-First Floating Glass Bottom Dock.
+
+### 6.1 Apply the Stage 9–11 Database Migration (`20261121000003_vicelink_stages_9_11.sql`)
+1. Open **Supabase Dashboard → SQL Editor** (or apply via the Supabase CLI / MCP migration runner).
+2. Execute the idempotent, additive migration file:
+   ```
+   supabase/migrations/20261121000003_vicelink_stages_9_11.sql
+   ```
+3. Verify the migration created and configured:
+   - Extended `public.vicelink_profiles` columns: `avatar_preset`, `psn_id`, `psn_verified`, `xbox_gamertag`, `xbox_verified`, `social_club_handle`, `verification_code` (`VL-XXXXXX`), `mfa_enabled`, and `is_banned`.
+   - `public.vicelink_admin_audit_logs` (RLS enabled + forced; immutable audit trail recording admin actions across settings, glitches, cheats, map pins, submissions, tier grants, and user bans).
+   - `public.vicelink_site_settings` (RLS enabled + forced; stores `global_banner`, `free_ai_daily_limit`, `maintenance_mode`, and `glitches_tab_enabled`).
+   - Admin & console RPCs: `vicelink_verify_console_handle`, `vicelink_author_badges`, `vicelink_admin_list_users_v2`, `vicelink_admin_telemetry`, `vicelink_admin_toggle_ban`, and `vicelink_admin_redact_comment`.
+
+### 6.2 Automatic Co-Founder Elevation & Immutable Admin Audit Logs
+- **Automatic Co-Founder Privileges:** Migration `20261121000003_vicelink_stages_9_11.sql` and the trigger function `private.vicelink_guard_profile_tier()` automatically recognize the two co-founder emails (`mikehevi2003@gmail.com` and `felipedleon@gmail.com`, case-insensitive) on both `INSERT` and `UPDATE`, immediately granting `is_admin = true`, `access_tier = 'kingpin'`, and `is_banned = false` while blocking privilege tampering by non-privileged callers.
+- **Immutable Audit Trail (`public.vicelink_admin_audit_logs`):** Every administrative mutation (`/api/admin/settings`, `/api/admin/glitches`, `/api/admin/cheats`, `/api/admin/pins`, `/api/admin/submissions/[id]`, `/api/admin/users/grant`, `/api/admin/users/ban`) appends a timestamped entry with `admin_id`, `admin_email`, `action_type`, `target_id`, and JSON `details`, viewable live in **`🛡️ Admin Panel → Moderation & Audit Log`**.
+
+### 6.3 Enabling Supabase Native TOTP 2FA & Email Password Recovery Redirects
+1. **Enable TOTP Multi-Factor Authentication:**
+   - In **Supabase Dashboard → Authentication → Multi-Factor Authentication**, enable **TOTP (App Authenticator)**.
+   - Players and co-founders can enroll an authenticator app (Google Authenticator, Authy, 1Password, iCloud Keychain) inside **`👤 Account & 2FA`** (`view-account`), scan the generated QR code, verify a 6-digit code to elevate their session to **`aal2`**, and download 8 emergency backup codes (`VL-XXXX-XXXX`).
+   - On subsequent logins (and password resets when MFA is active), `AuthGate` and `ResetPasswordGate` automatically detect `nextLevel === "aal2"` and prompt for the 6-digit TOTP step-up code before entering the hub.
+2. **Email Password Recovery Redirect Allowlist:**
+   - In **Supabase Dashboard → Authentication → URL Configuration → Redirect URLs**, ensure the callback URLs are allowlisted for both production and local development:
+     - `https://<domain>/api/auth/callback` (e.g. `https://vicelink.app/api/auth/callback`)
+     - `http://localhost:3000/api/auth/callback`
+     - `http://127.0.0.1:3000/api/auth/callback`
+   - When a user requests a password reset on `/login`, ViceLink sends `redirectTo: "<origin>/api/auth/callback?next=/reset-password"`, exchanges the PKCE `code` in `/api/auth/callback`, and lands the authenticated recovery session directly on `/reset-password`.
+
+### 6.4 Configuring `GEMINI_API_KEY` for Screenshot Progress OCR Sync & Live Site Settings
+- **Gemini 2.5 Flash Screenshot Progress OCR Sync (`POST /api/sync-progress`):**
+  - Set `GEMINI_API_KEY` in `.env.local` and Vercel Environment Variables to enable live **Gemini 2.5 Flash Vision** analysis when players upload a GTA VI Pause/Progress screenshot in **`👤 Account & 2FA → Smart Screenshot Progress OCR Sync`**.
+  - **Smart Deterministic Fallback:** When `GEMINI_API_KEY` is unset (or when a player clicks **`⚡ Run Demo Leonida Scan`**), `/api/sync-progress` automatically falls back to the deterministic Leonida keyword and region signature matcher, syncing discovered map pin IDs into `public.vicelink_progress.found_pins` without failing.
+- **Live Global Alert Ticker & Feature Flags (`public.vicelink_site_settings`):**
+  - Co-founders can update `global_banner` (bilingual EN/ES alert ticker above the hub workspace), `glitches_tab_enabled` (live toggle for the Glitches & Exploits tab), `maintenance_mode` (Neo-Glass Maintenance Shield for non-admin users), and `free_ai_daily_limit` (dynamic daily free AI quota enforced inside `public.vicelink_consume_ai_quota()`) in real time from **`🛡️ Admin Panel → Telemetry & Feature Flags`** without redeploying.
+
+

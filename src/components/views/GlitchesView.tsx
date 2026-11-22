@@ -1,0 +1,162 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { GlitchCategory, GlitchItem, Language } from "@/types/vicelink";
+import { GLITCH_CATEGORIES } from "@/lib/constants/forum";
+import { tField } from "@/lib/i18n/helpers";
+import { t } from "@/lib/i18n/translations";
+
+export interface GlitchesViewProps {
+  lang: Language;
+  glitches: GlitchItem[];
+  glitchesLocked: boolean;
+  onOpenPricing: () => void;
+  onVoteGlitch: (glitchId: string) => Promise<void>;
+}
+
+export default function GlitchesView({
+  lang,
+  glitches,
+  glitchesLocked,
+  onOpenPricing,
+  onVoteGlitch
+}: GlitchesViewProps) {
+  const [category, setCategory] = useState<"ALL" | GlitchCategory>("ALL");
+  const [votingId, setVotingId] = useState<string | null>(null);
+  const isEs = lang === "es";
+
+  const filtered = useMemo(() => {
+    if (category === "ALL") return glitches;
+    return glitches.filter((g) => g.category === category);
+  }, [glitches, category]);
+
+  const handleVote = async (glitchId: string) => {
+    setVotingId(glitchId);
+    try {
+      await onVoteGlitch(glitchId);
+    } finally {
+      setVotingId(null);
+    }
+  };
+
+  return (
+    <section id="view-glitches" className="view active">
+      <header className="view-header">
+        <div>
+          <h2>
+            {t(
+              lang,
+              "glitchTitle",
+              isEs
+                ? "Glitches y Exploits Activos en GTA VI (Parche 01.002.001)"
+                : "Active GTA VI Glitches & Exploits (Patch 01.002.001)"
+            )}
+          </h2>
+          <p>
+            {t(
+              lang,
+              "glitchSub",
+              isEs
+                ? "Métodos de dinero infinito, cámara en primera persona y trucos de física verificados."
+                : "Verified money loops, First-Person camera exploit & physics tricks tested on latest patch."
+            )}
+          </p>
+        </div>
+
+        {!glitchesLocked && (
+          <select
+            className="btn-secondary"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as "ALL" | GlitchCategory)}
+            aria-label={isEs ? "Categoría de glitch" : "Glitch category"}
+          >
+            {GLITCH_CATEGORIES.map((cat) => (
+              <option key={cat.value} value={cat.value}>
+                {tField(cat.label, lang)}
+              </option>
+            ))}
+          </select>
+        )}
+      </header>
+
+      {glitchesLocked ? (
+        <div className="paywall-box">
+          <span className="brand-badge">
+            {isEs ? "STREET PASS ($1.99 PAGO ÚNICO)" : "STREET PASS ($1.99 ONE-TIME)"}
+          </span>
+          <h3>
+            ⚡{" "}
+            {isEs
+              ? "Desbloquea Glitches Activos y Dinero Infinito"
+              : "Unlock Active Glitches & Money Loops"}
+          </h3>
+          <p>
+            {isEs
+              ? "Accede paso a paso al bucle de dinero del Granero Rojo, cámara en primera persona, trucos de física y votos en vivo del parche 01.002.001."
+              : "Get step-by-step instructions for the Red Barn Unlimited Money Loop, First-Person Camera Glitch, Physics boosts, and live Patch 01.002.001 status."}
+          </p>
+          <button
+            type="button"
+            className="btn-pro"
+            style={{ maxWidth: 280, margin: "0 auto" }}
+            onClick={onOpenPricing}
+          >
+            {isEs ? "Desbloquear por $1.99 (Pago Único)" : "Unlock for $1.99 One-Time"}
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="paywall-box" style={{ maxWidth: 460 }}>
+          <h3>{isEs ? "No hay glitches en esta categoría" : "No Glitches in This Category"}</h3>
+          <p>
+            {isEs
+              ? "Cambia el filtro para ver todos los exploits verificados en el parche actual."
+              : "Switch the category filter to view all verified exploits on the current patch."}
+          </p>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setCategory("ALL")}
+          >
+            {isEs ? "Ver Todos los Glitches" : "Show All Glitches"}
+          </button>
+        </div>
+      ) : (
+        <div className="forum-feed">
+          {filtered.map((g) => {
+            const stepsList = g.steps[lang] || g.steps.en;
+            const catMeta = GLITCH_CATEGORIES.find((c) => c.value === g.category);
+            const catLabel = catMeta ? tField(catMeta.label, lang) : g.category;
+
+            return (
+              <div key={g.id} className="cheat-card">
+                <div className="card-top" style={{ flexWrap: "wrap", gap: 8 }}>
+                  <span className="status-working">
+                    ● {tField(g.status, lang)} • {catLabel}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={votingId === g.id}
+                    className={`unlock-toggle-btn ${g.voted ? "done" : ""}`}
+                    onClick={() => handleVote(g.id)}
+                  >
+                    👍 {isEs ? "Sigue Funcionando" : "Still Working"} ({g.votes})
+                  </button>
+                </div>
+
+                <h3 style={{ marginTop: 8 }}>{tField(g.title, lang)}</h3>
+
+                <ol className="glitch-steps">
+                  {stepsList.map((step, idx) => (
+                    <li key={`${g.id}-step-${idx}`}>{step}</li>
+                  ))}
+                </ol>
+
+                <div className="unlock-pill">⚠️ {tField(g.warning, lang)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}

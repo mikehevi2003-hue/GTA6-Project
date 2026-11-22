@@ -4,12 +4,17 @@ import { createHmac } from "node:crypto";
 import Module from "node:module";
 import type {
   CheatItem,
+  ControlCategory,
+  CriminalProfileTier,
   GlitchCategory,
   GlitchItem,
+  HiddenControlItem,
   Language,
   LocalizedText,
   MapPin,
+  RadioStation,
   SpoilerChapter,
+  TrophyItem,
   UserTier
 } from "../src/types/vicelink";
 
@@ -346,5 +351,172 @@ describe("ViceLink Stage E — Automated Security, Data & Bilingual Logic Suite"
       false,
       "verifyYappyIpnHash must reject when status is tampered"
     );
+  });
+
+  it("7. HIDDEN_CONTROLS_DATA has >= 30 items covering all 5 categories with non-empty ps5Keys & xboxKeys and bilingual EN/ES fields", async () => {
+    const { HIDDEN_CONTROLS_DATA } = await importProjectModule<{
+      HIDDEN_CONTROLS_DATA: HiddenControlItem[];
+    }>("../src/server/data/controls.ts");
+
+    assert.ok(
+      HIDDEN_CONTROLS_DATA.length >= 30,
+      `Expected >= 30 hidden controls, got ${HIDDEN_CONTROLS_DATA.length}`
+    );
+
+    const requiredCategories: ControlCategory[] = [
+      "On-Foot",
+      "Combat & Weapons",
+      "Driving & Cars",
+      "Boats & Trailers",
+      "Planes & Parachuting"
+    ];
+
+    for (const cat of requiredCategories) {
+      const catControls = HIDDEN_CONTROLS_DATA.filter((c) => c.category === cat);
+      assert.ok(
+        catControls.length >= 1,
+        `Expected >= 1 control in category "${cat}", got ${catControls.length}`
+      );
+    }
+
+    for (const ctrl of HIDDEN_CONTROLS_DATA) {
+      assert.ok(
+        Array.isArray(ctrl.ps5Keys) && ctrl.ps5Keys.length >= 1,
+        `Control ${ctrl.id} must have non-empty ps5Keys`
+      );
+      assert.ok(
+        Array.isArray(ctrl.xboxKeys) && ctrl.xboxKeys.length >= 1,
+        `Control ${ctrl.id} must have non-empty xboxKeys`
+      );
+      assert.ok(ctrl.title.en.trim().length > 0 && ctrl.title.es.trim().length > 0);
+      assert.ok(ctrl.ps5.en.trim().length > 0 && ctrl.ps5.es.trim().length > 0);
+      assert.ok(ctrl.xbox.en.trim().length > 0 && ctrl.xbox.es.trim().length > 0);
+      assert.ok(ctrl.tip.en.trim().length > 0 && ctrl.tip.es.trim().length > 0);
+    }
+  });
+
+  it("8. RADIO_STATIONS_DATA has exact 25 stations including Cocoteo FM, Worldwide FM, AfroBank FM, Back Country Radio, The Chamber 106.6, Flash FM, and Vault Radio with unlockNote", async () => {
+    const { RADIO_STATIONS_DATA } = await importProjectModule<{
+      RADIO_STATIONS_DATA: RadioStation[];
+    }>("../src/server/data/radio.ts");
+
+    assert.equal(
+      RADIO_STATIONS_DATA.length,
+      25,
+      `Expected exact 25 radio stations, got ${RADIO_STATIONS_DATA.length}`
+    );
+
+    const cocoteo = RADIO_STATIONS_DATA.find((s) => /cocoteo\s*fm/i.test(s.name));
+    assert.ok(cocoteo, "RADIO_STATIONS_DATA must include Cocoteo FM");
+    assert.match(cocoteo.hosts, /Bad Bunny/i);
+    assert.match(cocoteo.hosts, /RaiNao/i);
+
+    const worldwide = RADIO_STATIONS_DATA.find((s) => /worldwide\s*fm/i.test(s.name));
+    assert.ok(worldwide, "RADIO_STATIONS_DATA must include Worldwide FM");
+    assert.match(worldwide.hosts, /Gilles Peterson/i);
+    assert.ok(
+      worldwide.tracks.some((t) => /Bobby Caldwell/i.test(t.artist) || /What You Won't Do For Love/i.test(t.title)),
+      "Worldwide FM must include Bobby Caldwell — What You Won't Do For Love"
+    );
+
+    const afrobank = RADIO_STATIONS_DATA.find((s) => /afrobank\s*fm/i.test(s.name));
+    assert.ok(afrobank, "RADIO_STATIONS_DATA must include AfroBank FM");
+    assert.match(afrobank.hosts, /Burna Boy/i);
+
+    const backCountry = RADIO_STATIONS_DATA.find((s) => /back\s*country\s*radio/i.test(s.name));
+    assert.ok(backCountry, "RADIO_STATIONS_DATA must include Back Country Radio");
+
+    const chamber = RADIO_STATIONS_DATA.find((s) => /the\s*chamber\s*106\.6/i.test(s.name));
+    assert.ok(chamber, "RADIO_STATIONS_DATA must include The Chamber 106.6");
+
+    const flashFm = RADIO_STATIONS_DATA.find((s) => /flash\s*fm/i.test(s.name));
+    assert.ok(flashFm, "RADIO_STATIONS_DATA must include Flash FM");
+
+    const vaultRadio = RADIO_STATIONS_DATA.find((s) => /vault\s*radio/i.test(s.name));
+    assert.ok(vaultRadio, "RADIO_STATIONS_DATA must include Vault Radio");
+    assert.ok(
+      vaultRadio.unlockNote &&
+        vaultRadio.unlockNote.en.trim().length > 0 &&
+        vaultRadio.unlockNote.es.trim().length > 0,
+      "Vault Radio must include a bilingual unlockNote"
+    );
+  });
+
+  it("9. TROPHIES_DATA has exact 55 trophies (1 platinum, 2 gold, 6 silver, 46 bronze incl. missable Positive Mental Attitude) and CRIMINAL_PROFILE_TIERS has 5 tiers ending with permanent irredeemable", async () => {
+    const { TROPHIES_DATA, CRIMINAL_PROFILE_TIERS } = await importProjectModule<{
+      TROPHIES_DATA: TrophyItem[];
+      CRIMINAL_PROFILE_TIERS: CriminalProfileTier[];
+    }>("../src/server/data/trophies.ts");
+
+    assert.equal(
+      TROPHIES_DATA.length,
+      55,
+      `Expected exact 55 trophies, got ${TROPHIES_DATA.length}`
+    );
+
+    const platinum = TROPHIES_DATA.filter((t) => t.grade === "platinum");
+    const gold = TROPHIES_DATA.filter((t) => t.grade === "gold");
+    const silver = TROPHIES_DATA.filter((t) => t.grade === "silver");
+    const bronze = TROPHIES_DATA.filter((t) => t.grade === "bronze");
+
+    assert.equal(platinum.length, 1, "Expected 1 platinum trophy");
+    assert.equal(gold.length, 2, "Expected 2 gold trophies");
+    assert.equal(silver.length, 6, "Expected 6 silver trophies");
+    assert.equal(bronze.length, 46, "Expected 46 bronze trophies");
+
+    assert.match(platinum[0].title.en, /Vice Got a Price!/i);
+    assert.ok(
+      gold.some((t) => /A Long Road/i.test(t.title.en)),
+      "Gold trophies must include 'A Long Road'"
+    );
+
+    const pma = bronze.find((t) => /Positive Mental Attitude/i.test(t.title.en));
+    assert.ok(pma, "Bronze trophies must include 'Positive Mental Attitude'");
+    assert.equal(pma.missable, true, "'Positive Mental Attitude' must be marked missable: true");
+
+    assert.equal(
+      CRIMINAL_PROFILE_TIERS.length,
+      5,
+      `Expected exact 5 criminal profile tiers, got ${CRIMINAL_PROFILE_TIERS.length}`
+    );
+    const lastTier = CRIMINAL_PROFILE_TIERS[CRIMINAL_PROFILE_TIERS.length - 1];
+    assert.equal(lastTier.id, "irredeemable", "5th criminal profile tier must be 'irredeemable'");
+    assert.equal(lastTier.permanent, true, "'irredeemable' tier must have permanent: true");
+  });
+
+  it("10. Stage 5–8 EN/ES key parity and admin/submission XSS safety helper checks", async () => {
+    const { TRANSLATIONS } = await importProjectModule<{
+      TRANSLATIONS: Record<Language, Record<string, string>>;
+    }>("../src/lib/i18n/translations.ts");
+
+    const enKeys = Object.keys(TRANSLATIONS.en).sort();
+    const esKeys = Object.keys(TRANSLATIONS.es).sort();
+    assert.deepEqual(enKeys, esKeys, "Stage 5–8 TRANSLATIONS.en and TRANSLATIONS.es must maintain 100% key parity");
+
+    const {
+      containsDisallowedMarkup,
+      sanitizePlainText,
+      isValidHandle,
+      normalizeHandle
+    } = await importProjectModule<{
+      containsDisallowedMarkup: (input: string) => boolean;
+      sanitizePlainText: (input: string, maxLen: number) => string;
+      isValidHandle: (input: string) => boolean;
+      normalizeHandle: (input: string) => string;
+    }>("../src/lib/security/sanitize.ts");
+
+    assert.equal(containsDisallowedMarkup("<script>fetch('/api/admin')</script>"), true);
+    assert.equal(containsDisallowedMarkup("javascript:alert(1)"), true);
+    assert.equal(containsDisallowedMarkup("<img src=x onerror=alert(1)>"), true);
+    assert.equal(containsDisallowedMarkup("[url=https://evil.test]click[/url]"), true);
+    assert.equal(containsDisallowedMarkup("&#x3c;script&#x3e;"), true);
+    assert.equal(
+      containsDisallowedMarkup("Hidden ATM behind the Little Cuba laundromat pays $4,500 after 2:00 AM."),
+      false
+    );
+
+    const sanitized = sanitizePlainText("<b>Admin Note</b>\u0000\u202E: Verified on Patch 01.002.001", 120);
+    assert.ok(!sanitized.includes("<") && !sanitized.includes(">") && !sanitized.includes("\u0000"));
+    assert.equal(isValidHandle(normalizeHandle("@Leonida_Founder")), true);
   });
 });

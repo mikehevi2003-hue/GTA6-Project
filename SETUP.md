@@ -1,0 +1,150 @@
+# ViceLink // Leonida Companion Hub — Setup, Deployment & Panama Compliance Guide
+
+This guide covers local development, Supabase database & Row-Level Security (RLS) migration, dual-rail payment gateway configuration (**Banco General Yappy Comercial V2** + **Stripe / Tilopay / PagueloFácil**), Vercel deployment, and the **Panama Legal, Tax & Banking Pre-Launch Checklist**.
+
+---
+
+## 1. Local Development Setup
+
+### 1.1 Install Dependencies & Environment Variables
+
+1. Copy `.env.example` to `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+2. Populate `.env.local` with your Supabase project credentials (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`).
+3. Install dependencies and start the local development server on `http://127.0.0.1:3000`:
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+### 1.2 Apply the Supabase Postgres & RLS Migration
+
+ViceLink namespaces all database objects with `vicelink_` inside `public` and `private` schemas so it can safely coexist with other applications in a shared Supabase project.
+
+1. Open the **Supabase Dashboard → SQL Editor** for your project (or run `supabase db push` via the Supabase CLI).
+2. Paste and execute the full contents of:
+   ```
+   supabase/migrations/20261121000001_vicelink_schema.sql
+   ```
+3. Verify the migration created:
+   - `public.vicelink_profiles` (with `BEFORE UPDATE` trigger `private.vicelink_guard_profile_tier()` preventing client-side privilege escalation of `access_tier` or `stripe_customer_id`)
+   - `public.vicelink_transactions` (`SELECT` only for `authenticated`; writes restricted to server `service_role`)
+   - `public.vicelink_progress`
+   - `public.vicelink_ai_usage`
+   - `public.vicelink_glitch_votes`
+   - `public.vicelink_theories`, `public.vicelink_theory_votes`, `public.vicelink_theory_reactions`
+   - `public.vicelink_comments`, `public.vicelink_comment_likes`
+   - `AFTER INSERT ON auth.users` trigger `private.vicelink_handle_new_user()`
+4. In **Supabase Dashboard → Authentication → URL Configuration**:
+   - Set **Site URL** to `http://127.0.0.1:3000` (local) or your production domain `https://vicelink.app`.
+   - Add Redirect URLs:
+     - `http://127.0.0.1:3000/api/auth/callback`
+     - `https://vicelink.app/api/auth/callback`
+
+### 1.3 Local Webhook Testing (Stripe CLI & Yappy UAT)
+
+#### Stripe CLI Webhook Forwarding
+To test card upgrades (`Street Pass $1.99` and `Kingpin VIP $4.99`) locally:
+
+```bash
+stripe login
+stripe listen --forward-to http://127.0.0.1:3000/api/webhooks/card
+```
+*(You can also forward to `http://127.0.0.1:3000/api/stripe/webhook`, which shares the exact same raw-body signature verification handler.)*
+
+Copy the `whsec_...` signing secret printed by `stripe listen` into `STRIPE_WEBHOOK_SECRET` in `.env.local`.
+
+#### Banco General Yappy Comercial V2 (UAT / Sandbox Testing)
+To simulate a Yappy Instant Payment Notification (IPN) callback locally after creating a pending order via `POST /api/checkout/yappy`:
+1. Compute the HMAC-SHA256 signature of `${orderId}E${domain}` using the first segment of `YAPPY_SECRET_KEY` (base64-decoded per Banco General Botón de Pago V2 specification, or UTF-8 fallback in local test mode).
+2. Send a `GET` or `POST` request to:
+   ```
+   http://127.0.0.1:3000/api/webhooks/yappy?orderId=VL...&status=E&domain=https://vicelink.app&hash=<hmac_sha256_hex>
+   ```
+3. Status codes sent by Yappy Comercial V2:
+   - `E` = Ejecutado (Completed — atomically upgrades `vicelink_profiles.access_tier` and marks `vicelink_transactions.status = 'completed'`)
+   - `R` = Rechazado (Rejected)
+   - `C` = Cancelado (Canceled)
+   - `X` = Expirado (Expired)
+
+---
+
+## 2. Vercel Environment Variables Reference
+
+Configure the following variables in **Vercel → Project Settings → Environment Variables**:
+
+| Variable | Scope | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Client & Server | **Yes** | Supabase project URL (`https://<project>.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client & Server | **Yes*** | Supabase publishable / anon key (*or set `NEXT_PUBLIC_SUPABASE_ANON_KEY`) |
+| `SUPABASE_SECRET_KEY` | **Server Only** | **Yes*** | Supabase `service_role` secret key for webhook tier upgrades (*or `SUPABASE_SERVICE_ROLE_KEY`) |
+| `NEXT_PUBLIC_APP_URL` | Client & Server | **Yes** | Canonical public origin (e.g. `https://vicelink.app`) |
+| `YAPPY_MERCHANT_ID` | **Server Only** | Panama Rail | Banco General Yappy Comercial Merchant ID (`ID del Comercio`) |
+| `YAPPY_SECRET_KEY` | **Server Only** | Panama Rail | Banco General Yappy Comercial `Clave Secreta` (Botón de Pago V2) |
+| `YAPPY_DOMAIN_URL` | **Server Only** | Panama Rail | Registered domain in Yappy Comercial portal (e.g. `https://vicelink.app`) |
+| `YAPPY_API_URL` | **Server Only** | Optional | Defaults to `https://apipagosbg.bgeneral.cloud` |
+| `CARD_GATEWAY_PROVIDER` | **Server Only** | Card Rail | `stripe` (default), `tilopay`, or `paguelofacil` |
+| `STRIPE_SECRET_KEY` | **Server Only** | Card Rail | Stripe Secret Key (`sk_live_...` or `sk_test_...`) |
+| `STRIPE_WEBHOOK_SECRET` | **Server Only** | Card Rail | Stripe Webhook Endpoint Signing Secret (`whsec_...`) |
+| `STRIPE_PRICE_STREET_PASS` | **Server Only** | Optional | Optional pre-created Stripe Price ID for Street Pass ($1.99 USD) |
+| `STRIPE_PRICE_KINGPIN_VIP` | **Server Only** | Optional | Optional pre-created Stripe Price ID for Kingpin VIP ($4.99 USD) |
+| `CARD_GATEWAY_API_KEY` | **Server Only** | Optional | API key when using Tilopay or PagueloFácil Panama card gateway |
+| `CARD_GATEWAY_SECRET_KEY` | **Server Only** | Optional | Secret key when using Tilopay or PagueloFácil |
+| `CARD_WEBHOOK_SECRET` | **Server Only** | Optional | Webhook HMAC secret for Tilopay or PagueloFácil callbacks |
+| `GEMINI_API_KEY` | **Server Only** | Optional | Google Gemini API key used by `POST /api/ai/ask` (falls back to built-in Leonida tactical brain when omitted; never exposed to browser) |
+
+---
+
+## 3. Verification & Automated Test Suite
+
+Before deploying to production, run both the TypeScript compiler check and the automated security & logic test suite:
+
+```bash
+npm run typecheck
+npm test
+```
+
+The test suite (`tests/security-and-logic.test.ts`) validates:
+- 100% EN/ES translation key parity (`TRANSLATIONS.en` vs `TRANSLATIONS.es`) and zero hardcoded `"61 Total"` cheat count mismatches.
+- Bilingual legal compliance policies (`LEGAL_POLICIES`: Terms, Refunds, Law 81 Privacy, and Unofficial Fan Disclaimer).
+- All 32 `LEONIDA_PINS` coordinates have minimum pairwise Euclidean distance `>= 3.8` (preventing pin overlap at `1x` zoom) and zero duplicate leading emojis.
+- Non-empty glitches across all 4 categories (`Money`, `Camera`, `Stealth`, `Physics`).
+- `getBuiltInLeonidaReply` Easter Egg branch accuracy (EN & ES) and `ch1` Spoiler Shield enforcement.
+- Server entitlement matrix (`hasAccess`), XSS/input sanitization (`sanitizePlainText`, `normalizeHandle`), and Yappy V2 order ID & HMAC-SHA256 IPN verification (`generateYappyOrderId`, `verifyYappyIpnHash`).
+
+---
+
+## 4. Panama Legal, Tax & Banking Pre-Launch Checklist
+
+Before switching `YAPPY_SECRET_KEY` and `STRIPE_SECRET_KEY` / Panama card gateway credentials from test mode to live production in the Republic of Panama, complete the following compliance steps:
+
+### 4.1 MICI — PanamaEmprende (`Aviso de Operación`)
+- [ ] Register your commercial activity on **[PanamaEmprende](https://www.panamaemprende.gob.pa/)** (Ministerio de Comercio e Industrias — MICI) as a digital services / software portal (*Servicios digitales, desarrollo de software y portales web*).
+- [ ] Download and archive your signed **Aviso de Operación** PDF (required by Banco General, Tilopay, and PagueloFácil during merchant onboarding).
+
+### 4.2 DGI — Tax Registration (`RUC` & `Facturador Gratuito SFEP`)
+- [ ] Verify your **RUC (Registro Único de Contribuyente)** and **DV (Dígito Verificador)** are active in the **DGI e-Tax 2.0** portal (`etax2.mef.gob.pa`).
+- [ ] Register in the **Sistema de Facturación Electrónica de Panamá (SFEP)** using the **Facturador Gratuito** (free tier for up to 200 electronic invoices/month and gross annual revenue under B/. 36,000) or an authorized PAC (*Proveedor Autorizado Calificado*).
+- [ ] Note on **ITBMS (7%)**: Under Panamanian tax law, businesses are exempt from charging 7% ITBMS until gross annual revenue exceeds **B/. 36,000.00**. Once annual revenue exceeds B/. 36,000, update your DGI status and enable ITBMS line items on electronic receipts.
+
+### 4.3 Banco General — Yappy Comercial (`Botón de Pago V2`)
+- [ ] Open or log in to your **Yappy Comercial** merchant portal at Banco General (`comercial.yappy.com.pa`).
+- [ ] Navigate to **Métodos de cobro → Botón de Pago Yappy → Integración API V2**.
+- [ ] Register your production domain (`https://vicelink.app`) and set the IPN Webhook URL to:
+  ```
+  https://vicelink.app/api/webhooks/yappy
+  ```
+- [ ] Copy the generated **ID del Comercio** (`YAPPY_MERCHANT_ID`) and **Clave Secreta** (`YAPPY_SECRET_KEY`) into Vercel Environment Variables.
+
+### 4.4 Public Legal & Card Acquirer Compliance URLs (Law 81 of 2019)
+Banco General, Visa/Mastercard acquirers (Stripe, Tilopay, PagueloFácil), and Panama **Law 81 of 2019** (*Protección de Datos Personales*) require public, unauthenticated access to your Terms, Refund Policy, Privacy Notice, and Intellectual Property Disclaimer prior to checkout.
+
+ViceLink exposes these routes publicly in `src/middleware.ts` and links them on `/login`, the sidebar footer, and the checkout modal:
+- [ ] **Terms of Service / Términos y Condiciones:** `https://vicelink.app/terms`
+  *(Clearly discloses one-time digital license pricing of $1.99 USD for Street Pass and $4.99 USD for Kingpin VIP, plus explicit non-affiliation with Rockstar Games or Take-Two Interactive.)*
+- [ ] **Privacy Policy / Política de Privacidad (Ley 81 de 2019):** `https://vicelink.app/privacy`
+  *(Discloses minimal personal data collection, third-party PCI-DSS payment processing, and the self-service **Export My Data (Law 81)** JSON download at `GET /api/me/export`.)*
+- [ ] **Refund Policy / Política de Reembolsos:** `https://vicelink.app/refunds`
+  *(Discloses immediate digital delivery upon webhook confirmation and the 7-business-day resolution procedure for duplicate charges or technical delivery failures.)*

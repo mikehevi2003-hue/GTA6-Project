@@ -1,1 +1,653 @@
-/* ViceLink UI extensions populated in Phase 1 */
+/* ==========================================================================
+   ViceLink Commercial, Auth, Legal, Dual-Rail Checkout & Mobile Polish CSS
+   Palette: #070a12 (dark), #0d1220 (sidebar), #ff2a85 (pink), #00e5ff (cyan), #facc15 (gold)
+   ========================================================================== */
+
+/* --- Auth Gate (/login) --- */
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 42, 133, 0.14) 0%, transparent 42%),
+    radial-gradient(circle at 82% 14%, rgba(0, 229, 255, 0.14) 0%, transparent 45%),
+    var(--bg-dark);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  background: rgba(13, 18, 32, 0.96);
+  border: 1px solid rgba(0, 229, 255, 0.32);
+  border-radius: 18px;
+  padding: 26px 24px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.78),
+    0 0 28px rgba(0, 229, 255, 0.08);
+}
+
+.auth-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.auth-card h1 {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  margin-top: 4px;
+}
+
+.auth-card h1 span {
+  color: var(--accent-pink);
+}
+
+.auth-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: #080c16;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 4px;
+  margin: 18px 0 16px;
+}
+
+.auth-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 9px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.auth-tab:hover {
+  color: var(--text-main);
+}
+
+.auth-tab.active {
+  background: linear-gradient(90deg, rgba(255, 42, 133, 0.25), rgba(0, 229, 255, 0.18));
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  color: #ffffff;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.auth-field label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cbd5e1;
+  letter-spacing: 0.4px;
+}
+
+.auth-card input[type="email"],
+.auth-card input[type="password"],
+.auth-card input[type="text"],
+.auth-input {
+  width: 100%;
+  background: #090e1a;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.auth-card input:focus,
+.auth-input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.password-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.password-meter-track {
+  height: 6px;
+  background: #080c16;
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1px solid #1b243d;
+}
+
+.password-meter-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.2s ease, background-color 0.2s ease;
+  background: linear-gradient(90deg, var(--accent-pink), var(--accent-cyan));
+}
+
+.auth-alert {
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 8px 0;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  background: rgba(0, 229, 255, 0.1);
+  color: #e2e8f0;
+}
+
+.auth-alert.error {
+  background: rgba(244, 63, 94, 0.14);
+  border-color: rgba(244, 63, 94, 0.45);
+  color: #fda4af;
+}
+
+.auth-alert.success {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #86efac;
+}
+
+.security-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.security-pill,
+.security-pills span {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  background: #090e1a;
+  border: 1px solid #1e2945;
+  padding: 4px 9px;
+  border-radius: 99px;
+}
+
+.auth-footer {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.auth-footer a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+/* --- Legal Compliance Pages (/terms, /privacy, /refunds) --- */
+.legal-shell {
+  min-height: 100vh;
+  padding: 36px 18px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background:
+    radial-gradient(circle at top right, #141b33 0%, var(--bg-dark) 55%);
+}
+
+.legal-card {
+  width: 100%;
+  max-width: 820px;
+  background: rgba(13, 18, 32, 0.96);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.72);
+}
+
+.legal-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.legal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: #0a0f1d;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.legal-tab:hover {
+  border-color: var(--accent-cyan);
+  color: #ffffff;
+}
+
+.legal-tab.active {
+  background: rgba(0, 229, 255, 0.16);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.legal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #e2e8f0;
+}
+
+.legal-body h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.legal-body p {
+  color: #cbd5e1;
+}
+
+.legal-disclaimer-box {
+  margin-top: 20px;
+  padding: 13px 16px;
+  border-radius: 11px;
+  background: rgba(255, 42, 133, 0.08);
+  border: 1px solid rgba(255, 42, 133, 0.3);
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+/* --- Sidebar User Account Card & Verified Tier Badges --- */
+.user-account-card {
+  margin-top: 12px;
+  background: #080c16;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-account-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-account-handle {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-account-email {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-account-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.user-account-actions button {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.tier-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: #131a2e;
+  border: 1px solid var(--border);
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+
+.tier-chip.street,
+.tier-chip.tier-street {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.45);
+  color: var(--accent-cyan);
+}
+
+.tier-chip.kingpin,
+.tier-chip.tier-kingpin {
+  background: linear-gradient(90deg, rgba(250, 204, 21, 0.22), rgba(245, 158, 11, 0.18));
+  border-color: #facc15;
+  color: #fde047;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.2);
+}
+
+.kingpin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, rgba(250, 204, 21, 0.22), rgba(245, 158, 11, 0.28));
+  border: 1px solid #facc15;
+  color: #fde047;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.22);
+  white-space: nowrap;
+}
+
+.sidebar-compliance-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10.5px;
+}
+
+.sidebar-compliance-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.sidebar-compliance-links a:hover {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+}
+
+/* --- Dual-Rail Checkout UI (Yappy Comercial V2 + Card Gateway) --- */
+.rail-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-yappy {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: linear-gradient(90deg, #0072ce, #00b4ff);
+  color: #ffffff;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 180, 255, 0.22);
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-yappy:hover:not(:disabled) {
+  opacity: 0.94;
+  transform: translateY(-1px);
+}
+
+.btn-yappy:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-card-pay {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: linear-gradient(90deg, var(--accent-pink), #7c3aed);
+  color: #ffffff;
+  border: 1px solid rgba(255, 42, 133, 0.45);
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(255, 42, 133, 0.22);
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-card-pay:hover:not(:disabled) {
+  opacity: 0.94;
+  transform: translateY(-1px);
+}
+
+.btn-card-pay:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.receipt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.receipt-table th,
+.receipt-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.receipt-table th {
+  color: var(--accent-cyan);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.toast-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  margin-bottom: 16px;
+  border-radius: 11px;
+  background: rgba(0, 229, 255, 0.14);
+  border: 1px solid var(--accent-cyan);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.toast-banner.success {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+
+.toast-banner.error {
+  background: rgba(244, 63, 94, 0.16);
+  border-color: #f43f5e;
+  color: #fecdd3;
+}
+
+/* --- Interactive Pan + Zoom Map Viewport & Inspector Enhancements --- */
+.map-viewport.zoomed {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.map-viewport.zoomed.dragging,
+.map-viewport.zoomed:active {
+  cursor: grabbing;
+}
+
+.map-pin.selected {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 4px rgba(0, 229, 255, 0.28);
+  z-index: 6;
+}
+
+.pin-row.selected {
+  border-color: var(--accent-cyan);
+  background: #131c31;
+}
+
+.map-inspector-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-inspector-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* --- Mobile & 390px Responsive Polish --- */
+.modal-close-pill,
+.btn-pro,
+.ai-input-row button {
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .main-content {
+    padding: 18px 14px;
+  }
+
+  .modal {
+    padding: 12px;
+  }
+
+  .modal-content {
+    padding: 16px;
+  }
+
+  .modal-close-pill {
+    white-space: nowrap;
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+
+  .btn-pro,
+  .btn-yappy,
+  .btn-card-pay,
+  .ai-input-row button {
+    white-space: nowrap;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+
+  .map-inspector {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .map-inspector-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .map-inspector-actions .btn-pro {
+    flex: 1;
+  }
+
+  .auth-card {
+    padding: 20px 16px;
+  }
+
+  .auth-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .legal-card {
+    padding: 18px 14px;
+  }
+}

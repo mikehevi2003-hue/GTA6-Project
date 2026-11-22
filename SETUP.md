@@ -148,3 +148,53 @@ ViceLink exposes these routes publicly in `src/middleware.ts` and links them on 
   *(Discloses minimal personal data collection, third-party PCI-DSS payment processing, and the self-service **Export My Data (Law 81)** JSON download at `GET /api/me/export`.)*
 - [ ] **Refund Policy / Política de Reembolsos:** `https://vicelink.app/refunds`
   *(Discloses immediate digital delivery upon webhook confirmation and the 7-business-day resolution procedure for duplicate charges or technical delivery failures.)*
+
+---
+
+## 5. Admin Command Center & Manual Yappy Approval Workflow
+
+Stage 5 introduces a database-enforced Role-Based Access Control (RBAC) **Admin Command Center** (`🛡️ Admin Panel`) and a public **Submit Intel & Feedback / Community Roadmap** portal (`💡 Submit Intel & Feedback`).
+
+### 5.1 Apply the Stage 5–8 Database Migration
+1. Open **Supabase Dashboard → SQL Editor**.
+2. Execute the idempotent migration file:
+   ```
+   supabase/migrations/20261121000002_vicelink_stages_5_8.sql
+   ```
+   This adds `is_admin` to `public.vicelink_profiles`, `unlocked_trophies` to `public.vicelink_progress`, and creates the RLS-protected CMS & community tables (`vicelink_dynamic_cheats`, `vicelink_dynamic_glitches`, `vicelink_dynamic_map_pins`, `vicelink_community_submissions`, `vicelink_submission_votes`) plus the admin-only `SECURITY DEFINER` RPCs (`vicelink_admin_search_users` and `vicelink_admin_grant_tier`).
+
+### 5.2 Promote the Two Founders to Admin (`is_admin = true`)
+Because `private.vicelink_guard_profile_tier()` strictly blocks any client or API user session from modifying `is_admin`, admin promotion can **only** be performed from the **Supabase Dashboard → SQL Editor** (running as `postgres` / `supabase_admin`).
+
+Run the following SQL command after both founders have created their ViceLink accounts:
+
+```sql
+update public.vicelink_profiles
+set is_admin = true
+where email in ('founder1@yourdomain.com', 'founder2@yourdomain.com');
+```
+
+Once promoted, reload ViceLink: the **`🛡️ Admin Panel` (`ADMIN`)** navigation button appears automatically in the left sidebar (and remains completely hidden from non-admin players). Every `/api/admin/*` route independently verifies `profile.is_admin === true` on the server and returns `403 FORBIDDEN` to non-admins.
+
+### 5.3 Approving Community Intel & Feedback Submissions
+1. Players submit newly discovered money spots, glitch reports, Easter eggs, cheat combinations, or site feedback in **`💡 Submit Intel & Feedback`**.
+2. New submissions enter `public.vicelink_community_submissions` with `status = 'pending'` (visible only to the author and admins).
+3. Open **`🛡️ Admin Panel → Community Intel & Feedback Queue`**:
+   - Filter by **`Pending`** to review incoming player reports.
+   - Add an optional bilingual or founder note in **`Admin Notes`** (e.g., *"Verified on Patch 01.002.001 — added to Leonida Tactical Map!"*).
+   - Click **`Approve`** (`✓ Verified by ViceLink`), **`Mark Implemented`** (`🚀 Implemented`), or **`Reject`**.
+   - Approved and implemented discoveries immediately appear on the public **Community Roadmap & Approved Player Discoveries** feed where all members can upvote (`▲`) them.
+
+### 5.4 Live Glitch Patch Toggling, Cheat Publishing & Click-to-Pin Map Editor
+- **1-Click Glitch Status Toggle (`WORKING` ↔ `PATCHED`):** When Rockstar releases a title update, open **`🛡️ Admin Panel → Live Glitch & Cheat Manager`** and click **`Mark Patched`** next to any patched exploit. It immediately flips to a red **`● PATCHED`** badge for all users without redeploying code.
+- **Publish New Cheats & Glitches:** Use the bilingual EN/ES forms in Tab 1 to publish newly cracked D-Pad button combos or exploits straight to Postgres.
+- **Interactive Click-to-Pin Map Publisher:** In **`🛡️ Admin Panel → Map Pin Publisher`**, click anywhere on the Leonida radar preview to capture exact `(x%, y%)` coordinates, select the pin tier (`free`, `street`, `kingpin`), type (`Money`, `ATM`, `RareCar`, `Fence`, `EasterEgg`, `Collectible`), region, and bilingual notes, then click **`Publish Map Pin`**.
+
+### 5.5 Manual Yappy QR & Card Receipt Approval Workflow
+If you accept a manual **Yappy QR** transfer (or verify a support receipt from **PagueloFácil**, **Tilopay**, or **Stripe**) prior to enabling automated Botón de Pago V2 webhooks:
+1. Open **`🛡️ Admin Panel → Manual VIP Pass Granter`**.
+2. Search the player by their **`@username`** or **`email`**.
+3. Select the target tier (**`Street Pass ($1.99)`**, **`Kingpin VIP ($4.99)`**, or **`Free Recruit`**) and payment provider (**`yappy`**, **`paguelofacil`**, **`tilopay`**, or **`stripe`**).
+4. Paste the Yappy confirmation number or receipt reference into the reference box and click **`Grant Pass`**.
+5. This executes `public.vicelink_admin_grant_tier(...)`, which atomically upgrades `public.vicelink_profiles.access_tier` and records a completed audit receipt (`ADM...`) in `public.vicelink_transactions` so the user's receipt table and Law 81 data export remain 100% accurate.
+

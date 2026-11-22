@@ -24,6 +24,7 @@ export interface AccountViewProps {
     xboxGamertag?: string;
     socialClubHandle?: string;
     mfaEnabled?: boolean;
+    marketingOptIn?: boolean;
   }) => Promise<void>;
   onProfileUpdated: (profile: UserProfile) => void;
   onProgressSynced: (foundPins: string[]) => void;
@@ -110,6 +111,7 @@ export function AccountView({
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [preferredLang, setPreferredLang] = useState<Language>(profile.preferredLang);
   const [avatarPreset, setAvatarPreset] = useState<string>(profile.avatarPreset || "neon_vice");
+  const [marketingOptIn, setMarketingOptIn] = useState<boolean>(profile.marketingOptIn ?? true);
   const [savingIdentity, setSavingIdentity] = useState(false);
 
   // 2. Console Linking & Bio-Code Handshake State
@@ -176,6 +178,7 @@ export function AccountView({
     setDisplayName(profile.displayName);
     setPreferredLang(profile.preferredLang);
     setAvatarPreset(profile.avatarPreset || "neon_vice");
+    setMarketingOptIn(profile.marketingOptIn ?? true);
     setPsnId(profile.psnId || "");
     setXboxGamertag(profile.xboxGamertag || "");
     setSocialClubHandle(profile.socialClubHandle || "");
@@ -185,6 +188,9 @@ export function AccountView({
   const loadMfaState = useCallback(async () => {
     setMfaLoading(true);
     try {
+      if (!profile.mfaEnabled) {
+        await fetch("/api/account/mfa-reset", { method: "POST" }).catch(() => null);
+      }
       const supabase = createClient();
       const [{ data: aalData }, { data: factorsData }] = await Promise.all([
         supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
@@ -198,13 +204,13 @@ export function AccountView({
       }
 
       const verified = factorsData?.totp?.find((f) => f.status === "verified");
-      setVerifiedFactorId(verified ? verified.id : null);
+      setVerifiedFactorId(verified && profile.mfaEnabled ? verified.id : null);
     } catch {
       // Ignore if MFA inspection fails offline
     } finally {
       setMfaLoading(false);
     }
-  }, []);
+  }, [profile.mfaEnabled]);
 
   useEffect(() => {
     void loadMfaState();
@@ -212,7 +218,7 @@ export function AccountView({
 
   const pwEval = useMemo(() => evaluatePasswordCriteria(newPassword, lang), [newPassword, lang]);
 
-  // --- Section 1 Handlers: Identity & Avatar ---
+  // --- Section 1 Handlers: Identity, Avatar & Marketing Opt-In ---
   const handleSelectAvatar = async (presetId: string) => {
     setAvatarPreset(presetId);
     try {
@@ -233,6 +239,32 @@ export function AccountView({
     }
   };
 
+  const handleToggleMarketingOptIn = async (nextOptIn: boolean) => {
+    setMarketingOptIn(nextOptIn);
+    try {
+      await onSaveProfile({ marketingOptIn: nextOptIn });
+      notify(
+        "success",
+        nextOptIn
+          ? isEs
+            ? "✓ Suscripción activada para alertas tácticas y códigos promocionales."
+            : "✓ Opted in to tactical intel & promotional discount emails."
+          : isEs
+            ? "✓ Correos promocionales desactivados."
+            : "✓ Marketing & promotional emails turned off."
+      );
+    } catch (err) {
+      notify(
+        "error",
+        err instanceof Error
+          ? err.message
+          : isEs
+            ? "No se pudo actualizar tu preferencia de correos."
+            : "Could not update marketing email preference."
+      );
+    }
+  };
+
   const handleSaveIdentity = async (e: FormEvent) => {
     e.preventDefault();
     setSavingIdentity(true);
@@ -242,7 +274,8 @@ export function AccountView({
         handle: handle.trim(),
         displayName: displayName.trim(),
         preferredLang,
-        avatarPreset
+        avatarPreset,
+        marketingOptIn
       });
       notify(
         "success",
@@ -457,21 +490,24 @@ export function AccountView({
     setMfaBusy(true);
     setLocalBanner(null);
     try {
+      // 1. Downgrade any orphaned pre-ViceLink factors on accounts where mfa_enabled = false
+      await fetch("/api/account/mfa-reset", { method: "POST" }).catch(() => null);
+
       const supabase = createClient();
 
-      // Clean up any stale unverified TOTP factors so enrollment never collides
+      // 2. Unenroll all unverified TOTP factors so enrollment never collides
       const { data: existingFactors } = await supabase.auth.mfa.listFactors();
-      if (existingFactors?.all) {
-        for (const factor of existingFactors.all) {
-          if (factor.factor_type === "totp" && factor.status !== "verified") {
-            await supabase.auth.mfa.unenroll({ factorId: factor.id }).catch(() => null);
-          }
-        }
+      const unverifiedTotpFactors = (existingFactors?.all ?? []).filter(
+        (f) => f.factor_type === "totp" && f.status !== "verified"
+      );
+      for (const factor of unverifiedTotpFactors) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id }).catch(() => null);
       }
 
+      // 3. Enroll with a timestamp-suffixed friendlyName to guarantee zero collisions in GoTrue
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: `ViceLink Authenticator (${profile.handle || "Player"})`
+        friendlyName: `ViceLink-${Date.now().toString().slice(-4)}`
       });
 
       if (error || !data) {
@@ -1007,6 +1043,43 @@ export function AccountView({
                     : "💾 Save Identity"}
               </button>
             </div>
+
+            {/* Marketing & Promotional Emails Opt-In Toggle */}
+            <label
+              className="flag-toggle-row"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "#090d18",
+                border: "1px solid var(--border)",
+                cursor: "pointer",
+                marginTop: 2
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <strong style={{ fontSize: 12.5, color: "#e2e8f0" }}>
+                  📩{" "}
+                  {isEs
+                    ? "Correos Promocionales y Alertas Tácticas (Opt-In)"
+                    : "Marketing & Promotional Emails Opt-In"}
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  {isEs
+                    ? "Recibe códigos de descuento exclusivos, nuevas rutas de dinero y avisos de parches GTA VI."
+                    : "Receive exclusive promo discount codes, new Leonida cash routes & GTA VI patch alerts."}
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={(e) => void handleToggleMarketingOptIn(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: "var(--accent-cyan)", cursor: "pointer" }}
+              />
+            </label>
           </form>
 
           {/* Cloud Progress Summary Pills */}
@@ -1490,6 +1563,58 @@ export function AccountView({
               </span>
             )}
           </div>
+
+          {/* First-Time Co-Founder Super Admin QR Setup Auto-Banner */}
+          {profile.isAdmin && !verifiedFactorId && (
+            <div
+              className="cofounder-2fa-banner"
+              role="region"
+              aria-label="Co-Founder Super Admin 2FA Setup"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(0, 229, 255, 0.12))",
+                border: "1px solid rgba(250, 204, 21, 0.55)",
+                borderRadius: 12,
+                padding: "13px 15px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 12,
+                boxShadow: "0 0 22px rgba(250, 204, 21, 0.14)"
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 220, display: "flex", flexDirection: "column", gap: 4 }}>
+                <strong style={{ fontSize: 13.5, color: "#fde047" }}>
+                  {isEs
+                    ? "🛡️ Co-Founder Super Admin Security: Configura tu código QR 2FA justo aquí"
+                    : "🛡️ Co-Founder Super Admin Security: Set up your 2FA Authenticator QR Code right here"}
+                </strong>
+                <span style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.45 }}>
+                  {isEs
+                    ? `Bienvenido Co-Founder (${profile.email}). Haz clic para limpiar cualquier factor huérfano previo y generar tu nuevo código QR TOTP para Google Authenticator, Authy o 1Password.`
+                    : `Welcome Co-Founder (${profile.email}). Click to clear any orphaned factors and generate your fresh TOTP QR code for Google Authenticator, Authy, or 1Password.`}
+                </span>
+              </div>
+              {!enrollingFactorId && (
+                <button
+                  type="button"
+                  className="btn-pro"
+                  style={{ width: "auto", whiteSpace: "nowrap" }}
+                  disabled={mfaBusy}
+                  onClick={() => void handleStartEnrollTotp()}
+                >
+                  {mfaBusy
+                    ? isEs
+                      ? "Generando QR..."
+                      : "Generating QR..."
+                    : isEs
+                      ? "📲 Generar Código QR 2FA Ahora"
+                      : "📲 Generate 2FA QR Code Now"}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* TOTP Enrollment / Management Card */}
           {!isMfaActive && !enrollingFactorId ? (

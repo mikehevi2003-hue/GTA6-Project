@@ -185,6 +185,37 @@ export default function AuthGate() {
     }
   };
 
+  const handleGoogleOAuth = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setBusy(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback`
+        }
+      });
+      if (error) {
+        setErrorMsg(
+          error.message ||
+            (isEs
+              ? "No se pudo iniciar sesión con Google."
+              : "Could not start Google sign-in.")
+        );
+        setBusy(false);
+      }
+    } catch {
+      setErrorMsg(
+        isEs
+          ? "No se pudo conectar con Google OAuth. Intenta de nuevo."
+          : "Could not connect to Google OAuth. Please try again."
+      );
+      setBusy(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -227,27 +258,36 @@ export default function AuthGate() {
           return;
         }
 
-        // Check Step-Up 6-Digit TOTP 2FA Assurance Level (aal1 -> aal2)
+        // Priority 0 2FA Lockout Fix: Inspect BOTH verified TOTP factors AND meData.profile.mfaEnabled
         try {
-          const [{ data: aalData }, { data: factorsData }] = await Promise.all([
-            supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-            supabase.auth.mfa.listFactors()
+          const [{ data: factorsData }, meRes] = await Promise.all([
+            supabase.auth.mfa.listFactors(),
+            fetch("/api/me", { cache: "no-store" })
           ]);
+          const meData = meRes.ok
+            ? ((await meRes.json().catch(() => null)) as {
+                profile?: { mfaEnabled?: boolean; isAdmin?: boolean };
+              } | null)
+            : null;
+          const verifiedTotp = (factorsData?.totp ?? []).filter((f) => f.status === "verified");
 
-          const verifiedTotp = factorsData?.totp?.find((f) => f.status === "verified");
-          const needsStepUp =
-            (aalData?.nextLevel === "aal2" && aalData?.currentLevel !== "aal2") ||
-            (Boolean(verifiedTotp) && aalData?.currentLevel !== "aal2");
+          if (verifiedTotp.length === 0 || meData?.profile?.mfaEnabled !== true) {
+            // Case A: User has NOT completed authenticator QR setup in ViceLink — DO NOT show 6-digit TOTP challenge!
+            router.replace(meData?.profile?.isAdmin ? "/?setup2fa=1" : "/");
+            router.refresh();
+            return;
+          }
 
-          if (needsStepUp && verifiedTotp) {
-            setMfaFactorId(verifiedTotp.id);
+          if (verifiedTotp.length > 0 && meData?.profile?.mfaEnabled === true) {
+            // Case B: Verified TOTP factor + ViceLink mfaEnabled === true -> Show 6-digit TOTP step-up challenge
+            setMfaFactorId(verifiedTotp[0].id);
             setMfaRequired(true);
             setTotpCode("");
             setBusy(false);
             return;
           }
         } catch {
-          // Proceed if MFA check is unavailable
+          // Proceed smoothly if MFA inspection is unavailable
         }
 
         router.replace("/");
@@ -803,6 +843,71 @@ export default function AuthGate() {
                 onSubmit={handleSubmit}
                 style={{ display: "flex", flexDirection: "column", gap: 13 }}
               >
+                {(mode === "login" || mode === "signup") && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={busy}
+                      onClick={() => void handleGoogleOAuth()}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 10,
+                        width: "100%",
+                        padding: "11px 14px",
+                        borderRadius: 10,
+                        background: "rgba(15, 23, 42, 0.92)",
+                        border: "1px solid rgba(0, 229, 255, 0.38)",
+                        color: "#ffffff",
+                        fontSize: 13.5,
+                        fontWeight: 800,
+                        cursor: busy ? "not-allowed" : "pointer"
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          fill="#EA4335"
+                          d="M12 10.2v3.9h5.5c-.24 1.26-.96 2.33-2.04 3.05l3.3 2.56c1.92-1.77 3.03-4.38 3.03-7.48 0-.72-.06-1.41-.19-2.03H12z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 22c2.7 0 4.97-.9 6.63-2.43l-3.3-2.56c-.91.61-2.08.98-3.33.98-2.56 0-4.73-1.73-5.5-4.05H3.09v2.64A9.997 9.997 0 0 0 12 22z"
+                        />
+                        <path
+                          fill="#4A90E2"
+                          d="M6.5 13.94A5.996 5.996 0 0 1 6.18 12c0-.67.12-1.33.32-1.94V7.42H3.09A9.997 9.997 0 0 0 2 12c0 1.61.39 3.13 1.09 4.58l3.41-2.64z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M12 6.01c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 3.01 14.7 2 12 2A9.997 9.997 0 0 0 3.09 7.42l3.41 2.64c.77-2.32 2.94-4.05 5.5-4.05z"
+                        />
+                      </svg>
+                      <span>
+                        {isEs ? "Continuar con Google" : "Continue with Google"}
+                      </span>
+                    </button>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "var(--text-muted)",
+                        letterSpacing: 0.8,
+                        textTransform: "uppercase"
+                      }}
+                    >
+                      <span style={{ flex: 1, height: 1, background: "rgba(255, 255, 255, 0.1)" }} />
+                      <span>{isEs ? "o con correo electrónico" : "or with email"}</span>
+                      <span style={{ flex: 1, height: 1, background: "rgba(255, 255, 255, 0.1)" }} />
+                    </div>
+                  </>
+                )}
+
                 <label
                   style={{
                     display: "flex",

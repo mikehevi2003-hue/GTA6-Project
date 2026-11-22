@@ -155,11 +155,22 @@ export default function ViceLinkHub() {
     void loadAll();
   }, [loadAll]);
 
-  // Handle ?checkout=success / ?checkout=canceled query parameters
+  // Handle ?checkout=success / ?checkout=canceled / ?setup2fa=1 query parameters
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
-    if (!checkout) return;
+    const setup2fa = params.get("setup2fa");
+    if (!checkout && !setup2fa) return;
+
+    if (setup2fa === "1") {
+      setActiveView("account");
+      showToast(
+        "info",
+        lang === "es"
+          ? "🛡️ Acceso de Co-Fundador activo. Escanea tu código QR 2FA en Bóveda de Seguridad para elevar a AAL2."
+          : "🛡️ Co-Founder Admin session active. Scan your 2FA Authenticator QR code below to enable AAL2."
+      );
+    }
 
     if (checkout === "success") {
       showToast(
@@ -191,6 +202,7 @@ export default function ViceLinkHub() {
       xboxGamertag?: string;
       socialClubHandle?: string;
       mfaEnabled?: boolean;
+      marketingOptIn?: boolean;
       progress?: Partial<UserProgress>;
     }) => {
       const res = await fetch("/api/me", {
@@ -349,6 +361,7 @@ export default function ViceLinkHub() {
     xboxGamertag?: string;
     socialClubHandle?: string;
     mfaEnabled?: boolean;
+    marketingOptIn?: boolean;
   }) => {
     await patchMe(patch);
     if (patch.preferredLang) {
@@ -1023,6 +1036,7 @@ export default function ViceLinkHub() {
             {activeView === "map" && (
               <MapView
                 lang={lang}
+                tier={me.profile.tier}
                 pins={content.pins}
                 foundPins={progress.foundPins}
                 onTogglePinFound={handleTogglePinFound}

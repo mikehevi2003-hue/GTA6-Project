@@ -85,18 +85,26 @@ export default function ResetPasswordGate() {
         setSessionEmail(session.user.email || "");
 
         try {
-          const [{ data: aalData }, { data: factorsData }] = await Promise.all([
+          const [{ data: aalData }, { data: factorsData }, meRes] = await Promise.all([
             supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-            supabase.auth.mfa.listFactors()
+            supabase.auth.mfa.listFactors(),
+            fetch("/api/me", { cache: "no-store" }).catch(() => null)
           ]);
           if (!mounted) return;
-          const verifiedTotp = factorsData?.totp?.find((f) => f.status === "verified");
+          const meData =
+            meRes && meRes.ok
+              ? ((await meRes.json().catch(() => null)) as {
+                  profile?: { mfaEnabled?: boolean };
+                } | null)
+              : null;
+          const verifiedTotp = (factorsData?.totp ?? []).filter((f) => f.status === "verified");
+          const isProfileMfaActive = meData?.profile ? meData.profile.mfaEnabled === true : true;
           if (
-            verifiedTotp &&
-            ((aalData?.nextLevel === "aal2" && aalData?.currentLevel !== "aal2") ||
-              aalData?.currentLevel !== "aal2")
+            verifiedTotp.length > 0 &&
+            aalData?.currentLevel !== "aal2" &&
+            isProfileMfaActive
           ) {
-            setMfaFactorId(verifiedTotp.id);
+            setMfaFactorId(verifiedTotp[0].id);
             setMfaRequired(true);
           } else {
             setMfaRequired(false);

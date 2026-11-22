@@ -16,6 +16,16 @@ export type UserProfile = {
   isAdmin: boolean;
   preferredLang: Language;
   createdAt: string;
+  avatarPreset: string;
+  psnId: string;
+  psnVerified: boolean;
+  xboxGamertag: string;
+  xboxVerified: boolean;
+  socialClubHandle: string;
+  verificationCode: string;
+  mfaEnabled: boolean;
+  isBanned: boolean;
+  aal?: "aal1" | "aal2";
 };
 
 export type UserProgress = {
@@ -112,6 +122,9 @@ export type TheoryComment = {
   id: string;
   author: string;
   authorTier?: UserTier;
+  authorPsnVerified?: boolean;
+  authorXboxVerified?: boolean;
+  authorAvatarPreset?: string;
   text: string;
   gifId: string;
   likes: number;
@@ -125,6 +138,9 @@ export type TheoryPost = {
   tag: string;
   author: string;
   authorTier?: UserTier;
+  authorPsnVerified?: boolean;
+  authorXboxVerified?: boolean;
+  authorAvatarPreset?: string;
   coords: string;
   body: LocalizedText;
   votes: number;
@@ -273,6 +289,9 @@ export type CommunitySubmission = {
   id: string;
   authorHandle: string;
   authorTier?: UserTier;
+  authorPsnVerified?: boolean;
+  authorXboxVerified?: boolean;
+  authorAvatarPreset?: string;
   submissionType: SubmissionType;
   regionOrCategory: string;
   title: string;
@@ -285,6 +304,43 @@ export type CommunitySubmission = {
   createdAt: string;
 };
 
+export type GlobalBannerConfig = {
+  active: boolean;
+  textEn: string;
+  textEs: string;
+};
+
+export type SiteSettingsPayload = {
+  globalBanner: GlobalBannerConfig;
+  freeAiDailyLimit: number;
+  maintenanceMode: boolean;
+  glitchesTabEnabled: boolean;
+};
+
+export type AdminKpiTelemetry = {
+  grossRevenueUsd: number;
+  yappyRevenueUsd: number;
+  cardRevenueUsd: number;
+  totalUsers: number;
+  freeUsers: number;
+  streetUsers: number;
+  kingpinUsers: number;
+  conversionRatePct: number;
+  linkedConsoleUsers: number;
+  aiCallsToday: number;
+  mfaEnabledUsers: number;
+};
+
+export type AdminAuditLogItem = {
+  id: string;
+  adminId: string;
+  adminEmail: string;
+  actionType: string;
+  targetId: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+};
+
 export type AdminUserRecord = {
   userId: string;
   email: string;
@@ -293,6 +349,13 @@ export type AdminUserRecord = {
   tier: UserTier;
   isAdmin: boolean;
   createdAt: string;
+  avatarPreset?: string;
+  psnId?: string;
+  psnVerified?: boolean;
+  xboxGamertag?: string;
+  xboxVerified?: boolean;
+  mfaEnabled?: boolean;
+  isBanned?: boolean;
 };
 
 export type ContentPayload = {
@@ -315,4 +378,5 @@ export type ContentPayload = {
   trophiesLocked: boolean;
   totalTrophiesCount: number;
   criminalProfileTiers: CriminalProfileTier[];
+  siteSettings: SiteSettingsPayload;
 };
